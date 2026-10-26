@@ -18,6 +18,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { showError, showToast } from '../../utils/sweetalert';
+import logoImg from '../../images/khan jacket logo.png';
 
 export const LoginView = () => {
   const { login } = useApp();
@@ -80,18 +81,12 @@ export const LoginView = () => {
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Brand Header */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-blue-500/25 border border-white/15">
-            KC
-          </div>
-          <div>
-            <h1 className="text-xl font-extrabold tracking-wider text-white">
-              KHAN CLOTHES
-            </h1>
-            <p className="text-[11px] font-semibold text-emerald-400 tracking-widest uppercase">
-              Central Warehouse & Imports ERP
-            </p>
-          </div>
+        <div className="relative z-10 flex items-center">
+          <img
+            src={logoImg}
+            alt="Khan Jacket House Logo"
+            className="h-16 sm:h-20 w-auto object-contain drop-shadow-md"
+          />
         </div>
 
         {/* Center Pitch & Highlight Cards */}
@@ -176,16 +171,12 @@ export const LoginView = () => {
       <div className="flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-16 bg-slate-900/90 lg:bg-slate-950">
         
         {/* Mobile Header */}
-        <div className="lg:hidden flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
-            KC
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-white">KHAN CLOTHES</h1>
-            <p className="text-[10px] font-semibold text-emerald-400 tracking-wider uppercase">
-              Central Warehouse ERP
-            </p>
-          </div>
+        <div className="lg:hidden flex items-center mb-6">
+          <img
+            src={logoImg}
+            alt="Khan Jacket House Logo"
+            className="h-12 w-auto object-contain"
+          />
         </div>
 
         {/* Main Card */}

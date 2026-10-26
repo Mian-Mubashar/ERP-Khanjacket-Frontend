@@ -17,6 +17,7 @@ import {
   Tags,
   Layers
 } from 'lucide-react';
+import iconLogoImg from '../../images/khan jacket icon logo.png';
 
 export const Sidebar = ({ activeTab, setActiveTab }) => {
   const { 
@@ -63,7 +64,15 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
 
   if (sidebarCollapsed) {
     return (
-      <aside className="w-18 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 min-h-[calc(100vh-4rem)] items-center py-5 space-y-3 transition-all">
+      <aside className="w-18 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 min-h-[calc(100vh-4rem)] items-center py-4 space-y-2.5 transition-all">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className="w-11 h-11 flex items-center justify-center mb-1 cursor-pointer hover:opacity-80 transition-opacity"
+          title="Khan Jacket House"
+        >
+          <img src={iconLogoImg} alt="Khan Jacket House" className="w-auto h-9 object-contain" />
+        </button>
+
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
@@ -677,6 +686,11 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
               {totalStock.toLocaleString()}
             </span>
             <span className="text-[11px] text-slate-400">Pcs in Stock</span>
+          </div>
+
+          <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
+            <span className="font-semibold text-slate-700 dark:text-slate-300">Khan Jacket House</span>
+            <span className="font-mono text-slate-400">Warehouse ERP</span>
           </div>
         </div>
       </div>

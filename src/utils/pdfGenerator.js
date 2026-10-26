@@ -25,7 +25,7 @@ const drawHeader = (doc, title, subtitle, documentNo = '') => {
   // Brand Name
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('KHAN CLOTHES', 37, 13);
+  doc.text('KHAN JACKET HOUSE', 37, 13);
 
   // Brand Tagline
   doc.setFontSize(7.5);
@@ -94,7 +94,7 @@ const drawFooter = (doc, startY) => {
   doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184);
   doc.text(
-    'This is an official computer-generated document from Khan Clothes Warehouse Management System. Valid without physical stamp.',
+    'This is an official computer-generated document from Khan Jacket House Warehouse Management System. Valid without physical stamp.',
     pageWidth / 2,
     pageHeight - 8,
     { align: 'center' }
