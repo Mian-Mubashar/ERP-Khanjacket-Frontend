@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { downloadOutwardLogPDF } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
+import { formatLakhCrore } from '../../utils/formatters';
 
 export const OutwardList = () => {
   const { outward, setIsNewOutwardOpen, setSelectedArticleDetail, articles } = useApp();
@@ -32,8 +33,8 @@ export const OutwardList = () => {
     return matchesSearch && matchesDate;
   });
 
-  const totalPiecesOut = filteredOutward.reduce((s, o) => s + (o.quantity || 0), 0);
-  const totalAmountValue = filteredOutward.reduce((s, o) => s + (o.totalSaleAmount || 0), 0);
+  const totalPiecesOut = filteredOutward.reduce((s, o) => s + (Number(o.quantity) || 0), 0);
+  const totalAmountValue = filteredOutward.reduce((s, o) => s + (Number(o.totalSaleAmount) || 0), 0);
 
   // CSV Export
   const exportOutwardCSV = () => {
@@ -98,41 +99,46 @@ export const OutwardList = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Total Dispatched Pieces</span>
-            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
               <Truck className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Stock reduced from warehouse</div>
-          <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400">
-            {totalPiecesOut.toLocaleString()} pcs
+          <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400 truncate">
+            {Math.round(totalPiecesOut).toLocaleString()} pcs
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Dispatch Challans</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
               <Truck className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Bilty / Gate pass vouchers</div>
-          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
+          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white truncate">
             {filteredOutward.length} Challans
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Wholesale Value (Approx)</span>
-            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">Sale Rate</span>
+            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full shrink-0">Sale Rate</span>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Dispatched merchandise value</div>
-          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
-            Rs. {totalAmountValue.toLocaleString()}
+          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white truncate" title={`Rs. ${Math.round(totalAmountValue).toLocaleString()}`}>
+            Rs. {Math.round(totalAmountValue).toLocaleString()}
           </div>
+          {totalAmountValue > 0 && (
+            <div className="text-[11px] text-blue-600 dark:text-blue-400 font-medium truncate mt-0.5">
+              {formatLakhCrore(totalAmountValue)}
+            </div>
+          )}
         </div>
       </div>
 

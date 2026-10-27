@@ -61,8 +61,8 @@ export const ArticlesList = () => {
     return matchesSearch && matchesCategory && matchesStuff && matchesStock;
   });
 
-  const totalWarehouseStock = filteredArticles.reduce((s, a) => s + (a.currentStock || 0), 0);
-  const totalStockValue = filteredArticles.reduce((s, a) => s + ((a.currentStock || 0) * (a.unitCost || 0)), 0);
+  const totalWarehouseStock = filteredArticles.reduce((s, a) => s + (Number(a.currentStock) || 0), 0);
+  const totalStockValue = filteredArticles.reduce((s, a) => s + ((Number(a.currentStock) || 0) * (Number(a.unitCost) || 0)), 0);
 
   // CSV Export
   const exportToCSV = () => {
@@ -136,34 +136,34 @@ export const ArticlesList = () => {
 
       {/* Quick Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center justify-between">
-          <div>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center justify-between overflow-hidden">
+          <div className="min-w-0">
             <span className="text-xs text-slate-400">Filtered Articles</span>
-            <div className="text-xl font-semibold font-mono text-slate-900 dark:text-white mt-1">
+            <div className="text-xl font-semibold font-mono text-slate-900 dark:text-white mt-1 truncate">
               {filteredArticles.length} Codes
             </div>
           </div>
-          <Shirt className="w-7 h-7 text-purple-500/30" />
+          <Shirt className="w-7 h-7 text-purple-500/30 shrink-0 ml-2" />
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center justify-between">
-          <div>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center justify-between overflow-hidden">
+          <div className="min-w-0">
             <span className="text-xs text-slate-400">Available Stock</span>
-            <div className="text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+            <div className="text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400 mt-1 truncate">
               {totalWarehouseStock.toLocaleString()} pcs
             </div>
           </div>
-          <div className="text-right text-xs text-slate-400">In Warehouse</div>
+          <div className="text-right text-xs text-slate-400 shrink-0 ml-2">In Warehouse</div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center justify-between">
-          <div>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center justify-between overflow-hidden">
+          <div className="min-w-0">
             <span className="text-xs text-slate-400">Total Stock Value</span>
-            <div className="text-xl font-semibold font-mono text-slate-900 dark:text-white mt-1">
-              Rs. {totalStockValue.toLocaleString()}
+            <div className="text-xl font-semibold font-mono text-slate-900 dark:text-white mt-1 truncate">
+              Rs. {Math.round(totalStockValue).toLocaleString()}
             </div>
           </div>
-          <div className="text-right text-xs text-slate-400">Cost Valuation</div>
+          <div className="text-right text-xs text-slate-400 shrink-0 ml-2">Cost Valuation</div>
         </div>
       </div>
 

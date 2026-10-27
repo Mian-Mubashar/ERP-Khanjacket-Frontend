@@ -58,10 +58,10 @@ export const CustomersView = () => {
   });
 
   // Calculations
-  const totalPiecesDispatched = customers.reduce((sum, c) => sum + (c.totalPiecesReceived || 0), 0);
-  const totalBilledAmount = customers.reduce((sum, c) => sum + (c.totalBill || 0), 0);
-  const totalPaymentsReceived = customers.reduce((sum, c) => sum + (c.totalPaid || 0), 0);
-  const totalKhataOutstanding = customers.reduce((sum, c) => sum + (c.remainingBalance || 0), 0);
+  const totalPiecesDispatched = customers.reduce((sum, c) => sum + (Number(c.totalPiecesReceived) || 0), 0);
+  const totalBilledAmount = customers.reduce((sum, c) => sum + (Number(c.totalBill) || 0), 0);
+  const totalPaymentsReceived = customers.reduce((sum, c) => sum + (Number(c.totalPaid) || 0), 0);
+  const totalKhataOutstanding = customers.reduce((sum, c) => sum + (Number(c.remainingBalance) || 0), 0);
 
   const handleOpenPayment = (cust) => {
     setSelectedCustomerForPayment(cust);
@@ -117,64 +117,70 @@ export const CustomersView = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         
         {/* Total Mal Dispatched (Pcs) */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Total Mal Sent</span>
             <Truck className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-semibold font-mono text-slate-900 dark:text-white">
+          <div className="mt-2 flex items-baseline justify-between gap-1">
+            <span className="text-xl sm:text-2xl font-semibold font-mono text-slate-900 dark:text-white truncate">
               {totalPiecesDispatched.toLocaleString()}
             </span>
-            <span className="text-xs text-slate-400">Pcs</span>
+            <span className="text-xs text-slate-400 shrink-0">Pcs</span>
           </div>
         </div>
 
         {/* Total Bill Amount (PKR) */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Total Billed</span>
             <ArrowUpRight className="w-4 h-4 text-purple-500" />
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-semibold font-mono text-slate-900 dark:text-white">
-              Rs. {(totalBilledAmount / 1000000).toFixed(2)}M
+          <div className="mt-2 flex items-baseline justify-between gap-1">
+            <span className="text-xl sm:text-2xl font-semibold font-mono text-slate-900 dark:text-white truncate">
+              Rs. {Math.round(totalBilledAmount).toLocaleString()}
             </span>
-            <span className="text-[11px] text-slate-400 font-mono">
-              Rs. {totalBilledAmount.toLocaleString()}
-            </span>
+            {totalBilledAmount >= 1000000 && (
+              <span className="text-[11px] text-slate-400 font-mono shrink-0">
+                {(totalBilledAmount / 1000000).toFixed(2)}M
+              </span>
+            )}
           </div>
         </div>
 
         {/* Payments Received (PKR) */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Payment Received</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">
-              Rs. {(totalPaymentsReceived / 1000000).toFixed(2)}M
+          <div className="mt-2 flex items-baseline justify-between gap-1">
+            <span className="text-xl sm:text-2xl font-semibold font-mono text-emerald-600 dark:text-emerald-400 truncate">
+              Rs. {Math.round(totalPaymentsReceived).toLocaleString()}
             </span>
-            <span className="text-[11px] text-slate-400 font-mono">
-              Rs. {totalPaymentsReceived.toLocaleString()}
-            </span>
+            {totalPaymentsReceived >= 1000000 && (
+              <span className="text-[11px] text-slate-400 font-mono shrink-0">
+                {(totalPaymentsReceived / 1000000).toFixed(2)}M
+              </span>
+            )}
           </div>
         </div>
 
         {/* Remaining Khata Due (PKR) */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/20 dark:bg-rose-950/10 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/20 dark:bg-rose-950/10 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
             <span className="text-xs font-medium">Outstanding Khata</span>
             <AlertCircle className="w-4 h-4" />
           </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-semibold font-mono text-rose-600 dark:text-rose-400">
-              Rs. {(totalKhataOutstanding / 1000000).toFixed(2)}M
+          <div className="mt-2 flex items-baseline justify-between gap-1">
+            <span className="text-xl sm:text-2xl font-semibold font-mono text-rose-600 dark:text-rose-400 truncate">
+              Rs. {Math.round(totalKhataOutstanding).toLocaleString()}
             </span>
-            <span className="text-[11px] font-mono text-rose-600 dark:text-rose-400">
-              Rs. {totalKhataOutstanding.toLocaleString()}
-            </span>
+            {totalKhataOutstanding >= 1000000 && (
+              <span className="text-[11px] font-mono text-rose-600 dark:text-rose-400 shrink-0">
+                {(totalKhataOutstanding / 1000000).toFixed(2)}M
+              </span>
+            )}
           </div>
         </div>
 

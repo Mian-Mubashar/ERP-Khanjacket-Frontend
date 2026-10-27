@@ -36,9 +36,9 @@ export const SuppliersList = () => {
     s.address.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalPurchases = suppliers.reduce((sum, s) => sum + (s.totalPurchases || 0), 0);
-  const totalPaid = suppliers.reduce((sum, s) => sum + (s.totalPayments || 0), 0);
-  const totalRemaining = suppliers.reduce((sum, s) => sum + (s.remainingBalance || 0), 0);
+  const totalPurchases = suppliers.reduce((sum, s) => sum + (Number(s.totalPurchases) || 0), 0);
+  const totalPaid = suppliers.reduce((sum, s) => sum + (Number(s.totalPayments) || 0), 0);
+  const totalRemaining = suppliers.reduce((sum, s) => sum + (Number(s.remainingBalance) || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -78,42 +78,42 @@ export const SuppliersList = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Total Purchases from China</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
               <Ship className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">All consignments value</div>
-          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
-            Rs. {totalPurchases.toLocaleString()}
+          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white tracking-tight truncate">
+            Rs. {Math.round(totalPurchases).toLocaleString()}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Total Payments Paid</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Transferred via TT / LC</div>
-          <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-            Rs. {totalPaid.toLocaleString()}
+          <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight truncate">
+            Rs. {Math.round(totalPaid).toLocaleString()}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Total Outstanding Payables</span>
-            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
               <Wallet className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Accounts payable to China</div>
-          <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400">
-            Rs. {totalRemaining.toLocaleString()}
+          <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight truncate">
+            Rs. {Math.round(totalRemaining).toLocaleString()}
           </div>
         </div>
       </div>

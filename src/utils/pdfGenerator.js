@@ -462,7 +462,7 @@ export const downloadSupplierStatementPDF = (supplier, purchasesList = [], payme
     p.invoiceNo,
     p.purchaseDate,
     p.containerNo || 'N/A',
-    `${(p.items || []).reduce((s, it) => s + (it.quantity || 0), 0).toLocaleString()} pcs`,
+    `${(p.items || []).reduce((s, it) => s + (Number(it.quantity) || 0), 0).toLocaleString()} pcs`,
     formatPKR(p.totalBill),
     formatPKR(p.paidAmount),
     formatPKR(p.remainingAmount)
@@ -638,9 +638,9 @@ export const downloadWarehouseReportPDF = (articles = [], totalVal = 0) => {
     'Full Inventory Audit'
   );
 
-  const totalStockPcs = articles.reduce((s, a) => s + (a.currentStock || 0), 0);
-  const totalPurchasedPcs = articles.reduce((s, a) => s + (a.totalPurchased || 0), 0);
-  const totalOutPcs = articles.reduce((s, a) => s + (a.totalOut || 0), 0);
+  const totalStockPcs = articles.reduce((s, a) => s + (Number(a.currentStock) || 0), 0);
+  const totalPurchasedPcs = articles.reduce((s, a) => s + (Number(a.totalPurchased) || 0), 0);
+  const totalOutPcs = articles.reduce((s, a) => s + (Number(a.totalOut) || 0), 0);
 
   // Summary row
   doc.setFillColor(248, 250, 252);
@@ -718,8 +718,8 @@ export const downloadOutwardLogPDF = (outwardList = []) => {
     'Dispatches Log'
   );
 
-  const totalPieces = outwardList.reduce((s, o) => s + (o.quantity || 0), 0);
-  const totalVal = outwardList.reduce((s, o) => s + (o.totalSaleAmount || 0), 0);
+  const totalPieces = outwardList.reduce((s, o) => s + (Number(o.quantity) || 0), 0);
+  const totalVal = outwardList.reduce((s, o) => s + (Number(o.totalSaleAmount) || 0), 0);
 
   // Summary row
   doc.setFillColor(248, 250, 252);
@@ -895,8 +895,8 @@ export const downloadBusinessReportsPDF = ({
   const categoriesList = ['Jacket', 'Jersey', 'T-Shirt', 'Trouser', 'Hoodie', 'Tracksuit', 'Windbreaker'];
   const catRows = categoriesList.map(cat => {
     const catArts = (articles || []).filter(a => a.category === cat);
-    const catPcs = catArts.reduce((s, a) => s + (a.currentStock || 0), 0);
-    const catVal = catArts.reduce((s, a) => s + ((a.currentStock || 0) * (a.unitCost || 0)), 0);
+    const catPcs = catArts.reduce((s, a) => s + (Number(a.currentStock) || 0), 0);
+    const catVal = catArts.reduce((s, a) => s + ((Number(a.currentStock) || 0) * (Number(a.unitCost) || 0)), 0);
     return [cat, `${catArts.length} Models`, `${catPcs.toLocaleString()} pcs`, formatPKR(catVal)];
   });
 

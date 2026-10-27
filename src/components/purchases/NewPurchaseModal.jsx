@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { X, Plus, Trash2, AlertCircle, CheckCircle2, ShoppingBag, Shirt } from 'lucide-react';
-import { showToast, showError } from '../../utils/sweetalert';
+import Swal, { showToast, showError } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
 
 export const NewPurchaseModal = () => {
@@ -10,11 +10,16 @@ export const NewPurchaseModal = () => {
     setIsNewPurchaseOpen, 
     suppliers, 
     articles, 
-    categories,
+    categories = [],
+    addCategory,
     addPurchase,
     setIsAddSupplierOpen,
-    setIsAddArticleOpen 
+    setIsAddArticleOpen,
+    setIsAddCategoryOpen 
   } = useApp();
+
+  const defaultCategories = ['Jacket', 'Hoodie', 'Zipper', 'Tracksuit', 'Trousers', 'Shirt', 'Windbreaker'];
+  const availableCategories = categories && categories.length > 0 ? categories : defaultCategories;
 
   const [supplierId, setSupplierId] = useState('');
   const [invoiceNo, setInvoiceNo] = useState(`CN-${Date.now().toString().slice(-4)}`);
@@ -28,22 +33,63 @@ export const NewPurchaseModal = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Dynamically track targeted row for newly created category
+  const [categoryTargetRow, setCategoryTargetRow] = useState(null);
+  const prevCategoriesRef = React.useRef(categories);
+
   // Dynamically initialize items row
   const [items, setItems] = useState([
     {
       articleNo: '',
       articleName: '',
-      category: 'Jacket',
+      category: availableCategories[0] || 'Jacket',
       quantity: 100,
       unitCost: 1000
     }
   ]);
 
-  // Synchronize supplierId when suppliers load
+  // Auto-select newly added category on the active/targeted row
+  React.useEffect(() => {
+    const prevCats = prevCategoriesRef.current;
+    if (categories.length > prevCats.length) {
+      const newlyAdded = categories.find(c => !prevCats.includes(c)) || categories[categories.length - 1];
+      if (newlyAdded) {
+        if (categoryTargetRow !== null && items[categoryTargetRow]) {
+          const updated = [...items];
+          updated[categoryTargetRow] = {
+            ...updated[categoryTargetRow],
+            category: newlyAdded
+          };
+          setItems(updated);
+        } else if (items.length > 0) {
+          const targetIdx = items.length - 1;
+          const updated = [...items];
+          updated[targetIdx] = {
+            ...updated[targetIdx],
+            category: newlyAdded
+          };
+          setItems(updated);
+        }
+      }
+      setCategoryTargetRow(null);
+    }
+    prevCategoriesRef.current = categories;
+  }, [categories, categoryTargetRow, items]);
+
+  // Synchronize supplierId when suppliers load, and auto-select newly registered supplier
+  const prevSuppliersRef = React.useRef(suppliers);
   React.useEffect(() => {
     if (suppliers.length > 0 && !supplierId) {
       setSupplierId(suppliers[0].id);
     }
+    const prevSups = prevSuppliersRef.current;
+    if (suppliers.length > prevSups.length) {
+      const newlyAddedSup = suppliers.find(s => !prevSups.some(ps => ps.id === s.id)) || suppliers[suppliers.length - 1];
+      if (newlyAddedSup) {
+        setSupplierId(newlyAddedSup.id);
+      }
+    }
+    prevSuppliersRef.current = suppliers;
   }, [suppliers, supplierId]);
 
   // Synchronize item row when articles load and item is unassigned
@@ -52,7 +98,7 @@ export const NewPurchaseModal = () => {
       setItems([{
         articleNo: articles[0].articleNo,
         articleName: articles[0].name,
-        category: articles[0].category,
+        category: articles[0].category || availableCategories[0] || 'Jacket',
         quantity: 100,
         unitCost: articles[0].unitCost || 1000
       }]);
@@ -60,6 +106,46 @@ export const NewPurchaseModal = () => {
   }, [articles]);
 
   if (!isNewPurchaseOpen) return null;
+
+  // Quick category creation prompt with MySQL persistence
+  const handleQuickAddCategory = async (rowIndex) => {
+    const isDark = document.documentElement.classList.contains('dark');
+    const { value: newCat } = await Swal.fire({
+      title: 'Add New Category',
+      text: 'Enter garment category name (e.g. Jacket, Hoodie, Tracksuit, Trousers):',
+      input: 'text',
+      inputPlaceholder: 'e.g. Puffer Jacket, Shalwar Kameez...',
+      showCancelButton: true,
+      confirmButtonText: 'Add Category',
+      confirmButtonColor: '#2563eb',
+      cancelButtonText: 'Cancel',
+      cancelButtonColor: '#64748b',
+      background: isDark ? '#0f172a' : '#ffffff',
+      color: isDark ? '#f8fafc' : '#0f172a',
+      inputValidator: (value) => {
+        const trimmed = value?.trim();
+        if (!trimmed) {
+          return 'Category name is required!';
+        }
+        if (categories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+          return `Category "${trimmed}" already exists in the catalog!`;
+        }
+      }
+    });
+
+    if (newCat && newCat.trim()) {
+      const trimmed = newCat.trim();
+      const res = await addCategory(trimmed);
+      if (res?.success) {
+        showToast(`Category "${trimmed}" added successfully!`, 'success');
+        if (rowIndex !== null && rowIndex !== undefined && items[rowIndex]) {
+          handleItemFieldChange(rowIndex, 'category', trimmed);
+        }
+      } else {
+        showError('Cannot Add Category', res?.message || 'Error adding category');
+      }
+    }
+  };
 
   const handleItemArticleChange = (index, selectedArticleNo) => {
     const matched = articles.find(a => a.articleNo === selectedArticleNo);
@@ -91,7 +177,7 @@ export const NewPurchaseModal = () => {
       {
         articleNo: available?.articleNo || '',
         articleName: available?.name || '',
-        category: available?.category || 'Jacket',
+        category: available?.category || availableCategories[0] || 'Jacket',
         quantity: 100,
         unitCost: available?.unitCost || 1000
       }
@@ -331,13 +417,29 @@ export const NewPurchaseModal = () => {
             </div>
 
             {/* Table of items */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
                     <th className="py-2.5 px-3">Article Code</th>
                     <th className="py-2.5 px-3">Description</th>
-                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3 min-w-[150px]">
+                      <div className="flex items-center justify-between gap-1">
+                        <span>Category</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCategoryTargetRow(0);
+                            setIsAddCategoryOpen(true);
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold hover:underline inline-flex items-center gap-0.5 cursor-pointer capitalize font-sans"
+                          title="Manage / Add Categories"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Add</span>
+                        </button>
+                      </div>
+                    </th>
                     <th className="py-2.5 px-3 w-28 text-right">Qty (Pcs)</th>
                     <th className="py-2.5 px-3 w-32 text-right">Unit Cost (Rs)</th>
                     <th className="py-2.5 px-3 w-32 text-right">Total (PKR)</th>
@@ -381,15 +483,43 @@ export const NewPurchaseModal = () => {
 
                         {/* Category */}
                         <td className="py-2 px-3">
-                          <select
-                            value={item.category}
-                            onChange={e => handleItemFieldChange(idx, 'category', e.target.value)}
-                            className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300 outline-hidden font-medium"
-                          >
-                            {categories.map(c => (
-                              <option key={c} value={c}>{c}</option>
-                            ))}
-                          </select>
+                          <div className="flex items-center gap-1 min-w-[140px]">
+                            <select
+                              value={item.category}
+                              onChange={e => {
+                                if (e.target.value === '__QUICK_ADD__') {
+                                  handleQuickAddCategory(idx);
+                                } else if (e.target.value === '__MANAGE__') {
+                                  setCategoryTargetRow(idx);
+                                  setIsAddCategoryOpen(true);
+                                } else {
+                                  handleItemFieldChange(idx, 'category', e.target.value);
+                                }
+                              }}
+                              className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300 outline-hidden font-medium"
+                            >
+                              {item.category && !availableCategories.includes(item.category) && (
+                                <option value={item.category}>{item.category}</option>
+                              )}
+                              {availableCategories.map(c => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                              <option value="__QUICK_ADD__" className="text-blue-600 font-bold">
+                                + Add New Category...
+                              </option>
+                              <option value="__MANAGE__" className="text-slate-500">
+                                ⚙ Manage Categories...
+                              </option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickAddCategory(idx)}
+                              className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors cursor-pointer shrink-0 border border-slate-200 dark:border-slate-700 hover:border-blue-300"
+                              title="Quick Add Category"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
 
                         {/* Quantity */}

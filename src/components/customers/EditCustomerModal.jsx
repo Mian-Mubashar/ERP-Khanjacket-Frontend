@@ -122,10 +122,10 @@ export const EditCustomerModal = () => {
 
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Header */}
-        <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        {/* Header - Fixed */}
+        <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 z-10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0">
               <Pencil className="w-4.5 h-4.5" />
@@ -146,13 +146,14 @@ export const EditCustomerModal = () => {
             type="button"
             onClick={handleClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            title="Close Modal"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Live Khata Summary Banner (Read-only financial status) */}
-        <div className="bg-slate-50/70 dark:bg-slate-800/40 px-6 py-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+        <div className="bg-slate-50/70 dark:bg-slate-800/40 px-6 py-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-slate-500 dark:text-slate-400">Current Khata:</span>
             <span className={`font-mono font-semibold ${isPending ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
@@ -169,8 +170,8 @@ export const EditCustomerModal = () => {
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-3.5">
+        {/* Form - Scrollable */}
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-3.5 overflow-y-auto flex-1">
           
           {error && (
             <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
@@ -284,7 +285,7 @@ export const EditCustomerModal = () => {
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 px-5 sm:px-6 py-3 mt-2 shadow-xs">
             <button
               type="button"
               onClick={handleClose}

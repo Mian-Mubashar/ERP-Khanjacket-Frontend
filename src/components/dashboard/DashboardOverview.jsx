@@ -147,15 +147,15 @@ export const DashboardOverview = ({ setActiveTab }) => {
     return lower.includes(branchKey);
   };
 
-  // Lifetime global summaries
-  const totalStock = articles.reduce((sum, a) => sum + (a.currentStock || 0), 0);
-  const totalPurchasedQty = articles.reduce((sum, a) => sum + (a.totalPurchased || 0), 0);
-  const totalOutwardQty = articles.reduce((sum, a) => sum + (a.totalOut || 0), 0);
-  const totalPurchaseBill = purchases.reduce((sum, p) => sum + (p.totalBill || 0), 0);
-  const totalStockValue = articles.reduce((sum, a) => sum + ((a.currentStock || 0) * (a.unitCost || 0)), 0);
-  const totalOutstanding = suppliers.reduce((sum, s) => sum + (s.remainingBalance || 0), 0);
-  const totalPaid = suppliers.reduce((sum, s) => sum + (s.totalPayments || 0), 0);
-  const lowStockCount = articles.filter(a => a.currentStock <= (a.minAlertStock || 200)).length;
+  // Lifetime global summaries (guaranteed Number casting to prevent string concatenation)
+  const totalStock = articles.reduce((sum, a) => sum + (Number(a.currentStock) || 0), 0);
+  const totalPurchasedQty = articles.reduce((sum, a) => sum + (Number(a.totalPurchased) || 0), 0);
+  const totalOutwardQty = articles.reduce((sum, a) => sum + (Number(a.totalOut) || 0), 0);
+  const totalPurchaseBill = purchases.reduce((sum, p) => sum + (Number(p.totalBill) || 0), 0);
+  const totalStockValue = articles.reduce((sum, a) => sum + ((Number(a.currentStock) || 0) * (Number(a.unitCost) || 0)), 0);
+  const totalOutstanding = suppliers.reduce((sum, s) => sum + (Number(s.remainingBalance) || 0), 0);
+  const totalPaid = suppliers.reduce((sum, s) => sum + (Number(s.totalPayments) || 0), 0);
+  const lowStockCount = articles.filter(a => (Number(a.currentStock) || 0) <= (Number(a.minAlertStock) || 200)).length;
 
   // Filtered transactions for dynamic Stock Report calculations
   const filteredPurchases = purchases.filter(p => {
@@ -203,7 +203,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
   let periodExtraExpenses = 0;
 
   filteredPurchases.forEach(p => {
-    periodExtraExpenses += (p.extraExpenses || 0);
+    periodExtraExpenses += (Number(p.extraExpenses) || 0);
     p.items?.forEach(item => {
       let match = true;
       if (selectedCategory !== 'All Categories' && item.category !== selectedCategory) match = false;
@@ -216,7 +216,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
   });
 
   if (selectedCategory === 'All Categories' && selectedArticleCode === 'All Articles') {
-    periodPurchaseBill = filteredPurchases.reduce((sum, p) => sum + (p.totalBill || 0), 0);
+    periodPurchaseBill = filteredPurchases.reduce((sum, p) => sum + (Number(p.totalBill) || 0), 0);
   }
 
   const periodAvgPurchaseRate = periodInwardQty > 0 ? Math.round(periodPurchaseBill / periodInwardQty) : 0;
@@ -226,14 +226,14 @@ export const DashboardOverview = ({ setActiveTab }) => {
   const periodWholesaleCities = new Set(filteredOutward.map(o => o.city).filter(Boolean)).size;
   const periodGatePassCount = filteredOutward.filter(o => o.gatePassNo).length;
 
-  const periodSupplierPaid = filteredPurchases.reduce((sum, p) => sum + (p.paidAmount || 0), 0) +
-    filteredPayments.reduce((sum, pay) => sum + (pay.amount || 0), 0);
+  const periodSupplierPaid = filteredPurchases.reduce((sum, p) => sum + (Number(p.paidAmount) || 0), 0) +
+    filteredPayments.reduce((sum, pay) => sum + (Number(pay.amount) || 0), 0);
   const periodPayables = Math.max(0, periodPurchaseBill - periodSupplierPaid);
   const periodSettlementRate = periodPurchaseBill > 0 ? Math.min(100, Math.round((periodSupplierPaid / periodPurchaseBill) * 100)) : (periodPurchaseBill === 0 ? 100 : 0);
   const periodInvoicesCount = filteredPurchases.length;
   const periodVendorsCovered = new Set(filteredPurchases.map(p => p.supplierId || p.supplierName)).size;
 
-  const periodCustomerCashReceived = filteredCustomerPayments.reduce((sum, cp) => sum + (cp.amount || 0), 0);
+  const periodCustomerCashReceived = filteredCustomerPayments.reduce((sum, cp) => sum + (Number(cp.amount) || 0), 0);
   const periodCustomerPending = Math.max(0, periodWholesaleSale - periodCustomerCashReceived);
   const periodClosingNet = periodCustomerCashReceived - periodExtraExpenses;
 
@@ -310,10 +310,10 @@ export const DashboardOverview = ({ setActiveTab }) => {
               <button
                 type="button"
                 onClick={() => setIsAddArticleOpen(true)}
-                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-850 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800/80 text-xs font-semibold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5 text-blue-500" />
-                <span>Naya Article Darj Karein</span>
+                <Plus className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                <span className="text-slate-800 dark:text-white">Naya Article Darj Karein</span>
               </button>
             </div>
 
@@ -336,10 +336,10 @@ export const DashboardOverview = ({ setActiveTab }) => {
               <button
                 type="button"
                 onClick={() => setIsNewPurchaseOpen(true)}
-                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-850 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800/80 text-xs font-semibold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-600 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Ship className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Container Bill Banayein</span>
+                <Ship className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="text-slate-800 dark:text-white">Container Bill Banayein</span>
               </button>
             </div>
 
@@ -362,10 +362,10 @@ export const DashboardOverview = ({ setActiveTab }) => {
               <button
                 type="button"
                 onClick={() => setIsNewOutwardOpen(true)}
-                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-850 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-200 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-800/80 text-xs font-semibold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-300 dark:hover:border-rose-600 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Truck className="w-3.5 h-3.5 text-rose-500" />
-                <span>Maal Rawana Karein</span>
+                <Truck className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                <span className="text-slate-800 dark:text-white">Maal Rawana Karein</span>
               </button>
             </div>
 
@@ -388,10 +388,10 @@ export const DashboardOverview = ({ setActiveTab }) => {
               <button
                 type="button"
                 onClick={() => setIsRecordCustomerPaymentOpen(true)}
-                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-850 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 border border-slate-200 dark:border-slate-700 hover:border-amber-200 dark:hover:border-amber-800/80 text-xs font-semibold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 border border-slate-200 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-600 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Wallet className="w-3.5 h-3.5 text-amber-500" />
-                <span>Wasooli Darj Karein</span>
+                <Wallet className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="text-slate-800 dark:text-white">Wasooli Darj Karein</span>
               </button>
             </div>
           </div>

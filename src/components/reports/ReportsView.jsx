@@ -22,9 +22,10 @@ import {
 import { downloadBusinessReportsPDF } from '../../utils/pdfGenerator';
 import { showToast, showError } from '../../utils/sweetalert';
 import { Pagination } from '../common/Pagination';
+import { formatLakhCrore, formatPKR } from '../../utils/formatters';
 
 export const ReportsView = () => {
-  const { articles, suppliers, purchases, outward, payments, categories = [], warehouseLocations = [] } = useApp();
+  const { articles = [], suppliers = [], purchases = [], outward = [], payments = [], categories = [], warehouseLocations = [] } = useApp();
 
   const [dateRangeType, setDateRangeType] = useState('ALL'); // 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM' | 'ALL'
   const [startDate, setStartDate] = useState('');
@@ -73,18 +74,18 @@ export const ReportsView = () => {
   const filteredOutward = outward.filter(o => isDateInRange(o.date));
   const filteredPayments = payments.filter(pay => isDateInRange(pay.date));
 
-  // Calculations
+  // Clean Numeric Calculations (Guaranteed Number type to prevent string concatenation)
   const periodInwardQty = filteredPurchases.reduce((s, p) => 
-    s + (p.items?.reduce((is, i) => is + (i.quantity || 0), 0) || 0), 0
+    s + (p.items?.reduce((is, i) => is + Number(i.quantity || 0), 0) || 0), 0
   );
-  const periodOutwardQty = filteredOutward.reduce((s, o) => s + (o.quantity || 0), 0);
-  const periodPurchaseAmount = filteredPurchases.reduce((s, p) => s + (p.totalBill || 0), 0);
-  const periodPaidAmount = filteredPayments.reduce((s, p) => s + (p.amount || 0), 0);
+  const periodOutwardQty = filteredOutward.reduce((s, o) => s + Number(o.quantity || 0), 0);
+  const periodPurchaseAmount = filteredPurchases.reduce((s, p) => s + Number(p.totalBill || 0), 0);
+  const periodPaidAmount = filteredPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
 
   // Overall stats
-  const totalStockWarehouse = articles.reduce((s, a) => s + (a.currentStock || 0), 0);
-  const totalStockValue = articles.reduce((s, a) => s + ((a.currentStock || 0) * (a.unitCost || 0)), 0);
-  const totalSuppliersOutstanding = suppliers.reduce((s, sup) => s + (sup.remainingBalance || 0), 0);
+  const totalStockWarehouse = articles.reduce((s, a) => s + Number(a.currentStock || 0), 0);
+  const totalStockValue = articles.reduce((s, a) => s + (Number(a.currentStock || 0) * Number(a.unitCost || 0)), 0);
+  const totalSuppliersOutstanding = suppliers.reduce((s, sup) => s + Number(sup.remainingBalance || 0), 0);
 
   // Dynamic Categories Stats
   const allCategories = useMemo(() => {
@@ -95,10 +96,10 @@ export const ReportsView = () => {
   const categoryStats = useMemo(() => {
     return allCategories.map(cat => {
       const catArticles = articles.filter(a => a.category === cat);
-      const catStock = catArticles.reduce((s, a) => s + (a.currentStock || 0), 0);
-      const catPurchased = catArticles.reduce((s, a) => s + (a.totalPurchased || 0), 0);
-      const catOut = catArticles.reduce((s, a) => s + (a.totalOut || 0), 0);
-      const catVal = catArticles.reduce((s, a) => s + ((a.currentStock || 0) * (a.unitCost || 0)), 0);
+      const catStock = catArticles.reduce((s, a) => s + Number(a.currentStock || 0), 0);
+      const catPurchased = catArticles.reduce((s, a) => s + Number(a.totalPurchased || 0), 0);
+      const catOut = catArticles.reduce((s, a) => s + Number(a.totalOut || 0), 0);
+      const catVal = catArticles.reduce((s, a) => s + (Number(a.currentStock || 0) * Number(a.unitCost || 0)), 0);
       const stockShare = totalStockWarehouse > 0 ? ((catStock / totalStockWarehouse) * 100).toFixed(1) : '0.0';
       return {
         category: cat,
@@ -121,10 +122,10 @@ export const ReportsView = () => {
   const locationStats = useMemo(() => {
     return allLocations.map(loc => {
       const locArticles = articles.filter(a => (a.warehouseLocation || '') === loc);
-      const locStock = locArticles.reduce((s, a) => s + (a.currentStock || 0), 0);
-      const locPurchased = locArticles.reduce((s, a) => s + (a.totalPurchased || 0), 0);
-      const locOut = locArticles.reduce((s, a) => s + (a.totalOut || 0), 0);
-      const locVal = locArticles.reduce((s, a) => s + ((a.currentStock || 0) * (a.unitCost || 0)), 0);
+      const locStock = locArticles.reduce((s, a) => s + Number(a.currentStock || 0), 0);
+      const locPurchased = locArticles.reduce((s, a) => s + Number(a.totalPurchased || 0), 0);
+      const locOut = locArticles.reduce((s, a) => s + Number(a.totalOut || 0), 0);
+      const locVal = locArticles.reduce((s, a) => s + (Number(a.currentStock || 0) * Number(a.unitCost || 0)), 0);
       const stockShare = totalStockWarehouse > 0 ? ((locStock / totalStockWarehouse) * 100).toFixed(1) : '0.0';
       return {
         location: loc,
@@ -275,113 +276,128 @@ export const ReportsView = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* 1. Inward Pieces */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Inward Pieces</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
               <Ship className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Period Arrivals from China</div>
-          <div className="text-2xl font-extrabold font-mono text-blue-600 dark:text-blue-400">
+          <div className="text-xl sm:text-2xl font-extrabold font-mono text-blue-600 dark:text-blue-400 tracking-tight truncate">
             +{periodInwardQty.toLocaleString()} pcs
           </div>
         </div>
 
         {/* 2. Outward Pieces */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Outward Pieces</span>
-            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
               <Truck className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Period Dispatches</div>
-          <div className="text-2xl font-extrabold font-mono text-rose-600 dark:text-rose-400">
+          <div className="text-xl sm:text-2xl font-extrabold font-mono text-rose-600 dark:text-rose-400 tracking-tight truncate">
             -{periodOutwardQty.toLocaleString()} pcs
           </div>
         </div>
 
         {/* 3. Current Total Stock */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-emerald-500/40 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-emerald-500/40 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Current Total Stock</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <Shirt className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-emerald-600 dark:text-emerald-500 mb-2 font-medium">Available in Warehouse</div>
-          <div className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
+          <div className="text-xl sm:text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight truncate">
             {totalStockWarehouse.toLocaleString()} pcs
           </div>
         </div>
 
-        {/* 4. Total Outstanding */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-rose-300 dark:border-rose-900 shadow-2xs">
+        {/* 4. Total Outstanding Payables */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-rose-300 dark:border-rose-900 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-rose-800 dark:text-rose-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Total Outstanding Payables</span>
-            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
               <Wallet className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-rose-600 dark:text-rose-500 mb-2 font-medium">Payables to China Vendors</div>
-          <div className="text-2xl font-extrabold font-mono text-rose-600 dark:text-rose-400">
-            Rs. {totalSuppliersOutstanding.toLocaleString()}
+          <div className="text-xl sm:text-2xl font-extrabold font-mono text-rose-600 dark:text-rose-400 tracking-tight break-words">
+            Rs. {Math.round(totalSuppliersOutstanding).toLocaleString()}
           </div>
+          {totalSuppliersOutstanding > 0 && (
+            <div className="text-[11px] font-semibold text-rose-500/90 mt-1 truncate">
+              {formatLakhCrore(totalSuppliersOutstanding)}
+            </div>
+          )}
         </div>
 
         {/* 5. Period Purchases Bill */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Period Purchases Bill</span>
-            <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <Receipt className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Total Consignment Purchases</div>
-          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
-            Rs. {periodPurchaseAmount.toLocaleString()}
+          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white tracking-tight break-words">
+            Rs. {Math.round(periodPurchaseAmount).toLocaleString()}
           </div>
+          {periodPurchaseAmount > 0 && (
+            <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1 truncate">
+              {formatLakhCrore(periodPurchaseAmount)}
+            </div>
+          )}
         </div>
 
         {/* 6. Period Payments */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Period Payments Paid</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Total Paid to Vendors</div>
-          <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-            Rs. {periodPaidAmount.toLocaleString()}
+          <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight break-words">
+            Rs. {Math.round(periodPaidAmount).toLocaleString()}
           </div>
+          {periodPaidAmount > 0 && (
+            <div className="text-[11px] font-semibold text-emerald-600/90 dark:text-emerald-400/90 mt-1 truncate">
+              {formatLakhCrore(periodPaidAmount)}
+            </div>
+          )}
         </div>
 
         {/* 7. Invoices Count */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">China Invoices</span>
-            <div className="w-7 h-7 rounded-lg bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
               <Ship className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Recorded Shipments</div>
-          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
+          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white tracking-tight truncate">
             {filteredPurchases.length} Shipments
           </div>
         </div>
 
         {/* 8. Dispatches Count */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Dispatches Count</span>
-            <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
               <Truck className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Challans & Gate Passes</div>
-          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
+          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white tracking-tight truncate">
             {filteredOutward.length} Challans
           </div>
         </div>

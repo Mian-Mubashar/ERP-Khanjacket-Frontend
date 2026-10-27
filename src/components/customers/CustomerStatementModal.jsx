@@ -30,9 +30,9 @@ export const CustomerStatementModal = () => {
     (p.customerName && p.customerName.toLowerCase().includes(selectedCustomerKhata.shopName.toLowerCase()))
   );
 
-  const totalDispatchedPcs = customerDispatches.reduce((s, d) => s + (d.quantity || 0), 0);
-  const totalBilled = customerDispatches.reduce((s, d) => s + (d.totalSaleAmount || 0), 0);
-  const totalPaid = customerPayHistory.reduce((s, p) => s + (p.amount || 0), 0);
+  const totalDispatchedPcs = customerDispatches.reduce((s, d) => s + (Number(d.quantity) || 0), 0);
+  const totalBilled = customerDispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
+  const totalPaid = customerPayHistory.reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
@@ -111,34 +111,34 @@ export const CustomerStatementModal = () => {
             </div>
 
             {/* Net Balance Pill */}
-            <div className="text-left sm:text-right">
+            <div className="text-left sm:text-right overflow-hidden">
               <span className="text-xs text-slate-400 block">Remaining Khata Balance</span>
-              <span className="text-xl font-semibold font-mono text-rose-600 dark:text-rose-400">
-                Rs. {(selectedCustomerKhata.remainingBalance || 0).toLocaleString()}
+              <span className="text-xl font-semibold font-mono text-rose-600 dark:text-rose-400 truncate block" title={`Rs. ${Number(selectedCustomerKhata.remainingBalance || 0).toLocaleString()}`}>
+                Rs. {Math.round(Number(selectedCustomerKhata.remainingBalance || 0)).toLocaleString()}
               </span>
             </div>
           </div>
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+            <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-center overflow-hidden">
               <span className="text-[11px] text-slate-400 block">Total Pieces Sent</span>
-              <span className="text-base font-semibold font-mono text-blue-600 dark:text-blue-400">
-                {(selectedCustomerKhata.totalPiecesReceived || totalDispatchedPcs).toLocaleString()} pcs
+              <span className="text-base font-semibold font-mono text-blue-600 dark:text-blue-400 truncate block">
+                {Math.round(Number(selectedCustomerKhata.totalPiecesReceived) || totalDispatchedPcs).toLocaleString()} pcs
               </span>
             </div>
 
-            <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+            <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-center overflow-hidden">
               <span className="text-[11px] text-slate-400 block">Total Billed</span>
-              <span className="text-base font-semibold font-mono text-purple-600 dark:text-purple-400">
-                Rs. {(selectedCustomerKhata.totalBill || totalBilled).toLocaleString()}
+              <span className="text-base font-semibold font-mono text-purple-600 dark:text-purple-400 truncate block" title={`Rs. ${(Number(selectedCustomerKhata.totalBill) || totalBilled).toLocaleString()}`}>
+                Rs. {Math.round(Number(selectedCustomerKhata.totalBill) || totalBilled).toLocaleString()}
               </span>
             </div>
 
-            <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+            <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-center overflow-hidden">
               <span className="text-[11px] text-slate-400 block">Payments Received</span>
-              <span className="text-base font-semibold font-mono text-emerald-600 dark:text-emerald-400">
-                Rs. {(selectedCustomerKhata.totalPaid || totalPaid).toLocaleString()}
+              <span className="text-base font-semibold font-mono text-emerald-600 dark:text-emerald-400 truncate block" title={`Rs. ${(Number(selectedCustomerKhata.totalPaid) || totalPaid).toLocaleString()}`}>
+                Rs. {Math.round(Number(selectedCustomerKhata.totalPaid) || totalPaid).toLocaleString()}
               </span>
             </div>
           </div>

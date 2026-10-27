@@ -29,9 +29,9 @@ export const PurchasesList = () => {
     p.items?.some(it => it.articleNo.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const totalPurchasesAmount = purchases.reduce((s, p) => s + (p.totalBill || 0), 0);
-  const totalPaidAmount = purchases.reduce((s, p) => s + (p.paidAmount || 0), 0);
-  const totalRemainingAmount = purchases.reduce((s, p) => s + (p.remainingAmount || 0), 0);
+  const totalPurchasesAmount = purchases.reduce((s, p) => s + (Number(p.totalBill) || 0), 0);
+  const totalPaidAmount = purchases.reduce((s, p) => s + (Number(p.paidAmount) || 0), 0);
+  const totalRemainingAmount = purchases.reduce((s, p) => s + (Number(p.remainingAmount) || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -61,38 +61,38 @@ export const PurchasesList = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Total China Purchases</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <Ship className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">All recorded import bills</div>
-          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
-            Rs. {totalPurchasesAmount.toLocaleString()}
+          <div className="text-xl font-bold font-mono text-slate-900 dark:text-white tracking-tight truncate">
+            Rs. {Math.round(totalPurchasesAmount).toLocaleString()}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Total Paid Amount</span>
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full">Paid</span>
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full shrink-0">Paid</span>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Paid via Wire / LC</div>
-          <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-            Rs. {totalPaidAmount.toLocaleString()}
+          <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight truncate">
+            Rs. {Math.round(totalPaidAmount).toLocaleString()}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
             <span className="font-bold uppercase tracking-wider">Total Remaining Balance</span>
-            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-0.5 rounded-full">Due</span>
+            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-0.5 rounded-full shrink-0">Due</span>
           </div>
           <div className="text-xs text-slate-400 mb-2 font-medium">Payables to China factories</div>
-          <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400">
-            Rs. {totalRemainingAmount.toLocaleString()}
+          <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight truncate">
+            Rs. {Math.round(totalRemainingAmount).toLocaleString()}
           </div>
         </div>
       </div>
@@ -144,7 +144,7 @@ export const PurchasesList = () => {
                 </tr>
               ) : (
                 filteredPurchases.slice((page - 1) * pageSize, page * pageSize).map((pur) => {
-                  const totalPcs = pur.items?.reduce((s, i) => s + i.quantity, 0) || 0;
+                  const totalPcs = pur.items?.reduce((s, i) => s + (Number(i.quantity) || 0), 0) || 0;
                   return (
                     <tr
                       key={pur.id}
@@ -196,17 +196,17 @@ export const PurchasesList = () => {
 
                       {/* Total Bill */}
                       <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
-                        Rs. {pur.totalBill?.toLocaleString()}
+                        Rs. {Math.round(Number(pur.totalBill || 0)).toLocaleString()}
                       </td>
 
                       {/* Paid */}
                       <td className="py-3.5 px-4 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                        Rs. {pur.paidAmount?.toLocaleString()}
+                        Rs. {Math.round(Number(pur.paidAmount || 0)).toLocaleString()}
                       </td>
 
                       {/* Remaining */}
                       <td className="py-3.5 px-4 text-right font-mono font-bold text-rose-600 dark:text-rose-400">
-                        Rs. {pur.remainingAmount?.toLocaleString()}
+                        Rs. {Math.round(Number(pur.remainingAmount || 0)).toLocaleString()}
                       </td>
 
                       {/* Status */}
@@ -347,26 +347,26 @@ export const PurchasesList = () => {
                   <div className="flex justify-between text-slate-600 dark:text-slate-400">
                     <span>Freight & Duty ({selectedInvoice.expenseNote}):</span>
                     <span className="font-mono font-bold text-slate-900 dark:text-white">
-                      + Rs. {selectedInvoice.extraExpenses?.toLocaleString()}
+                      + Rs. {Math.round(Number(selectedInvoice.extraExpenses || 0)).toLocaleString()}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-bold text-slate-900 dark:text-white pt-2 border-t border-blue-200 dark:border-blue-900">
                   <span>Total Bill Amount:</span>
                   <span className="font-mono text-blue-700 dark:text-blue-400">
-                    Rs. {selectedInvoice.totalBill?.toLocaleString()}
+                    Rs. {Math.round(Number(selectedInvoice.totalBill || 0)).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between font-medium text-emerald-700 dark:text-emerald-400">
                   <span>Paid Amount:</span>
                   <span className="font-mono font-bold">
-                    - Rs. {selectedInvoice.paidAmount?.toLocaleString()}
+                    - Rs. {Math.round(Number(selectedInvoice.paidAmount || 0)).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between font-bold text-rose-600 dark:text-rose-400 pt-1 border-t border-blue-200 dark:border-blue-900 text-sm">
                   <span>Remaining Supplier Balance:</span>
                   <span className="font-mono">
-                    Rs. {selectedInvoice.remainingAmount?.toLocaleString()}
+                    Rs. {Math.round(Number(selectedInvoice.remainingAmount || 0)).toLocaleString()}
                   </span>
                 </div>
               </div>

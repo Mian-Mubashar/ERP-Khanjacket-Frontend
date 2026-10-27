@@ -59,8 +59,8 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     }));
   };
 
-  const totalStock = articles.reduce((sum, a) => sum + (a.currentStock || 0), 0);
-  const totalPayables = suppliers.reduce((sum, s) => sum + (s.remainingBalance || 0), 0);
+  const totalStock = articles.reduce((sum, a) => sum + (Number(a.currentStock) || 0), 0);
+  const totalPayables = suppliers.reduce((sum, s) => sum + (Number(s.remainingBalance) || 0), 0);
 
   if (sidebarCollapsed) {
     return (

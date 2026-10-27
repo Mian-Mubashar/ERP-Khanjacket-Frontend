@@ -50,7 +50,7 @@ export const SupplierStatementModal = () => {
       date: p.purchaseDate,
       ref: `Invoice #${p.invoiceNo}`,
       description: `Container Import (${p.items?.map(i => `${i.articleNo} x${i.quantity}`).join(', ')})`,
-      debit: p.totalBill,
+      debit: Number(p.totalBill || 0),
       credit: 0
     })),
     ...supPayments.map(pay => ({
@@ -59,14 +59,14 @@ export const SupplierStatementModal = () => {
       ref: `Payment (${pay.paymentMethod})`,
       description: `Ref: ${pay.refNo} - ${pay.notes || 'Settlement'}`,
       debit: 0,
-      credit: pay.amount
+      credit: Number(pay.amount || 0)
     }))
   ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
   // Compute running balance starting from opening balance
-  let running = sup.openingBalance || 0;
+  let running = Number(sup.openingBalance || 0);
   const ledgerEntries = rawTransactions.map(tx => {
-    running = running + tx.debit - tx.credit;
+    running = running + (Number(tx.debit) || 0) - (Number(tx.credit) || 0);
     return {
       ...tx,
       balanceAfter: running
@@ -145,14 +145,14 @@ export const SupplierStatementModal = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-6 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800">
           
           {/* Total Purchases */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider">Total Purchases</span>
-              <ArrowDownLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <ArrowDownLeft className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
             </div>
             <div className="text-xs text-slate-400 mb-1 font-medium">Total Consignment Value</div>
-            <div className="text-xl font-extrabold font-mono text-slate-900 dark:text-white">
-              Rs. {sup.totalPurchases?.toLocaleString()}
+            <div className="text-xl font-extrabold font-mono text-slate-900 dark:text-white truncate" title={`Rs. ${Number(sup.totalPurchases || 0).toLocaleString()}`}>
+              Rs. {Math.round(Number(sup.totalPurchases || 0)).toLocaleString()}
             </div>
             <div className="mt-1 text-[11px] text-slate-400">
               Total Invoices: {supPurchases.length}
@@ -160,14 +160,14 @@ export const SupplierStatementModal = () => {
           </div>
 
           {/* Total Payments */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider">Total Paid</span>
-              <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             </div>
             <div className="text-xs text-slate-400 mb-1 font-medium">Total Paid to Vendor</div>
-            <div className="text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
-              Rs. {sup.totalPayments?.toLocaleString()}
+            <div className="text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 truncate" title={`Rs. ${Number(sup.totalPayments || 0).toLocaleString()}`}>
+              Rs. {Math.round(Number(sup.totalPayments || 0)).toLocaleString()}
             </div>
             <div className="mt-1 text-[11px] text-slate-400">
               Transactions: {supPayments.length}
@@ -175,14 +175,14 @@ export const SupplierStatementModal = () => {
           </div>
 
           {/* Remaining Balance */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-rose-300 dark:border-rose-900 shadow-2xs">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-rose-300 dark:border-rose-900 shadow-2xs overflow-hidden">
             <div className="flex items-center justify-between text-rose-800 dark:text-rose-400 mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider">Remaining Balance</span>
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-sm bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300">Due</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-sm bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 shrink-0">Due</span>
             </div>
             <div className="text-xs text-rose-600 dark:text-rose-500 mb-1 font-medium">Net Outstanding Payable</div>
-            <div className="text-2xl font-extrabold font-mono text-rose-600 dark:text-rose-400">
-              Rs. {sup.remainingBalance?.toLocaleString()}
+            <div className="text-2xl font-extrabold font-mono text-rose-600 dark:text-rose-400 truncate" title={`Rs. ${Number(sup.remainingBalance || 0).toLocaleString()}`}>
+              Rs. {Math.round(Number(sup.remainingBalance || 0)).toLocaleString()}
             </div>
             <div className="mt-1 text-[11px] text-slate-400">
               Accounts Payable Balance
@@ -306,13 +306,13 @@ export const SupplierStatementModal = () => {
                         {p.items?.map(i => `${i.articleNo} (${i.quantity} pcs)`).join(', ')}
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
-                        Rs. {p.totalBill?.toLocaleString()}
+                        Rs. {Math.round(Number(p.totalBill || 0)).toLocaleString()}
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                        Rs. {p.paidAmount?.toLocaleString()}
+                        Rs. {Math.round(Number(p.paidAmount || 0)).toLocaleString()}
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">
-                        Rs. {p.remainingAmount?.toLocaleString()}
+                        Rs. {Math.round(Number(p.remainingAmount || 0)).toLocaleString()}
                       </td>
                     </tr>
                   ))}
@@ -350,7 +350,7 @@ export const SupplierStatementModal = () => {
                       <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">{pay.paymentMethod}</td>
                       <td className="py-2.5 px-3 font-mono font-bold text-blue-600 dark:text-blue-400">{pay.refNo}</td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        Rs. {pay.amount?.toLocaleString()}
+                        Rs. {Math.round(Number(pay.amount || 0)).toLocaleString()}
                       </td>
                       <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">{pay.recordedBy}</td>
                       <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">{pay.notes || '—'}</td>
@@ -374,7 +374,7 @@ export const SupplierStatementModal = () => {
         {/* Footer */}
         <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
           <div className="text-slate-500 dark:text-slate-400">
-            Total Outstanding Balance: <strong className="font-mono text-rose-600 dark:text-rose-400 text-sm">Rs. {sup.remainingBalance?.toLocaleString()}</strong>
+            Total Outstanding Balance: <strong className="font-mono text-rose-600 dark:text-rose-400 text-sm">Rs. {Math.round(Number(sup.remainingBalance || 0)).toLocaleString()}</strong>
           </div>
           <button
             onClick={() => setSelectedSupplierDetail(null)}
