@@ -16,10 +16,12 @@ import {
   Truck,
   Shirt,
   Pencil,
-  MapPin
+  MapPin,
+  Trash2
 } from 'lucide-react';
 import { downloadArticleStockPDF } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
+import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
 
 export const ArticleDetailModal = () => {
   const { 
@@ -30,7 +32,8 @@ export const ArticleDetailModal = () => {
     purchases, 
     outward,
     setIsNewOutwardOpen,
-    setIsNewPurchaseOpen
+    setIsNewPurchaseOpen,
+    deleteArticle
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState('summary'); // 'summary' | 'purchases' | 'outward'
@@ -41,6 +44,25 @@ export const ArticleDetailModal = () => {
   if (!selectedArticleDetail) return null;
 
   const art = selectedArticleDetail;
+
+  const handleDeleteArticle = async () => {
+    if (!art) return;
+    const isConfirmed = await confirmDelete({
+      title: `Delete Article ${art.articleNo}?`,
+      text: `Are you sure you want to delete "${art.name}" (${art.articleNo})? This will permanently remove it from the warehouse catalog.`,
+      confirmButtonText: 'Yes, Delete Article'
+    });
+
+    if (!isConfirmed) return;
+
+    const res = await deleteArticle(art.articleNo);
+    if (res?.success) {
+      showToast(`Article "${art.articleNo}" deleted successfully!`, 'success');
+      setSelectedArticleDetail(null);
+    } else {
+      showError('Cannot Delete Article', res?.message || 'Failed to delete article');
+    }
+  };
 
   // Find all purchase invoices that contain this article
   const articlePurchases = purchases.filter(p => 
@@ -131,6 +153,15 @@ export const ArticleDetailModal = () => {
             >
               <Pencil className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               <span>Edit Details</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteArticle}
+              className="px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-xl transition-all flex items-center gap-1.5 font-medium cursor-pointer"
+              title="Delete Article"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <span>Delete</span>
             </button>
             <button
               type="button"

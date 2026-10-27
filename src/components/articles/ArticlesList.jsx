@@ -12,9 +12,11 @@ import {
   ArrowUpRight,
   Pencil,
   MapPin,
-  Warehouse
+  Warehouse,
+  Trash2
 } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
+import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
 
 export const ArticlesList = () => {
   const { 
@@ -27,7 +29,8 @@ export const ArticlesList = () => {
     categories,
     stuffs,
     setIsAddStuffOpen,
-    setIsAddLocationOpen
+    setIsAddLocationOpen,
+    deleteArticle
   } = useApp();
 
   const [search, setSearch] = useState('');
@@ -78,6 +81,23 @@ export const ArticlesList = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleDeleteArticle = async (art) => {
+    const isConfirmed = await confirmDelete({
+      title: `Delete Article ${art.articleNo}?`,
+      text: `Are you sure you want to delete "${art.name}" (${art.articleNo})? This will remove it from the warehouse inventory catalog.`,
+      confirmButtonText: 'Yes, Delete Article'
+    });
+
+    if (!isConfirmed) return;
+
+    const res = await deleteArticle(art.articleNo);
+    if (res?.success) {
+      showToast(`Article "${art.articleNo}" deleted successfully!`, 'success');
+    } else {
+      showError('Cannot Delete Article', res?.message || 'Failed to delete article');
+    }
   };
 
   return (
@@ -388,10 +408,19 @@ export const ArticlesList = () => {
                               setSelectedArticleDetail(null);
                               setIsNewOutwardOpen(true);
                             }}
-                            className="w-8 h-8 rounded-lg bg-rose-50/70 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/40 hover:bg-rose-100/80 flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
+                            className="w-8 h-8 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-900/40 hover:bg-emerald-100/80 flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
                             title="Dispatch Outward"
                           >
                             <ArrowUpRight className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteArticle(art)}
+                            className="w-8 h-8 rounded-lg bg-rose-50/80 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/50 hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-900/60 flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
+                            title="Delete Article"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>

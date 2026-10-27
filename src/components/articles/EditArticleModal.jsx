@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Pencil, AlertCircle, Save, Shirt, Layers, DollarSign, Bell, Plus, MapPin } from 'lucide-react';
-import { showToast, showError } from '../../utils/sweetalert';
+import { X, Pencil, AlertCircle, Save, Shirt, Layers, DollarSign, Bell, Plus, MapPin, Trash2 } from 'lucide-react';
+import { showToast, showError, confirmDelete } from '../../utils/sweetalert';
 
 export const EditArticleModal = () => {
   const {
@@ -10,6 +10,7 @@ export const EditArticleModal = () => {
     editingArticle,
     setEditingArticle,
     updateArticle,
+    deleteArticle,
     categories,
     stuffs,
     warehouseLocations,
@@ -73,6 +74,31 @@ export const EditArticleModal = () => {
     setIsEditArticleOpen(false);
     setEditingArticle(null);
     setError('');
+  };
+
+  const handleDelete = async () => {
+    if (!editingArticle) return;
+    const isConfirmed = await confirmDelete({
+      title: `Delete Article ${editingArticle.articleNo}?`,
+      text: `Are you sure you want to delete "${editingArticle.name}" (${editingArticle.articleNo})? This will permanently remove it from the warehouse catalog.`,
+      confirmButtonText: 'Yes, Delete Article'
+    });
+
+    if (!isConfirmed) return;
+
+    setIsSubmitting(true);
+    const res = await deleteArticle(editingArticle.articleNo);
+    setIsSubmitting(false);
+
+    if (res?.success) {
+      showToast(`Article "${editingArticle.articleNo}" deleted successfully!`, 'success');
+      if (selectedArticleDetail?.articleNo === editingArticle.articleNo) {
+        setSelectedArticleDetail(null);
+      }
+      handleClose();
+    } else {
+      showError('Cannot Delete Article', res?.message || 'Failed to delete article');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -351,23 +377,34 @@ export const EditArticleModal = () => {
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 px-5 sm:px-6 py-3 mt-2 shadow-xs">
+          <div className="flex items-center justify-between gap-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 px-5 sm:px-6 py-3 mt-2 shadow-xs">
             <button
               type="button"
-              onClick={handleClose}
+              onClick={handleDelete}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              className="px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              Cancel
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Article</span>
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={isSubmitting}
+                className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
+              </button>
+            </div>
           </div>
 
         </form>

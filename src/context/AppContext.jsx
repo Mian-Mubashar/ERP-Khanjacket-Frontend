@@ -370,6 +370,19 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const deleteArticle = async (articleNo) => {
+    try {
+      const res = await api.articles.delete(articleNo);
+      if (res?.success) {
+        await refreshData();
+        return { success: true, message: res?.message || 'Article deleted successfully' };
+      }
+      return { success: false, message: res?.message || 'Failed to delete article' };
+    } catch (err) {
+      return { success: false, message: err?.data?.message || err.message || 'Error deleting article from database' };
+    }
+  };
+
   // ==========================================
   // DYNAMIC ACTIONS: PURCHASES (CHINA IMPORT)
   // ==========================================
@@ -748,6 +761,7 @@ export const AppProvider = ({ children }) => {
         // Dynamic MySQL Persistence Actions
         addArticle,
         updateArticle,
+        deleteArticle,
         addCategory,
         updateCategory,
         deleteCategory,
