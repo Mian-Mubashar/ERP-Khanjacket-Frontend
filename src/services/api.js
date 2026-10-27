@@ -9,15 +9,26 @@
  * this automatically handles trailing slashes and ensures /api/v1 suffix.
  */
 const getBaseUrl = () => {
-  let url = (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000/api/v1').trim();
+  let url = (import.meta.env?.VITE_API_BASE_URL || '').trim();
+
+  // Smart fallback: When browsing on localhost, use local backend on port 5000
+  if (typeof window !== 'undefined') {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost && (!url || url.includes('api.khanjackethouse.com'))) {
+      return 'http://localhost:5000/api/v1';
+    }
+  }
+
+  if (!url) {
+    url = 'http://localhost:5000/api/v1';
+  }
+
   url = url.replace(/\/+$/, '');
   if (!url.endsWith('/api/v1')) {
     url = `${url}/api/v1`;
   }
   return url;
 };
-
-const API_BASE_URL = getBaseUrl();
 
 // Token Management
 export const getAuthToken = () => localStorage.getItem('kc_auth_token');
@@ -40,7 +51,7 @@ const request = async (endpoint, options = {}) => {
     ...options.headers
   };
 
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${getBaseUrl()}${endpoint}`;
 
   try {
     const response = await fetch(url, {
