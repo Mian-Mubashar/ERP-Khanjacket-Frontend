@@ -3,7 +3,21 @@
  * Connects Frontend seamlessly to Node.js/Express/Sequelize SQL Backend
  */
 
-const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+/**
+ * Dynamically resolves Backend API Base URL from environment variables
+ * If user provides 'https://api.khanjackethouse.com' or 'https://api.khanjackethouse.com/api/v1',
+ * this automatically handles trailing slashes and ensures /api/v1 suffix.
+ */
+const getBaseUrl = () => {
+  let url = (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000/api/v1').trim();
+  url = url.replace(/\/+$/, '');
+  if (!url.endsWith('/api/v1')) {
+    url = `${url}/api/v1`;
+  }
+  return url;
+};
+
+const API_BASE_URL = getBaseUrl();
 
 // Token Management
 export const getAuthToken = () => localStorage.getItem('kc_auth_token');
