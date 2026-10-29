@@ -1,20 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { 
-  X, 
-  Pencil, 
-  CheckCircle2, 
-  AlertCircle, 
-  Building, 
-  MapPin, 
-  Phone, 
-  User, 
-  FileText, 
-  Save, 
-  BadgePercent,
-  Wallet,
-  Receipt
-} from 'lucide-react';
+import { X, AlertCircle, Save } from 'lucide-react';
 import { showToast, showError } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
 
@@ -27,7 +13,8 @@ export const EditCustomerModal = () => {
     cities, 
     updateCustomer,
     selectedCustomerKhata,
-    setSelectedCustomerKhata
+    setSelectedCustomerKhata,
+    outward = []
   } = useApp();
 
   const [shopName, setShopName] = useState('');
@@ -35,6 +22,7 @@ export const EditCustomerModal = () => {
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
   const [marketAddress, setMarketAddress] = useState('');
+  const [openingBalance, setOpeningBalance] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -48,9 +36,20 @@ export const EditCustomerModal = () => {
       setPhone(editingCustomer.phone || '');
       setMarketAddress(editingCustomer.marketAddress || '');
       setNotes(editingCustomer.notes || '');
+
+      // Calculate current opening balance
+      const currentShopLower = (editingCustomer.shopName || '').toLowerCase();
+      const customerDispatches = (outward || []).filter(o => 
+        (o.customerId && o.customerId === editingCustomer.id) ||
+        (o.customerName && currentShopLower && o.customerName.toLowerCase() === currentShopLower)
+      );
+      const totalBilled = customerDispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
+      const recordedTotalBill = Number(editingCustomer.totalBill) || 0;
+      const calcOpening = Math.max(0, recordedTotalBill - totalBilled);
+      setOpeningBalance(calcOpening > 0 ? calcOpening : '');
       setError('');
     }
-  }, [editingCustomer, isEditCustomerOpen, cities]);
+  }, [editingCustomer, isEditCustomerOpen, cities, outward]);
 
   if (!isEditCustomerOpen || !editingCustomer) return null;
 
@@ -78,12 +77,14 @@ export const EditCustomerModal = () => {
 
     setIsSubmitting(true);
     try {
+      const numOpening = Number(openingBalance) || 0;
       const res = await updateCustomer(editingCustomer.id, {
         shopName: shopName.trim(),
         shopkeeperName: (shopkeeperName.trim() || shopName.trim()),
         city,
         phone: phone.trim(),
         marketAddress: marketAddress.trim(),
+        openingBalance: numOpening,
         notes: notes.trim()
       });
 
@@ -96,6 +97,15 @@ export const EditCustomerModal = () => {
 
       // Sync active statement modal if open for this customer
       if (selectedCustomerKhata && selectedCustomerKhata.id === editingCustomer.id) {
+        const currentShopLower = shopName.trim().toLowerCase();
+        const customerDispatches = (outward || []).filter(o => 
+          (o.customerId && o.customerId === editingCustomer.id) ||
+          (o.customerName && currentShopLower && o.customerName.toLowerCase() === currentShopLower)
+        );
+        const totalBilled = customerDispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
+        const newTotalBill = totalBilled + numOpening;
+        const totalPaid = Number(editingCustomer.totalPaid || 0);
+
         setSelectedCustomerKhata(prev => ({
           ...prev,
           shopName: shopName.trim(),
@@ -103,7 +113,9 @@ export const EditCustomerModal = () => {
           city,
           phone: phone.trim(),
           marketAddress: marketAddress.trim(),
-          notes: notes.trim()
+          notes: notes.trim(),
+          totalBill: newTotalBill,
+          remainingBalance: newTotalBill - totalPaid
         }));
       }
 
@@ -121,32 +133,28 @@ export const EditCustomerModal = () => {
   const isPending = remaining > 0;
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
         
-        {/* Header - Fixed */}
-        <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0">
-              <Pencil className="w-4.5 h-4.5" />
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Edit Shopkeeper Details</h2>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs font-mono font-medium text-slate-600 dark:text-slate-400">
+                {editingCustomer.id}
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Edit Shopkeeper Details</h2>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-mono border border-blue-200/50 dark:border-blue-800/50">
-                  {editingCustomer.id}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Shop name, owner name, phone, address and branch update
-              </p>
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Shop name, owner name, phone, address and branch update
+            </p>
           </div>
           <button
             type="button"
             onClick={handleClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-            title="Close Modal"
+            title="Close"
           >
             <X className="w-4 h-4" />
           </button>
@@ -171,7 +179,7 @@ export const EditCustomerModal = () => {
         </div>
 
         {/* Form - Scrollable */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-3.5 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
           
           {error && (
             <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
@@ -183,47 +191,43 @@ export const EditCustomerModal = () => {
           {/* Shop Name & Shopkeeper */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Shop / Firm Name <span className="text-rose-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={shopName}
-                  onChange={(e) => setShopName(e.target.value)}
-                  placeholder="e.g. Khalid Fabric, Al-Madina"
-                  required
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 font-medium"
-                />
-              </div>
+              <input
+                type="text"
+                value={shopName}
+                onChange={(e) => setShopName(e.target.value)}
+                placeholder="e.g. Khalid Fabric, Al-Madina"
+                required
+                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Owner / Shopkeeper Name
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={shopkeeperName}
-                  onChange={(e) => setShopkeeperName(e.target.value)}
-                  placeholder="e.g. Khalid, Bhai Akram"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500"
-                />
-              </div>
+              <input
+                type="text"
+                value={shopkeeperName}
+                onChange={(e) => setShopkeeperName(e.target.value)}
+                placeholder="e.g. Khalid, Bhai Akram"
+                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+              />
             </div>
           </div>
 
           {/* City / Branch & Phone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 City / Branch <span className="text-rose-500">*</span>
               </label>
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 font-medium"
+                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
               >
                 {cities.map(c => (
                   <option key={c.id || c.name} value={c.name}>
@@ -234,7 +238,7 @@ export const EditCustomerModal = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Phone / WhatsApp Number
               </label>
               <input
@@ -242,14 +246,14 @@ export const EditCustomerModal = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="e.g. 0334-9730227"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 font-mono"
+                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
               />
             </div>
           </div>
 
           {/* Market / Shop Address */}
           <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Market / Shop Address (Dukaan ka Pata)
             </label>
             <input
@@ -257,13 +261,40 @@ export const EditCustomerModal = () => {
               value={marketAddress}
               onChange={(e) => setMarketAddress(e.target.value)}
               placeholder="e.g. Shop # 14, Main Cloth Market, Shahdara"
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500"
+              className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
             />
+          </div>
+
+          {/* Sabqa Baqaya / Opening Balance */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Sabqa Baqaya / Opening Balance (PKR)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-2.5 text-sm font-medium text-slate-400 font-mono">Rs.</span>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={openingBalance}
+                onChange={(e) => setOpeningBalance(e.target.value)}
+                placeholder="0"
+                className="w-full pl-11 pr-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+              />
+            </div>
+            {Number(openingBalance) > 0 && (
+              <p className="text-xs text-blue-600 dark:text-blue-400 font-mono font-medium mt-1">
+                Amount in Words: {formatLakhCrore(Number(openingBalance))}
+              </p>
+            )}
+            <p className="text-[11px] text-slate-400 mt-1">
+              Agar khata shuru karte waqt sabqa baqaya ghalat likh diya tha, to yahan se theek kar sakte hain.
+            </p>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Khata Notes / Special Terms (Zaroori Maloomat)
             </label>
             <textarea
@@ -271,15 +302,15 @@ export const EditCustomerModal = () => {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. Payment terms, cargo service name, delivery instructions..."
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 resize-none"
+              className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all resize-none"
             />
           </div>
 
-          <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-[11px] text-blue-800 dark:text-blue-300 space-y-1">
+          <div className="p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-xs text-blue-800 dark:text-blue-300 space-y-1">
             <div className="font-semibold flex items-center gap-1.5">
               <span>💡 Khata Note:</span>
             </div>
-            <p className="text-slate-600 dark:text-slate-400">
+            <p className="text-slate-600 dark:text-slate-400 text-xs">
               Naam ya pata badalney sa pichli tamam Rawangi (Outward) aur Wasooli (Payments) ki receipts par naya naam khud ba khud lag jae ga.
             </p>
           </div>
@@ -290,14 +321,14 @@ export const EditCustomerModal = () => {
               type="button"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>{isSubmitting ? 'Saving to Database...' : 'Save Changes'}</span>

@@ -321,10 +321,10 @@ export const NewPurchaseModal = () => {
           )}
 
           {/* Top Row: Supplier, Date, Invoice No, Container */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   China Supplier <span className="text-rose-500">*</span>
                 </label>
                 {suppliers.length === 0 && (
@@ -340,7 +340,7 @@ export const NewPurchaseModal = () => {
               <select
                 value={supplierId}
                 onChange={e => setSupplierId(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:border-blue-600 outline-hidden"
+                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all cursor-pointer"
               >
                 {suppliers.length === 0 ? (
                   <option value="">-- No Suppliers Yet (Add Supplier) --</option>
@@ -355,7 +355,7 @@ export const NewPurchaseModal = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Invoice / Bill # <span className="text-rose-500">*</span>
               </label>
               <input
@@ -364,12 +364,12 @@ export const NewPurchaseModal = () => {
                 value={invoiceNo}
                 onChange={e => setInvoiceNo(e.target.value)}
                 placeholder="e.g. CN-8842-APEX"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-blue-600 dark:text-blue-400 focus:border-blue-600 outline-hidden uppercase"
+                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-blue-600 dark:text-blue-400 focus:border-blue-600 outline-hidden transition-all uppercase"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Purchase Date <span className="text-rose-500">*</span>
               </label>
               <input
@@ -377,12 +377,12 @@ export const NewPurchaseModal = () => {
                 required
                 value={purchaseDate}
                 onChange={e => setPurchaseDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:border-blue-600 outline-hidden"
+                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Container / Bilty #
               </label>
               <input
@@ -390,7 +390,7 @@ export const NewPurchaseModal = () => {
                 value={containerNo}
                 onChange={e => setContainerNo(e.target.value)}
                 placeholder="e.g. COSCO-78491-GZ"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:border-blue-600 outline-hidden uppercase"
+                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all uppercase"
               />
             </div>
           </div>
@@ -568,17 +568,17 @@ export const NewPurchaseModal = () => {
           </div>
 
           {/* Expenses & Financial Summary Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
             
             {/* Left: Extra Expenses & Notes */}
-            <div className="space-y-3 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+            <div className="space-y-3.5">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Additional Import Expenses (Freight / Duty)
-              </span>
+              </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     Freight / Clearing Amount (PKR)
                   </label>
                   <input
@@ -586,25 +586,25 @@ export const NewPurchaseModal = () => {
                     min="0"
                     value={extraExpenses}
                     onChange={e => setExtraExpenses(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden"
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white outline-hidden transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     Expense Description
                   </label>
                   <input
                     type="text"
                     value={expenseNote}
                     onChange={e => setExpenseNote(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white outline-hidden"
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   General Remarks / Port Gate Pass
                 </label>
                 <input
@@ -612,66 +612,66 @@ export const NewPurchaseModal = () => {
                   placeholder="e.g. Unloaded in Karachi central warehouse"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white outline-hidden"
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden transition-all"
                 />
               </div>
             </div>
 
             {/* Right: Payment Calculation */}
-            <div className="p-4 bg-blue-50/50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900/60 space-y-2.5">
-              <span className="text-xs font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider block">
+            <div className="space-y-3.5">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Bill Calculation & Supplier Payment
-              </span>
+              </h3>
 
-              <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
-                <span>Articles Subtotal:</span>
-                <span className="font-mono font-semibold text-slate-900 dark:text-white">
-                  Rs. {itemsSubtotal.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
-                <span>Freight / Duty:</span>
-                <span className="font-mono font-semibold text-slate-900 dark:text-white">
-                  + Rs. {Number(extraExpenses || 0).toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center text-sm font-bold text-slate-900 dark:text-white pt-2 border-t border-blue-200 dark:border-blue-900">
-                <span>Total Bill Amount:</span>
-                <div className="text-right">
-                  <span className="font-mono text-base text-blue-700 dark:text-blue-400 block">
-                    Rs. {totalBill.toLocaleString()}
+              <div className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
+                  <span>Articles Subtotal:</span>
+                  <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                    Rs. {itemsSubtotal.toLocaleString()}
                   </span>
-                  {totalBill > 0 && (
-                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold block">
-                      {formatLakhCrore(totalBill)}
+                </div>
+
+                <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
+                  <span>Freight / Duty:</span>
+                  <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                    + Rs. {Number(extraExpenses || 0).toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <span>Total Bill Amount:</span>
+                  <div className="text-right">
+                    <span className="font-mono text-base text-blue-700 dark:text-blue-400 block">
+                      Rs. {totalBill.toLocaleString()}
                     </span>
-                  )}
+                    {totalBill > 0 && (
+                      <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold block">
+                        {formatLakhCrore(totalBill)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                      Amount Paid (Ada Shuda)
-                    </label>
-                  </div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Amount Paid (Ada Shuda)
+                  </label>
                   <input
                     type="number"
                     min="0"
                     max={totalBill}
                     value={paidAmount}
                     onChange={e => setPaidAmount(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-800 rounded-xl text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 outline-hidden"
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400 outline-hidden transition-all"
                   />
                   {/* Quick Chips */}
-                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                     <button
                       type="button"
                       onClick={() => setPaidAmount(0)}
-                      className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                      className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
                     >
                       0 (Udhaar)
                     </button>
@@ -680,14 +680,14 @@ export const NewPurchaseModal = () => {
                         <button
                           type="button"
                           onClick={() => setPaidAmount(Math.round(totalBill / 2))}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-900/60 hover:bg-blue-200 text-blue-700 dark:text-blue-300 transition-colors cursor-pointer"
+                          className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 hover:bg-blue-200 text-blue-700 dark:text-blue-300 transition-colors cursor-pointer"
                         >
                           50% Half
                         </button>
                         <button
                           type="button"
                           onClick={() => setPaidAmount(totalBill)}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/60 hover:bg-emerald-200 text-emerald-700 dark:text-emerald-300 transition-colors cursor-pointer"
+                          className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/60 hover:bg-emerald-200 text-emerald-700 dark:text-emerald-300 transition-colors cursor-pointer"
                         >
                           Full Paid
                         </button>
@@ -697,13 +697,13 @@ export const NewPurchaseModal = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     Payment Method
                   </label>
                   <select
                     value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-800 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 outline-hidden"
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 outline-hidden cursor-pointer transition-all"
                   >
                     <option value="Bank TT / Wire Transfer">Bank TT / Wire</option>
                     <option value="Foreign Exchange LC">Letter of Credit (LC)</option>
@@ -713,7 +713,7 @@ export const NewPurchaseModal = () => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center text-xs font-bold pt-2 border-t border-blue-200 dark:border-blue-900">
+              <div className="flex justify-between items-center text-xs font-bold pt-2 border-t border-slate-200 dark:border-slate-700">
                 <span className="text-slate-600 dark:text-slate-400">Remaining Balance (Baqaya):</span>
                 <div className="text-right">
                   <span className="font-mono text-rose-600 dark:text-rose-400 text-sm block">

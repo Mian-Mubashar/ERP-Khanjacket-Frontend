@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, ArrowUpRight, AlertCircle, CheckCircle2, MapPin, Building, Phone, Plus, Ship, Shirt } from 'lucide-react';
+import { X, Truck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { showToast, showError, showWarning } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
+
+const getTodayDate = () => new Date().toISOString().split('T')[0];
+const generateChallan = () => `CH-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
+const generateGatePass = () => `GP-${Date.now().toString().slice(-4)}`;
 
 export const NewOutwardModal = () => {
   const { 
@@ -12,45 +16,72 @@ export const NewOutwardModal = () => {
     cities, 
     customers, 
     addOutward,
-    setIsAddArticleOpen,
-    setIsNewPurchaseOpen
+    selectedCustomerForBill,
+    setSelectedCustomerForBill,
+    selectedArticleForOutward,
+    setSelectedArticleForOutward
   } = useApp();
 
-  const [selectedArticleNo, setSelectedArticleNo] = useState(articles[0]?.articleNo || '');
+  const [selectedArticleNo, setSelectedArticleNo] = useState('');
   const [quantity, setQuantity] = useState(100);
-  const [challanNo, setChallanNo] = useState(`CH-${new Date().getFullYear()}-${Date.now().toString().slice(-3)}`);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedCity, setSelectedCity] = useState(cities[0]?.name || 'Lahore');
+  const [challanNo, setChallanNo] = useState(generateChallan);
+  const [date, setDate] = useState(getTodayDate);
+  const [selectedCity, setSelectedCity] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [destination, setDestination] = useState('');
   const [unitSalePrice, setUnitSalePrice] = useState('');
-  const [gatePassNo, setGatePassNo] = useState(`GP-${Date.now().toString().slice(-3)}`);
+  const [gatePassNo, setGatePassNo] = useState(generateGatePass);
   const [notes, setNotes] = useState('');
+
+  const [paidAmount, setPaidAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [isCustomArticle, setIsCustomArticle] = useState(false);
+  const [customArticleNo, setCustomArticleNo] = useState('');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  React.useEffect(() => {
-    if (articles.length > 0 && !selectedArticleNo) {
-      setSelectedArticleNo(articles[0].articleNo);
-    }
-  }, [articles, selectedArticleNo]);
+  // Initialize or reset defaults when modal opens
+  useEffect(() => {
+    if (isNewOutwardOpen) {
+      setChallanNo(generateChallan());
+      setGatePassNo(generateGatePass());
+      setDate(getTodayDate());
+      setError('');
+      setSuccess('');
 
-  React.useEffect(() => {
-    if (cities.length > 0 && !selectedCity) {
-      setSelectedCity(cities[0].name);
+      if (selectedCustomerForBill) {
+        if (selectedCustomerForBill.city) setSelectedCity(selectedCustomerForBill.city);
+        setSelectedCustomerId(selectedCustomerForBill.id || '');
+        setCustomerName(`${selectedCustomerForBill.shopName} (${selectedCustomerForBill.shopkeeperName || ''})`);
+        setCustomerPhone(selectedCustomerForBill.phone || '');
+        setDestination(selectedCustomerForBill.marketAddress || selectedCustomerForBill.city || '');
+      } else if (cities.length > 0) {
+        setSelectedCity(prev => prev || cities[0].name);
+      }
+
+      if (selectedArticleForOutward) {
+        setIsCustomArticle(false);
+        setSelectedArticleNo(selectedArticleForOutward.articleNo);
+        if (selectedArticleForOutward.unitCost) {
+          setUnitSalePrice(Math.round(selectedArticleForOutward.unitCost * 1.3));
+        }
+      } else if (articles.length > 0) {
+        setSelectedArticleNo(prev => prev || articles[0].articleNo);
+        if (articles[0].unitCost) {
+          setUnitSalePrice(prev => prev || Math.round(articles[0].unitCost * 1.3));
+        }
+      }
     }
-  }, [cities, selectedCity]);
+  }, [isNewOutwardOpen, selectedCustomerForBill, selectedArticleForOutward, cities, articles]);
 
   if (!isNewOutwardOpen) return null;
 
   const currentArticle = articles.find(a => a.articleNo === selectedArticleNo) || articles[0];
   const availableStock = currentArticle ? currentArticle.currentStock : 0;
-
-  // Filter shopkeepers by chosen city
-  const cityCustomers = customers.filter(c => c.city.toLowerCase() === selectedCity.toLowerCase());
+  const cityCustomers = customers.filter(c => c.city.toLowerCase() === (selectedCity || '').toLowerCase());
 
   const handleCityChange = (cityName) => {
     setSelectedCity(cityName);
@@ -69,13 +100,27 @@ export const NewOutwardModal = () => {
   };
 
   const handleArticleSelect = (code) => {
+    if (code === '__NEW__') {
+      setIsCustomArticle(true);
+      return;
+    }
+    setIsCustomArticle(false);
     setSelectedArticleNo(code);
     const found = articles.find(a => a.articleNo === code);
     if (found && found.unitCost) {
-      setUnitSalePrice(Math.round(found.unitCost * 1.3)); // Suggested wholesale price
+      setUnitSalePrice(Math.round(found.unitCost * 1.3));
     }
   };
 
+  const handleClose = () => {
+    setIsNewOutwardOpen(false);
+    if (setSelectedCustomerForBill) setSelectedCustomerForBill(null);
+    if (setSelectedArticleForOutward) setSelectedArticleForOutward(null);
+    setError('');
+    setSuccess('');
+  };
+
+  const activeArticleCode = isCustomArticle ? customArticleNo.trim().toUpperCase() : selectedArticleNo;
   const totalBillAmount = (Number(quantity) || 0) * (Number(unitSalePrice) || 0);
 
   const handleSubmit = async (e) => {
@@ -83,9 +128,9 @@ export const NewOutwardModal = () => {
     setError('');
     setSuccess('');
 
-    if (!selectedArticleNo) {
-      showError('Article Required', 'Please select an Article to dispatch.');
-      setError('Please select an Article to dispatch.');
+    if (!activeArticleCode) {
+      showError('Article Required', 'Please select or enter an Article Code to dispatch.');
+      setError('Please select or enter an Article Code to dispatch.');
       return;
     }
 
@@ -103,14 +148,12 @@ export const NewOutwardModal = () => {
       return;
     }
 
-    if (numQty > availableStock) {
-      showWarning('Insufficient Stock!', `Cannot dispatch ${numQty} pcs! Only ${availableStock} pcs currently available in warehouse for ${selectedArticleNo}.`);
-      setError(`Cannot dispatch ${numQty} pcs! Only ${availableStock} pcs available.`);
-      return;
+    if (!isCustomArticle && numQty > availableStock) {
+      showWarning('Stock Alert', `Dispatching ${numQty} pcs. Warehouse recorded stock is ${availableStock} pcs.`);
     }
 
     const res = await addOutward({
-      articleNo: selectedArticleNo.toUpperCase(),
+      articleNo: activeArticleCode,
       quantity: numQty,
       challanNo: challanNo.trim(),
       date,
@@ -120,6 +163,8 @@ export const NewOutwardModal = () => {
       customerPhone: customerPhone.trim(),
       destination: destination.trim() || selectedCity,
       unitSalePrice: Number(unitSalePrice) || 0,
+      paidAmount: Number(paidAmount) || 0,
+      paymentMethod,
       gatePassNo: gatePassNo.trim(),
       notes: notes.trim()
     });
@@ -130,374 +175,435 @@ export const NewOutwardModal = () => {
       return;
     }
 
-    showToast(`Challan #${challanNo}: ${numQty} pcs dispatched to ${finalCustomerName}!`, 'success');
-    setIsNewOutwardOpen(false);
-    setChallanNo(`CH-${new Date().getFullYear()}-${Date.now().toString().slice(-3)}`);
-    setGatePassNo(`GP-${Date.now().toString().slice(-3)}`);
-    setSuccess('');
+    const paidNotice = Number(paidAmount) > 0 ? ` [Wasooli Rs. ${Number(paidAmount).toLocaleString()}]` : '';
+    showToast(`Challan #${challanNo}: ${numQty} pcs dispatched to ${finalCustomerName}!${paidNotice}`, 'success');
+    handleClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
         
-        {/* Header - Fixed & Always Visible */}
-        <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0">
-              <ArrowUpRight className="w-4.5 h-4.5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                Warehouse Stock Outward / Dispatch
+        {/* Modal Header */}
+        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                New Bill / Dispatch Challan
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Dispatch goods to city shopkeeper (Auto-updates stock & customer balance)
-              </p>
+              {selectedCustomerForBill && (
+                <span className="text-xs text-slate-400">•</span>
+              )}
+              {selectedCustomerForBill && (
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  {selectedCustomerForBill.shopName}
+                </span>
+              )}
             </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Create outward bill & update customer khata balance
+            </p>
           </div>
           <button
             type="button"
-            onClick={() => setIsNewOutwardOpen(false)}
+            onClick={handleClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-            title="Close Modal"
+            title="Close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Form - Scrollable */}
+        {/* Form Body - Wide, Balanced & Compact */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-3.5 overflow-y-auto flex-1">
           
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{success}</span>
             </div>
           )}
 
-          {/* Article Selection with Live Stock Highlight */}
-          {articles.length === 0 ? (
-            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-center space-y-2">
-              <p className="text-xs font-bold text-amber-800 dark:text-amber-200">
-                ⚠️ Godam me koi garment article mojood nahi hai!
-              </p>
-              <p className="text-[11px] text-amber-600 dark:text-amber-300">
-                Maal rawana karne se pehlay godam me naya article darj karein ya China container ka bill enter karein:
-              </p>
-              <div className="flex items-center justify-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNewOutwardOpen(false);
-                    setIsAddArticleOpen(true);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors cursor-pointer"
-                >
-                  + Naya Article Darj Karein
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNewOutwardOpen(false);
-                    setIsNewPurchaseOpen(true);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
-                >
-                  + Container Bill Banayein
-                </button>
+          {/* Customer Selection / Pre-filled Info Bar */}
+          {selectedCustomerForBill ? (
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                  Customer
+                </span>
+                <div>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white">
+                    {selectedCustomerForBill.shopName}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 ml-1.5">
+                    {selectedCustomerForBill.shopkeeperName ? `(${selectedCustomerForBill.shopkeeperName})` : ''} • {selectedCustomerForBill.city} {selectedCustomerForBill.phone ? `• ${selectedCustomerForBill.phone}` : ''} {selectedCustomerForBill.marketAddress ? `• ${selectedCustomerForBill.marketAddress}` : ''}
+                  </span>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCustomerForBill(null)}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer shrink-0"
+              >
+                Change
+              </button>
             </div>
           ) : (
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">
-                  Select Article (Garment Code) <span className="text-rose-500">*</span>
-                </label>
-                <div className="text-slate-500 dark:text-slate-400">
-                  Godam Me Mojood:{' '}
-                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                    {availableStock.toLocaleString()} pcs
-                  </span>
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Customer & Destination
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    City / Branch <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={selectedCity}
+                    onChange={e => handleCityChange(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all cursor-pointer"
+                  >
+                    {cities.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Select Customer
+                  </label>
+                  <select
+                    value={selectedCustomerId}
+                    onChange={e => handleCustomerSelect(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all cursor-pointer"
+                  >
+                    <option value="">-- Choose or Type Below --</option>
+                    {cityCustomers.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.shopName} ({c.shopkeeperName})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Customer / Shop Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Al-Madina Garments"
+                    value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Delivery Location
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Raja Bazaar"
+                    value={destination}
+                    onChange={e => setDestination(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                  />
                 </div>
               </div>
+            </div>
+          )}
 
-              <select
-                value={selectedArticleNo}
-                onChange={e => handleArticleSelect(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-blue-700 dark:text-blue-300 focus:border-blue-500 outline-hidden"
-              >
-                {articles.map(a => (
-                  <option key={a.articleNo} value={a.articleNo}>
-                    {a.articleNo} — {a.name} ({a.stuff || a.category}) [Stock: {a.currentStock} pcs]
-                  </option>
-                ))}
-              </select>
+          {/* Main 2-Column Grid: Left = Goods & Quantity | Right = Financials & Payment */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+            
+            {/* LEFT COLUMN: Article Selection & Quantity */}
+            <div className="space-y-3.5 flex flex-col justify-between">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Garment & Stock
+                </h3>
 
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-                    Rawana Hone Wali Quantity (Pieces) <span className="text-rose-500">*</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    Article / Garment Code <span className="text-rose-500">*</span>
                   </label>
-                  <span className="text-[10px] text-slate-400">
-                    Max: {availableStock.toLocaleString()} pcs
-                  </span>
+                  {!isCustomArticle && (
+                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                      Godam Stock: <strong className="text-slate-800 dark:text-slate-200">{availableStock.toLocaleString()}</strong> pcs
+                    </span>
+                  )}
                 </div>
 
+                {!isCustomArticle ? (
+                  <select
+                    value={selectedArticleNo}
+                    onChange={e => handleArticleSelect(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all cursor-pointer"
+                  >
+                    {articles.map(a => (
+                      <option key={a.articleNo} value={a.articleNo}>
+                        {a.articleNo} — {a.name} ({a.currentStock} pcs stock)
+                      </option>
+                    ))}
+                    <option value="__NEW__">+ Custom Article Code...</option>
+                  </select>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. JK-2026"
+                      value={customArticleNo}
+                      onChange={e => setCustomArticleNo(e.target.value)}
+                      className="flex-1 px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomArticle(false)}
+                      className="px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                    >
+                      List
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                  Quantity (Pieces) <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="number"
                   required
                   min="1"
-                  max={availableStock}
                   value={quantity}
                   onChange={e => setQuantity(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900 rounded-xl text-sm font-mono font-bold text-rose-600 dark:text-rose-400 focus:border-rose-500 outline-hidden"
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all"
                 />
+              </div>
 
-                {/* Quick Fill Chips for Quantity */}
-                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                  <span className="text-[10px] text-slate-400 font-medium">Asaan Buttons:</span>
-                  {[50, 100, 200, 500].filter(q => q <= availableStock).map(q => (
+              {/* Quick Fill Pills & Stock Preview */}
+              <div className="flex items-center justify-between text-xs pt-1 flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-medium text-slate-400">Quick:</span>
+                  {[50, 100, 200, 500].map(q => (
                     <button
                       key={q}
                       type="button"
                       onClick={() => setQuantity(q)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
                         Number(quantity) === q
-                          ? 'bg-rose-600 text-white shadow-2xs'
-                          : 'bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600'
+                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold'
+                          : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                       }`}
                     >
-                      {q} pcs
+                      {q}
                     </button>
                   ))}
                   {availableStock > 0 && (
                     <button
                       type="button"
                       onClick={() => setQuantity(availableStock)}
-                      className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 transition-colors cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                     >
-                      Pura Stock ({availableStock} pcs)
+                      All ({availableStock})
                     </button>
                   )}
                 </div>
 
-                {/* Live 3-Stage Visual Calculation Card */}
-                <div className="grid grid-cols-3 gap-2 p-2.5 rounded-lg bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-center">
-                  <div>
-                    <span className="text-[9px] text-slate-400 block uppercase font-bold">Pehlay Stock</span>
-                    <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
-                      {availableStock.toLocaleString()} pcs
-                    </span>
-                  </div>
-                  <div className="border-x border-slate-100 dark:border-slate-700">
-                    <span className="text-[9px] text-rose-500 block uppercase font-bold">(-) Dispatch</span>
-                    <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">
-                      -{Number(quantity || 0).toLocaleString()} pcs
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-emerald-600 block uppercase font-bold">(=) Naya Stock</span>
-                    <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                      {Math.max(0, availableStock - Number(quantity || 0)).toLocaleString()} pcs
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* City / Branch and Registered Shopkeeper Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Destination City / Branch <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={selectedCity}
-                onChange={e => handleCityChange(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:border-blue-500 outline-hidden"
-              >
-                {cities.map(c => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Select Shopkeeper in {selectedCity}
-              </label>
-              <select
-                value={selectedCustomerId}
-                onChange={e => handleCustomerSelect(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:border-blue-500 outline-hidden"
-              >
-                <option value="">-- Choose or Enter Below --</option>
-                {cityCustomers.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.shopName} ({c.shopkeeperName})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Customer / Wholesale Shop Name */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Customer / Shop Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Al-Madina Garments (Haji Rafiq)"
-                value={customerName}
-                onChange={e => setCustomerName(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:border-blue-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Market / Delivery Location
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Raja Bazaar, Anarkali"
-                value={destination}
-                onChange={e => setDestination(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:border-blue-500 outline-hidden"
-              />
-            </div>
-          </div>
-
-          {/* Challan # & Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Challan #
-              </label>
-              <input
-                type="text"
-                value={challanNo}
-                onChange={e => setChallanNo(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Dispatch Date
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Gate Pass #
-              </label>
-              <input
-                type="text"
-                value={gatePassNo}
-                onChange={e => setGatePassNo(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200 outline-hidden"
-              />
-            </div>
-          </div>
-
-          {/* Wholesale Rate & Auto Calculated Bill */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Unit Wholesale Sale Rate (PKR)
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="e.g. 3400"
-                value={unitSalePrice}
-                onChange={e => setUnitSalePrice(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Total Bill Amount (Auto-Calculated)
-              </label>
-              <div className="w-full px-3 py-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-mono font-bold text-blue-700 dark:text-blue-300 flex items-center justify-between">
-                <span>Rs. {totalBillAmount.toLocaleString()}</span>
-                {totalBillAmount > 0 && (
-                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                    {formatLakhCrore(totalBillAmount)}
+                {!isCustomArticle && (
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Remaining: <strong className="font-mono text-slate-700 dark:text-slate-200">{Math.max(0, availableStock - Number(quantity || 0)).toLocaleString()} pcs</strong>
                   </span>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Phone & Remarks */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Customer Phone
-              </label>
-              <input
-                type="text"
-                placeholder="0300-1234567"
-                value={customerPhone}
-                onChange={e => setCustomerPhone(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 outline-hidden"
-              />
+            {/* RIGHT COLUMN: Rate, Total Bill & Upfront Payment */}
+            <div className="space-y-3.5 flex flex-col justify-between">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Pricing & Khata
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Rate per Piece (PKR)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 3400"
+                      value={unitSalePrice}
+                      onChange={e => setUnitSalePrice(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-semibold text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Total Bill Amount
+                    </label>
+                    <div className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                      <span>Rs. {totalBillAmount.toLocaleString()}</span>
+                      {totalBillAmount > 0 && (
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans font-medium">
+                          {formatLakhCrore(totalBillAmount)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upfront Payment Fields */}
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Payment Received (Optional)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0 (if unpaid)"
+                    value={paidAmount}
+                    onChange={e => setPaidAmount(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Payment Method
+                  </label>
+                  <select
+                    value={paymentMethod}
+                    onChange={e => setPaymentMethod(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden cursor-pointer transition-all"
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CHEQUE">Cheque</option>
+                    <option value="ONLINE">Online / Easypaisa</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Live Khata Balance Strip */}
+              <div className="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs font-mono">
+                <span className="text-slate-500 dark:text-slate-400 font-sans text-xs">
+                  Bill: <strong className="font-mono text-slate-800 dark:text-slate-200">Rs. {totalBillAmount.toLocaleString()}</strong>
+                </span>
+                <span className="text-slate-500 dark:text-slate-400 font-sans text-xs">
+                  Received: <strong className="font-mono text-slate-800 dark:text-slate-200">Rs. {(Number(paidAmount) || 0).toLocaleString()}</strong>
+                </span>
+                <span className="text-slate-700 dark:text-slate-200 font-sans text-xs">
+                  Baqaya Khata: <strong className="font-mono text-slate-900 dark:text-white">Rs. {Math.max(0, totalBillAmount - (Number(paidAmount) || 0)).toLocaleString()}</strong>
+                </span>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Transport / Bilty Remarks
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Sent via Goods Transport Bardan packaging"
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 outline-hidden"
-              />
+          </div>
+
+          {/* Bottom Logistics Row (Challan #, Date, Gate Pass, Transport Notes) in 4 neat columns */}
+          <div className="pt-2">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+              Logistics & Documentation
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Challan #
+                </label>
+                <input
+                  type="text"
+                  value={challanNo}
+                  onChange={e => setChallanNo(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Dispatch Date
+                </label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Gate Pass # <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={gatePassNo}
+                  onChange={e => setGatePassNo(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Transport / Remarks <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Goods Transport"
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 px-5 sm:px-6 py-3 mt-3 shadow-xs">
+        </form>
+
+        {/* Modal Footer */}
+        <div className="px-6 py-3.5 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Total Bill: <strong className="font-mono text-slate-900 dark:text-white">Rs. {totalBillAmount.toLocaleString()}</strong>
+            {Number(paidAmount) > 0 && (
+              <span className="ml-2 text-slate-400">
+                • Net Baqaya: <strong className="font-mono text-slate-800 dark:text-slate-200">Rs. {Math.max(0, totalBillAmount - (Number(paidAmount) || 0)).toLocaleString()}</strong>
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setIsNewOutwardOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              onClick={handleClose}
+              className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
-              type="submit"
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-medium rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              type="button"
+              onClick={handleSubmit}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
             >
-              <ArrowUpRight className="w-4 h-4" />
-              Dispatch Stock
+              <Truck className="w-3.5 h-3.5" />
+              <span>Dispatch & Generate Bill</span>
             </button>
           </div>
-
-        </form>
+        </div>
 
       </div>
     </div>

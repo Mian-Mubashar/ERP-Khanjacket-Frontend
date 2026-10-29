@@ -254,26 +254,34 @@ export const downloadInvoicePDF = (invoice) => {
 };
 
 // -------------------------------------------------------------
-// 2. CUSTOMER KHATA STATEMENT / LEDGER PDF
+// 2. CUSTOMER KHATA STATEMENT / LEDGER PDF (Image 1 Authentic Khata)
 // -------------------------------------------------------------
 export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = []) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   let currentY = drawHeader(
     doc,
-    'Customer Khata Statement & Ledger',
-    `Wholesale Goods Outward & Receivable Statement`,
-    `Shop: ${customer.shopName}`
+    'Khata Statement / Ledger',
+    `Wholesale Goods Outward & Receivable Ledger`,
+    `Dukaan / Shop: ${customer.shopName}`
   );
+
+  // Financial calculations
+  const totalBilled = dispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
+  const totalPaid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const totalPieces = dispatches.reduce((s, d) => s + (Number(d.quantity) || 0), 0);
+  const recordedBill = Number(customer.totalBill) || 0;
+  const openingBalance = Math.max(0, recordedBill - totalBilled);
+  const currentNetBalance = Math.max(0, (openingBalance + totalBilled) - totalPaid);
 
   // Customer Profile Banner
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(14, currentY, 182, 25, 2, 2, 'FD');
 
-  doc.setFontSize(8.5);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text(customer.shopName, 18, currentY + 6);
+  doc.text(`Khata Banam: ${customer.shopName} (${customer.id})`, 18, currentY + 6);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -285,24 +293,25 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
   // Net Balance Display Pill (Right inside banner)
   doc.setFillColor(254, 242, 242); // rose-50
   doc.setDrawColor(254, 205, 211);
-  doc.roundedRect(125, currentY + 4, 66, 17, 2, 2, 'FD');
+  doc.roundedRect(122, currentY + 4, 69, 17, 2, 2, 'FD');
 
   doc.setFontSize(7);
   doc.setTextColor(225, 29, 72);
-  doc.text('OUTSTANDING KHATA BALANCE', 128, currentY + 9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('REMAINING BAQAYA / DUE BALANCE', 125, currentY + 9);
   doc.setFontSize(11);
   doc.setFont('courier', 'bold');
-  doc.text(formatPKR(customer.remainingBalance), 128, currentY + 17);
+  doc.text(formatPKR(currentNetBalance), 125, currentY + 17);
 
-  currentY += 31;
+  currentY += 30;
 
   // 4 Metric Mini-Cards
   const cardW = 43;
   const metrics = [
-    { label: 'Total Mal Sent', val: `${(customer.totalPiecesReceived || 0).toLocaleString()} pcs` },
-    { label: 'Total Billed', val: formatPKR(customer.totalBill) },
-    { label: 'Payment Received', val: formatPKR(customer.totalPaid) },
-    { label: 'Balance Due', val: formatPKR(customer.remainingBalance) }
+    { label: 'Sabqa / Opening', val: formatPKR(openingBalance) },
+    { label: 'Total Maal Sent', val: `${(Number(customer.totalPiecesReceived) || totalPieces).toLocaleString()} pcs` },
+    { label: 'Total Billed (Naam)', val: formatPKR(totalBilled) },
+    { label: 'Total Wasool (Jama)', val: formatPKR(totalPaid) }
   ];
 
   metrics.forEach((m, i) => {
@@ -324,87 +333,131 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
 
   currentY += 18;
 
-  // Dispatches Table Header
+  // Build unified chronological running ledger events
+  const events = [];
+
+  if (openingBalance > 0) {
+    events.push({
+      date: customer.createdAt ? customer.createdAt.split('T')[0] : 'Opening',
+      rawDate: new Date(customer.createdAt || 0).getTime(),
+      desc: 'Sabqa Baqaya / Opening Balance',
+      debit: openingBalance,
+      credit: 0
+    });
+  }
+
+  dispatches.forEach(d => {
+    events.push({
+      date: d.date,
+      rawDate: new Date(d.date || d.createdAt).getTime(),
+      desc: `Bill #${d.challanNo} - ${d.articleNo} (${(d.quantity || 0).toLocaleString()} pcs @ Rs. ${(d.unitSalePrice || 0).toLocaleString()})`,
+      debit: Number(d.totalSaleAmount) || 0,
+      credit: 0
+    });
+  });
+
+  payments.forEach(p => {
+    events.push({
+      date: p.date,
+      rawDate: new Date(p.date || p.createdAt).getTime(),
+      desc: `Wasooli / Payment Received (MK / ${p.paymentMethod || 'Cash'})${p.notes ? ' - ' + p.notes : ''}`,
+      debit: 0,
+      credit: Number(p.amount) || 0
+    });
+  });
+
+  events.sort((a, b) => a.rawDate - b.rawDate);
+
+  let running = 0;
+  const ledgerRows = events.map((item, idx) => {
+    running = running + item.debit - item.credit;
+    return [
+      idx + 1,
+      item.date,
+      item.desc,
+      item.debit > 0 ? formatPKR(item.debit) : '—',
+      item.credit > 0 ? formatPKR(item.credit) : '—',
+      formatPKR(running)
+    ];
+  });
+
+  // Table Title
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(30, 41, 59);
-  doc.text('1. GOODS OUTWARD DISPATCHES RECORD', 14, currentY);
+  doc.text('RUNNING KHATA LEDGER / STATEMENT', 14, currentY);
   currentY += 3;
-
-  const dispatchRows = dispatches.map((d, i) => [
-    i + 1,
-    d.date,
-    d.challanNo,
-    d.articleNo,
-    d.articleName || 'Garment Item',
-    `${(d.quantity || 0).toLocaleString()} pcs`,
-    formatPKR(d.unitSalePrice),
-    formatPKR(d.totalSaleAmount)
-  ]);
 
   autoTable(doc, {
     startY: currentY,
-    head: [['#', 'Date', 'Challan #', 'Article', 'Description', 'Quantity', 'Sale Rate', 'Total (PKR)']],
-    body: dispatchRows.length ? dispatchRows : [['-', '-', '-', '-', 'No outward dispatches recorded', '-', '-', '-']],
+    head: [['#', 'Date', 'Description / Details', 'Debit / Billed (+)', 'Credit / Wasool (-)', 'Balance / Baqaya']],
+    body: ledgerRows.length ? ledgerRows : [['-', '-', 'No transactions logged yet', '—', '—', 'Rs. 0']],
     theme: 'grid',
     headStyles: {
-      fillColor: [37, 99, 235], // blue-600
+      fillColor: [30, 41, 59], // dark navy slate
+      textColor: [255, 255, 255],
       fontSize: 7.5,
-      fontStyle: 'bold'
+      fontStyle: 'bold',
+      halign: 'left'
     },
-    styles: { fontSize: 7.5, cellPadding: 2 },
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 2,
+      textColor: [51, 65, 85]
+    },
     columnStyles: {
       0: { halign: 'center', cellWidth: 8 },
-      1: { cellWidth: 20 },
-      2: { font: 'courier', cellWidth: 24 },
-      3: { font: 'courier', fontStyle: 'bold', cellWidth: 20 },
-      4: { cellWidth: 46 },
-      5: { halign: 'right', fontStyle: 'bold', cellWidth: 18 },
-      6: { halign: 'right', cellWidth: 22 },
-      7: { halign: 'right', fontStyle: 'bold', cellWidth: 24 }
+      1: { cellWidth: 22 },
+      2: { cellWidth: 72 },
+      3: { halign: 'right', fontStyle: 'bold', textColor: [109, 40, 217], cellWidth: 26 }, // purple-700
+      4: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 26 }, // emerald-600
+      5: { halign: 'right', font: 'courier', fontStyle: 'bold', textColor: [15, 23, 42], cellWidth: 28 }
     }
   });
 
   currentY = doc.lastAutoTable.finalY + 6;
 
-  // Payments Table Header
+  // Final Summary Box (Right Aligned)
+  const boxWidth = 96;
+  const boxX = 196 - boxWidth;
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(boxX, currentY, boxWidth, 28, 2, 2, 'FD');
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+
+  // Total Billed
+  doc.text('Total Billed (Opening + Dispatches):', boxX + 4, currentY + 6);
+  doc.setFont('courier', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(formatPKR(totalBilled + openingBalance), boxX + boxWidth - 4, currentY + 6, { align: 'right' });
+
+  // Total Paid
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Total Wasooli Received:', boxX + 4, currentY + 12);
+  doc.setFont('courier', 'bold');
+  doc.setTextColor(16, 185, 129);
+  doc.text(`- ${formatPKR(totalPaid)}`, boxX + boxWidth - 4, currentY + 12, { align: 'right' });
+
+  // Divider
+  doc.setDrawColor(226, 232, 240);
+  doc.line(boxX + 4, currentY + 16, boxX + boxWidth - 4, currentY + 16);
+
+  // Net Baqaya Due
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(30, 41, 59);
-  doc.text('2. PAYMENTS RECEIVED FROM SHOPKEEPER', 14, currentY);
-  currentY += 3;
+  doc.setFontSize(8.5);
+  doc.setTextColor(225, 29, 72); // rose-600
+  doc.text('Net Baqaya Remaining:', boxX + 4, currentY + 22);
+  doc.setFont('courier', 'bold');
+  doc.text(formatPKR(currentNetBalance), boxX + boxWidth - 4, currentY + 22, { align: 'right' });
 
-  const paymentRows = payments.map((p, i) => [
-    i + 1,
-    p.date,
-    p.refNo || p.id,
-    p.paymentMethod || 'Cash',
-    p.notes || 'Payment received against dispatch challan',
-    formatPKR(p.amount)
-  ]);
-
-  autoTable(doc, {
-    startY: currentY,
-    head: [['#', 'Date', 'Receipt / Ref #', 'Payment Method', 'Remarks', 'Amount Received']],
-    body: paymentRows.length ? paymentRows : [['-', '-', '-', '-', 'No payments logged yet', '-']],
-    theme: 'grid',
-    headStyles: {
-      fillColor: [16, 185, 129], // emerald-600
-      fontSize: 7.5,
-      fontStyle: 'bold'
-    },
-    styles: { fontSize: 7.5, cellPadding: 2 },
-    columnStyles: {
-      0: { halign: 'center', cellWidth: 8 },
-      1: { cellWidth: 22 },
-      2: { font: 'courier', cellWidth: 28 },
-      3: { cellWidth: 32 },
-      4: { cellWidth: 62 },
-      5: { halign: 'right', font: 'courier', fontStyle: 'bold', cellWidth: 30 }
-    }
-  });
-
-  drawFooter(doc, doc.lastAutoTable.finalY + 15);
+  // Signature Blocks
+  const sigY = Math.max(currentY + 40, doc.lastAutoTable.finalY + 42);
+  drawFooter(doc, sigY);
 
   doc.save(`KhanClothes_Khata_${customer.shopName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 };

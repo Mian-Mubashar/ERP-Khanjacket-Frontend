@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Pencil, AlertCircle, Save, Shirt, Layers, DollarSign, Bell, Plus, MapPin, Trash2 } from 'lucide-react';
+import { X, AlertCircle, Save, Trash2, Plus } from 'lucide-react';
 import { showToast, showError, confirmDelete } from '../../utils/sweetalert';
+import { formatLakhCrore } from '../../utils/formatters';
 
 export const EditArticleModal = () => {
   const {
@@ -11,62 +12,38 @@ export const EditArticleModal = () => {
     setEditingArticle,
     updateArticle,
     deleteArticle,
-    categories,
-    stuffs,
-    warehouseLocations,
-    setIsAddCategoryOpen,
+    selectedArticleDetail,
+    setSelectedArticleDetail,
+    categories = [],
+    stuffs = [],
+    warehouseLocations = [],
     setIsAddStuffOpen,
     setIsAddLocationOpen,
-    selectedArticleDetail,
-    setSelectedArticleDetail
+    setIsAddCategoryOpen
   } = useApp();
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [stuff, setStuff] = useState('');
   const [unitCost, setUnitCost] = useState('');
-  const [minAlertStock, setMinAlertStock] = useState('100');
+  const [minAlertStock, setMinAlertStock] = useState('150');
   const [warehouseLocation, setWarehouseLocation] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Auto-select latest category when one is added dynamically
-  const prevCatCount = useRef(categories.length);
-  useEffect(() => {
-    if (categories.length > prevCatCount.current) {
-      const latest = categories[categories.length - 1];
-      if (latest) {
-        setCategory(latest);
-      }
-    }
-    prevCatCount.current = categories.length;
-  }, [categories]);
-
-  // Auto-select latest warehouse location when one is added dynamically
-  const prevLocCount = useRef(warehouseLocations.length);
-  useEffect(() => {
-    if (warehouseLocations.length > prevLocCount.current) {
-      const latest = warehouseLocations[warehouseLocations.length - 1];
-      if (latest) {
-        setWarehouseLocation(latest);
-      }
-    }
-    prevLocCount.current = warehouseLocations.length;
-  }, [warehouseLocations]);
-
   useEffect(() => {
     if (editingArticle && isEditArticleOpen) {
       setName(editingArticle.name || '');
-      setCategory(editingArticle.category || 'Jacket');
+      setCategory(editingArticle.category || (categories[0] || 'Jacket'));
       setStuff(editingArticle.stuff || (stuffs[0] || 'Parachute (Waterproof)'));
-      setUnitCost(editingArticle.unitCost?.toString() || '0');
-      setMinAlertStock(editingArticle.minAlertStock?.toString() || '100');
-      setWarehouseLocation(editingArticle.warehouseLocation || (warehouseLocations[0] || ''));
+      setUnitCost(editingArticle.unitCost !== undefined ? String(editingArticle.unitCost) : '');
+      setMinAlertStock(editingArticle.minAlertStock !== undefined ? String(editingArticle.minAlertStock) : '150');
+      setWarehouseLocation(editingArticle.warehouseLocation || (warehouseLocations[0] || 'Main Godown - Hall A'));
       setDescription(editingArticle.description || '');
       setError('');
     }
-  }, [editingArticle, isEditArticleOpen, stuffs, warehouseLocations]);
+  }, [editingArticle, isEditArticleOpen, categories, stuffs, warehouseLocations]);
 
   if (!isEditArticleOpen || !editingArticle) return null;
 
@@ -77,25 +54,21 @@ export const EditArticleModal = () => {
   };
 
   const handleDelete = async () => {
-    if (!editingArticle) return;
     const isConfirmed = await confirmDelete({
       title: `Delete Article ${editingArticle.articleNo}?`,
-      text: `Are you sure you want to delete "${editingArticle.name}" (${editingArticle.articleNo})? This will permanently remove it from the warehouse catalog.`,
+      text: `Are you sure you want to delete "${editingArticle.name}" (${editingArticle.articleNo})? This will remove it from the warehouse catalog.`,
       confirmButtonText: 'Yes, Delete Article'
     });
 
     if (!isConfirmed) return;
 
-    setIsSubmitting(true);
     const res = await deleteArticle(editingArticle.articleNo);
-    setIsSubmitting(false);
-
     if (res?.success) {
       showToast(`Article "${editingArticle.articleNo}" deleted successfully!`, 'success');
-      if (selectedArticleDetail?.articleNo === editingArticle.articleNo) {
+      handleClose();
+      if (selectedArticleDetail && selectedArticleDetail.articleNo === editingArticle.articleNo) {
         setSelectedArticleDetail(null);
       }
-      handleClose();
     } else {
       showError('Cannot Delete Article', res?.message || 'Failed to delete article');
     }
@@ -106,7 +79,7 @@ export const EditArticleModal = () => {
     setError('');
 
     if (!name.trim()) {
-      showError('Zaroori Field', 'Article Name is required.');
+      showError('Required Field', 'Article Name is required.');
       setError('Article Name is required.');
       return;
     }
@@ -118,7 +91,7 @@ export const EditArticleModal = () => {
         category,
         stuff,
         unitCost: Number(unitCost) || 0,
-        minAlertStock: Number(minAlertStock) || 100,
+        minAlertStock: Number(minAlertStock) || 150,
         warehouseLocation: warehouseLocation.trim(),
         description: description.trim()
       });
@@ -138,7 +111,7 @@ export const EditArticleModal = () => {
           category,
           stuff,
           unitCost: Number(unitCost) || 0,
-          minAlertStock: Number(minAlertStock) || 100,
+          minAlertStock: Number(minAlertStock) || 150,
           warehouseLocation: warehouseLocation.trim(),
           description: description.trim()
         }));
@@ -154,30 +127,28 @@ export const EditArticleModal = () => {
     }
   };
 
-  const defaultCategories = ['Jacket', 'Hoodie', 'Zipper', 'Tracksuit', 'Trousers', 'Shirt', 'Windbreaker'];
-  const activeCategories = categories && categories.length > 0 ? categories : defaultCategories;
+  const costNum = Number(unitCost) || 0;
+  const currentStock = Number(editingArticle.currentStock) || 0;
 
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
         
-        {/* Header - Fixed */}
-        <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0">
-              <Pencil className="w-4.5 h-4.5" />
+        {/* Header - Simple & Clean */}
+        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                Edit Article Details
+              </h2>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200/70 dark:border-blue-900/60">
+                {editingArticle.articleNo}
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Edit Article Details</h2>
-                <span className="text-[11px] px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-mono font-bold tracking-wide border border-blue-200/50 dark:border-blue-800/50">
-                  {editingArticle.articleNo}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Update article name, fabric stuff, unit cost and alert stock
-              </p>
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Update garment style title, fabric materials, landing cost, and warehouse rack
+            </p>
           </div>
           <button
             type="button"
@@ -189,219 +160,228 @@ export const EditArticleModal = () => {
           </button>
         </div>
 
-        {/* Stock info strip */}
-        <div className="bg-slate-50/70 dark:bg-slate-800/40 px-6 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
-          <div className="text-slate-500 dark:text-slate-400">
-            Current Stock: <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{Number(editingArticle.currentStock || 0).toLocaleString()} pcs</span>
-          </div>
-          <div className="text-[11px] text-slate-400">
-            Total Import: <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{Number(editingArticle.totalPurchased || 0).toLocaleString()} pcs</span>
-          </div>
-        </div>
-
-        {/* Form - Scrollable */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-3.5 overflow-y-auto flex-1">
+        {/* Form Body - Balanced 2-Column Layout */}
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
           
           {error && (
-            <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Row 1: Article Name & Category */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Article Name / Garment Title <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Winter Down Jacket with Detachable Hood"
-                required
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 font-medium"
-              />
+          {/* Quick Info Banner */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                Catalog Code
+              </span>
+              <span className="text-sm font-mono font-bold text-slate-900 dark:text-white">
+                {editingArticle.articleNo}
+              </span>
             </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Garment Category
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsAddCategoryOpen(true)}
-                  className="text-[11px] text-blue-600 hover:text-blue-700 dark:text-blue-400 font-semibold hover:underline flex items-center gap-0.5 cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add New</span>
-                </button>
+            <div className="text-right flex items-center gap-4">
+              <div>
+                <span className="text-[10px] text-slate-400 block font-medium uppercase tracking-wider">Current Stock</span>
+                <span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                  {currentStock.toLocaleString()} pcs
+                </span>
               </div>
-              <select
-                value={category}
-                onChange={(e) => {
-                  if (e.target.value === '__NEW__') {
-                    setIsAddCategoryOpen(true);
-                  } else {
-                    setCategory(e.target.value);
-                  }
-                }}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 font-medium"
-              >
-                {activeCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-                <option value="__NEW__">+ Add New Category...</option>
-              </select>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-medium uppercase tracking-wider">Total Valuation</span>
+                <span className="text-sm font-bold font-mono text-slate-900 dark:text-white">
+                  Rs. {(currentStock * costNum).toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Row 2: Fabric Stuff & Unit Cost */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Fabric / Stuff (Kapra)
-              </label>
-              <select
-                value={stuff}
-                onChange={(e) => setStuff(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 font-medium"
-              >
-                {stuffs.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            
+            {/* LEFT COLUMN: Name & Classification */}
+            <div className="space-y-3.5">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Article Specification
+              </h3>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Unit Cost (Purchase PKR per pc)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={unitCost}
-                onChange={(e) => setUnitCost(e.target.value)}
-                placeholder="e.g. 1500"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 font-mono"
-              />
-            </div>
-          </div>
-
-          {/* Row 3: Alert Stock & Warehouse Location */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Min Stock Alert Level (Pcs)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={minAlertStock}
-                onChange={(e) => setMinAlertStock(e.target.value)}
-                placeholder="100"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 font-mono"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Warehouse Rack / Godown</span>
+              {/* Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Article Name / Title <span className="text-rose-500">*</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsAddLocationOpen(true)}
-                  className="text-[11px] text-amber-600 hover:text-amber-700 dark:text-amber-400 font-semibold hover:underline flex items-center gap-0.5 cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add New</span>
-                </button>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                />
               </div>
 
-              <select
-                value={warehouseLocation}
-                onChange={e => {
-                  if (e.target.value === '__NEW__') {
-                    setIsAddLocationOpen(true);
-                  } else {
-                    setWarehouseLocation(e.target.value);
-                  }
-                }}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-amber-200 dark:border-amber-900/60 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-amber-500 font-medium transition-all"
-              >
-                <option value="">-- Select Storage Rack / Location --</option>
-                {warehouseLocations.map(loc => (
-                  <option key={loc} value={loc}>{loc}</option>
-                ))}
-                <option value="__NEW__">+ Add New Location / Rack...</option>
-              </select>
-
-              {warehouseLocations.length > 0 && (
-                <div className="flex items-center gap-1 mt-1.5 overflow-x-auto text-[10px] pb-0.5">
-                  {warehouseLocations.slice(0, 6).map(loc => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => setWarehouseLocation(loc)}
-                      className={`px-1.5 py-0.5 rounded transition-colors whitespace-nowrap cursor-pointer border ${
-                        warehouseLocation === loc
-                          ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700 font-bold'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      {loc}
-                    </button>
-                  ))}
+              {/* Category */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Category
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddCategoryOpen(true)}
+                    className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>New Category</span>
+                  </button>
                 </div>
-              )}
+                <select
+                  value={category}
+                  onChange={e => setCategory(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Stuff / Fabric */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Stuff / Fabric Material
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddStuffOpen(true)}
+                    className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>New Stuff</span>
+                  </button>
+                </div>
+                <select
+                  value={stuff}
+                  onChange={e => setStuff(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
+                >
+                  {stuffs.map(st => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
+
             </div>
+
+            {/* RIGHT COLUMN: Location, Cost & Alert */}
+            <div className="space-y-3.5">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Warehouse Location & Cost
+              </h3>
+
+              {/* Warehouse Location */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Warehouse Location / Rack
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddLocationOpen(true)}
+                    className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>New Location</span>
+                  </button>
+                </div>
+                <select
+                  value={warehouseLocation}
+                  onChange={e => setWarehouseLocation(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
+                >
+                  {warehouseLocations.map(loc => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Unit Cost */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Landing Unit Cost (PKR)
+                  </label>
+                  {costNum > 0 && (
+                    <span className="text-[11px] text-slate-500 font-mono font-medium">
+                      {formatLakhCrore(costNum)}
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  value={unitCost}
+                  onChange={e => setUnitCost(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                />
+              </div>
+
+              {/* Low Stock Alert */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Low Stock Alert Threshold (pcs)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={minAlertStock}
+                  onChange={e => setMinAlertStock(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                />
+              </div>
+
+            </div>
+
           </div>
 
-          {/* Row 4: Description / Notes */}
+          {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Description / Quality Notes
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Description / Specifications (Optional)
             </label>
             <input
               type="text"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Premium imported zipper, fleece inner lining..."
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500"
+              onChange={e => setDescription(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
             />
           </div>
 
-          {/* Form Actions */}
-          <div className="flex items-center justify-between gap-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 px-5 sm:px-6 py-3 mt-2 shadow-xs">
+          {/* Modal Footer Actions */}
+          <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
             <button
               type="button"
               onClick={handleDelete}
-              disabled={isSubmitting}
-              className="px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-3.5 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete Article</span>
             </button>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={isSubmitting}
-                className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                <Save className="w-4 h-4" />
+                <Save className="w-3.5 h-3.5" />
                 <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
               </button>
             </div>

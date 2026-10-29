@@ -189,8 +189,8 @@ export const SecurityModal = () => {
               </div>
 
               {/* Add New Authorized Device Form */}
-              <form onSubmit={handleAddDevice} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+              <form onSubmit={handleAddDevice} className="pt-2 space-y-3">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                   Authorize New Mobile Device
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -200,29 +200,29 @@ export const SecurityModal = () => {
                     placeholder="Device Label (e.g. Incharge Galaxy S24)"
                     value={newDeviceName}
                     onChange={e => setNewDeviceName(e.target.value)}
-                    className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
+                    className="px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
                   />
                   <input
                     type="text"
                     placeholder="Model (e.g. Samsung / iPhone)"
                     value={newDeviceModel}
                     onChange={e => setNewDeviceModel(e.target.value)}
-                    className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
+                    className="px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
                   />
                   <input
                     type="text"
                     placeholder="Assigned Staff Member"
                     value={newDeviceOwner}
                     onChange={e => setNewDeviceOwner(e.target.value)}
-                    className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
+                    className="px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
                   />
                 </div>
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-4 h-4" />
                     <span>Authorize Device</span>
                   </button>
                 </div>

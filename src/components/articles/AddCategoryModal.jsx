@@ -130,18 +130,18 @@ export const AddCategoryModal = () => {
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0">
               <FolderPlus className="w-4.5 h-4.5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Garment Categories (Client Managed)</h2>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Garment Categories</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Dynamic categories: Add, update (rename) or delete categories as needed
+                Add, rename, or manage garment apparel categories (Jacket, Hoodie, Tracksuit)
               </p>
             </div>
           </div>
@@ -172,19 +172,19 @@ export const AddCategoryModal = () => {
           )}
 
           {/* Add form */}
-          <form onSubmit={handleSubmit} className="flex gap-2">
+          <form onSubmit={handleSubmit} className="flex gap-2.5">
             <input
               type="text"
               value={categoryName}
               onChange={(e) => setCategoryName(e.target.value)}
               placeholder="e.g. Jacket, Hoodie, Tracksuit, Shalwar Kameez, Kurta..."
               autoFocus
-              className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-blue-500 font-medium"
+              className="flex-1 px-3.5 py-2.5 text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
             />
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
             >
               <Plus className="w-4 h-4" />
               <span>{isSubmitting ? 'Adding...' : 'Add Category'}</span>

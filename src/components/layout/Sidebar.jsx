@@ -13,9 +13,7 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
-  Warehouse,
-  Tags,
-  Layers
+  Warehouse
 } from 'lucide-react';
 import iconLogoImg from '../../images/khan jacket icon logo.png';
 
@@ -30,6 +28,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     setIsAddArticleOpen,
     setIsNewPurchaseOpen,
     setIsNewOutwardOpen,
+    setSelectedCustomerForBill,
     setIsAddSupplierOpen,
     setIsAddCityOpen,
     setIsAddCustomerOpen,
@@ -60,7 +59,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
   };
 
   const totalStock = articles.reduce((sum, a) => sum + (Number(a.currentStock) || 0), 0);
-  const totalPayables = suppliers.reduce((sum, s) => sum + (Number(s.remainingBalance) || 0), 0);
 
   if (sidebarCollapsed) {
     return (
@@ -313,6 +311,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                   <span>Receive Payment</span>
                 </div>
               </button>
+
 
               <button
                 onClick={() => setIsAddCustomerOpen(true)}

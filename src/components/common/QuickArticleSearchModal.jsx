@@ -12,11 +12,10 @@ export const QuickArticleSearchModal = () => {
 
   const [term, setTerm] = useState('');
 
-  // Keyboard shortcut listener: '/' or 'Ctrl+K' opens this modal
+  // Keyboard shortcut listener: '/' opens barcode & quick article search modal
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') ||
-          (e.ctrlKey && e.key.toLowerCase() === 'k')) {
+      if (e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
         e.preventDefault();
         setIsQuickSearchOpen(true);
       }

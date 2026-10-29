@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Plus, AlertCircle, CheckCircle2, Boxes, Layers, MapPin } from 'lucide-react';
+import { X, AlertCircle, CheckCircle2, Boxes, Plus } from 'lucide-react';
 import { showToast, showError } from '../../utils/sweetalert';
+import { formatLakhCrore } from '../../utils/formatters';
 
 export const AddArticleModal = () => {
-  const {
-    isAddArticleOpen,
-    setIsAddArticleOpen,
-    addArticle,
-    categories,
-    stuffs,
-    warehouseLocations,
+  const { 
+    isAddArticleOpen, 
+    setIsAddArticleOpen, 
+    addArticle, 
+    categories = [], 
+    stuffs = [], 
+    warehouseLocations = [],
     setIsAddStuffOpen,
-    setIsAddCategoryOpen,
-    setIsAddLocationOpen
+    setIsAddLocationOpen,
+    setIsAddCategoryOpen
   } = useApp();
 
   const [formData, setFormData] = useState({
@@ -24,14 +25,14 @@ export const AddArticleModal = () => {
     initialStock: '',
     unitCost: '',
     minAlertStock: '150',
-    warehouseLocation: warehouseLocations[0] || '',
+    warehouseLocation: warehouseLocations[0] || 'Main Godown - Hall A',
     description: ''
   });
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Auto-select latest category when one is added dynamically
+  // Auto-select latest category if newly added
   const prevCatCount = useRef(categories.length);
   useEffect(() => {
     if (categories.length > prevCatCount.current) {
@@ -43,7 +44,19 @@ export const AddArticleModal = () => {
     prevCatCount.current = categories.length;
   }, [categories]);
 
-  // Auto-select latest warehouse location when one is added dynamically
+  // Auto-select latest stuff if newly added
+  const prevStuffCount = useRef(stuffs.length);
+  useEffect(() => {
+    if (stuffs.length > prevStuffCount.current) {
+      const latest = stuffs[stuffs.length - 1];
+      if (latest) {
+        setFormData(prev => ({ ...prev, stuff: latest }));
+      }
+    }
+    prevStuffCount.current = stuffs.length;
+  }, [stuffs]);
+
+  // Auto-select latest location if newly added
   const prevLocCount = useRef(warehouseLocations.length);
   useEffect(() => {
     if (warehouseLocations.length > prevLocCount.current) {
@@ -55,14 +68,31 @@ export const AddArticleModal = () => {
     prevLocCount.current = warehouseLocations.length;
   }, [warehouseLocations]);
 
-  // Set default location if previously empty when locations load
   useEffect(() => {
-    if (!formData.warehouseLocation && warehouseLocations.length > 0) {
-      setFormData(prev => ({ ...prev, warehouseLocation: warehouseLocations[0] }));
+    if (isAddArticleOpen) {
+      setFormData({
+        articleNo: '',
+        name: '',
+        category: categories[0] || 'Jacket',
+        stuff: stuffs[0] || 'Parachute (Waterproof)',
+        initialStock: '',
+        unitCost: '',
+        minAlertStock: '150',
+        warehouseLocation: warehouseLocations[0] || 'Main Godown - Hall A',
+        description: ''
+      });
+      setError('');
+      setSuccess('');
     }
-  }, [warehouseLocations]);
+  }, [isAddArticleOpen, categories, stuffs, warehouseLocations]);
 
   if (!isAddArticleOpen) return null;
+
+  const handleClose = () => {
+    setIsAddArticleOpen(false);
+    setError('');
+    setSuccess('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,8 +100,8 @@ export const AddArticleModal = () => {
     setSuccess('');
 
     if (!formData.articleNo.trim()) {
-      showError('Required Field', 'Article Code / Number is required (e.g. BF411, A012).');
-      setError('Article Code / Number is required (e.g. BF411, A012).');
+      showError('Required Field', 'Article Code / Number is required (e.g. BF411, JK-007).');
+      setError('Article Code / Number is required (e.g. BF411, JK-007).');
       return;
     }
 
@@ -85,55 +115,46 @@ export const AddArticleModal = () => {
       ...formData,
       articleNo: formData.articleNo.trim().toUpperCase(),
       name: formData.name.trim(),
+      category: formData.category || 'Jacket',
+      stuff: formData.stuff || 'Parachute (Waterproof)',
       initialStock: Number(formData.initialStock) || 0,
       unitCost: Number(formData.unitCost) || 0,
-      minAlertStock: Number(formData.minAlertStock) || 100,
-      warehouseLocation: formData.warehouseLocation?.trim() || ''
+      minAlertStock: Number(formData.minAlertStock) || 150,
+      warehouseLocation: formData.warehouseLocation?.trim() || '',
+      description: formData.description.trim()
     };
 
     const res = await addArticle(payload);
     if (!res || !res.success) {
-      showError('Cannot Add Article', res?.message || 'Error creating article');
-      setError(res?.message || 'Error creating article');
+      showError('Cannot Add Article', res?.message || 'Error creating article in MySQL');
+      setError(res?.message || 'Error creating article in MySQL');
       return;
     }
 
     showToast(`Article ${formData.articleNo.toUpperCase()} created successfully!`, 'success');
-    setIsAddArticleOpen(false);
-    setFormData({
-      articleNo: '',
-      name: '',
-      category: categories[0] || 'Jacket',
-      stuff: stuffs[0] || 'Parachute (Waterproof)',
-      initialStock: '',
-      unitCost: '',
-      minAlertStock: '150',
-      warehouseLocation: warehouseLocations[0] || '',
-      description: ''
-    });
-    setSuccess('');
+    handleClose();
   };
+
+  const costNum = Number(formData.unitCost) || 0;
+  const stockNum = Number(formData.initialStock) || 0;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
         
-        {/* Header - Fixed */}
-        <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0">
-              <Boxes className="w-4.5 h-4.5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Add New Article</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Register unique Article Code with Jacket Stuff / Fabric for China imports
-              </p>
-            </div>
+        {/* Header - Simple & Clean */}
+        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              Add New Article to Catalog
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Register unique Article Code with Jacket Stuff / Fabric for warehouse stock & China imports
+            </p>
           </div>
           <button
             type="button"
-            onClick={() => setIsAddArticleOpen(false)}
+            onClick={handleClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
             title="Close Modal"
           >
@@ -141,237 +162,232 @@ export const AddArticleModal = () => {
           </button>
         </div>
 
-        {/* Form - Scrollable */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-3.5 overflow-y-auto flex-1">
+        {/* Form Body - Balanced 2-Column Layout */}
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
           
           {error && (
-            <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{success}</span>
             </div>
           )}
 
-          {/* Row 1: Article Code & Category */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="space-y-5">
+            
+            {/* Section 1: Article Identification */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Article Code / Number <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. BF411, A012, JK205"
-                value={formData.articleNo}
-                onChange={e => setFormData({ ...formData, articleNo: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 outline-hidden uppercase transition-all"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Category <span className="text-rose-500">*</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsAddCategoryOpen(true)}
-                  className="text-[11px] text-blue-600 hover:text-blue-700 dark:text-blue-400 font-semibold hover:underline flex items-center gap-0.5 cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add New</span>
-                </button>
-              </div>
-              <select
-                value={formData.category}
-                onChange={e => {
-                  if (e.target.value === '__NEW__') {
-                    setIsAddCategoryOpen(true);
-                  } else {
-                    setFormData({ ...formData, category: e.target.value });
-                  }
-                }}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all"
-              >
-                {categories.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-                <option value="__NEW__">+ Add New Category...</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Row 2: Stuff / Fabric Material & Article Name */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-purple-500" />
-                  <span>Stuff / Fabric (Kapra)</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsAddStuffOpen(true)}
-                  className="text-[11px] text-purple-600 hover:text-purple-700 dark:text-purple-400 font-semibold hover:underline flex items-center gap-0.5 cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add New</span>
-                </button>
-              </div>
-              <select
-                value={formData.stuff}
-                onChange={e => setFormData({ ...formData, stuff: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-purple-200 dark:border-purple-900/60 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:border-purple-600 outline-hidden transition-all"
-              >
-                {stuffs.map(st => (
-                  <option key={st} value={st}>{st}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Article Description / Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Men's Waterproof Down Puffer Jacket"
-                value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 outline-hidden transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Row 3: Initial Stock & Unit Cost */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Opening Stock (Pieces)
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="0 pcs (agar pehlay se pada ho)"
-                value={formData.initialStock}
-                onChange={e => setFormData({ ...formData, initialStock: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Unit Cost (PKR per Piece)
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="e.g. 2650"
-                value={formData.unitCost}
-                onChange={e => setFormData({ ...formData, unitCost: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Row 4: Warehouse Location / Rack & Specifications */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Warehouse Rack / Godown</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsAddLocationOpen(true)}
-                  className="text-[11px] text-amber-600 hover:text-amber-700 dark:text-amber-400 font-semibold hover:underline flex items-center gap-0.5 cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add New</span>
-                </button>
-              </div>
-
-              <select
-                value={formData.warehouseLocation}
-                onChange={e => {
-                  if (e.target.value === '__NEW__') {
-                    setIsAddLocationOpen(true);
-                  } else {
-                    setFormData({ ...formData, warehouseLocation: e.target.value });
-                  }
-                }}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-amber-200 dark:border-amber-900/60 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:border-amber-500 outline-hidden transition-all"
-              >
-                <option value="">-- Select Storage Rack / Location --</option>
-                {warehouseLocations.map(loc => (
-                  <option key={loc} value={loc}>{loc}</option>
-                ))}
-                <option value="__NEW__">+ Add New Location / Rack...</option>
-              </select>
-
-              {warehouseLocations.length > 0 && (
-                <div className="flex items-center gap-1 mt-1.5 overflow-x-auto text-[10px] pb-0.5">
-                  {warehouseLocations.slice(0, 6).map(loc => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, warehouseLocation: loc })}
-                      className={`px-1.5 py-0.5 rounded transition-colors whitespace-nowrap cursor-pointer border ${
-                        formData.warehouseLocation === loc
-                          ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700 font-bold'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      {loc}
-                    </button>
-                  ))}
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                Article Identification
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Code */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Article Code / Style # <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. JK-007, BF411, A012"
+                    value={formData.articleNo}
+                    onChange={e => setFormData({ ...formData, articleNo: e.target.value.toUpperCase() })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all tracking-wider"
+                  />
                 </div>
-              )}
+
+                {/* Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Article Name / Title <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Winter Parachute Waterproof Jacket"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                  />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Category
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddCategoryOpen(true)}
+                      className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New Category</span>
+                    </button>
+                  </div>
+                  <select
+                    value={formData.category}
+                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
+                  >
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Stuff / Fabric */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Stuff / Fabric Material
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddStuffOpen(true)}
+                      className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New Stuff</span>
+                    </button>
+                  </div>
+                  <select
+                    value={formData.stuff}
+                    onChange={e => setFormData({ ...formData, stuff: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
+                  >
+                    {stuffs.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Specifications & Notes (Ikhtiyari)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Thermal lining, export quality"
-                value={formData.description}
-                onChange={e => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all"
-              />
+            {/* Section 2: Location & Inventory */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                Warehouse Location & Inventory
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Warehouse Location */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Warehouse Location / Rack
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddLocationOpen(true)}
+                      className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New Location</span>
+                    </button>
+                  </div>
+                  <select
+                    value={formData.warehouseLocation}
+                    onChange={e => setFormData({ ...formData, warehouseLocation: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
+                  >
+                    {warehouseLocations.map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Opening Stock */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Opening Stock (pcs)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.initialStock}
+                    onChange={e => setFormData({ ...formData, initialStock: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                  />
+                </div>
+
+                {/* Landing Cost */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Landing Cost (Rs)
+                    </label>
+                    {costNum > 0 && (
+                      <span className="text-[11px] text-blue-600 dark:text-blue-400 font-mono font-medium">
+                        {formatLakhCrore(costNum)}
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 1500"
+                    value={formData.unitCost}
+                    onChange={e => setFormData({ ...formData, unitCost: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                  />
+                </div>
+
+                {/* Low Stock Alert */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Low Stock Alert Threshold (pcs)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="150"
+                    value={formData.minAlertStock}
+                    onChange={e => setFormData({ ...formData, minAlertStock: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                  />
+                </div>
+
+                {/* Description Full Width */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Description / Specifications (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Heavy winter padding with detachable hood and waterproof zipper"
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                  />
+                </div>
+              </div>
             </div>
+
           </div>
 
-          {/* Compact Wholesale Note */}
-          <div className="px-3 py-1.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 text-blue-800 dark:text-blue-300 text-[11px] flex items-center gap-2">
-            <span className="shrink-0 font-bold">📦 Wholesale Note:</span>
-            <span className="truncate">Garments master cartons me aate hain (Size / Color fields ki zaroorat nahi hoti).</span>
-          </div>
-
-          {/* Footer buttons */}
-          <div className="pt-2.5 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 px-5 sm:px-6 py-3 mt-2 shadow-xs">
+          {/* Modal Footer Actions */}
+          <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-end gap-2.5 shrink-0">
             <button
               type="button"
-              onClick={() => setIsAddArticleOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              onClick={handleClose}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              Save Article
+              <Boxes className="w-3.5 h-3.5" />
+              <span>Register Article</span>
             </button>
           </div>
 

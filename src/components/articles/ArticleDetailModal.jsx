@@ -2,37 +2,30 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   X,
-  Package,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Boxes,
-  DollarSign,
-  Calendar,
-  Download,
-  Clock,
-  Layers,
-  ChevronRight,
-  Ship,
   Truck,
-  Shirt,
-  Pencil,
+  Ship,
+  Download,
   MapPin,
-  Trash2
+  Pencil,
+  Trash2,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Boxes
 } from 'lucide-react';
-import { downloadArticleStockPDF } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
+import { downloadArticleStockPDF } from '../../utils/pdfGenerator';
 import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
 
 export const ArticleDetailModal = () => {
-  const { 
-    selectedArticleDetail, 
-    setSelectedArticleDetail, 
+  const {
+    selectedArticleDetail,
+    setSelectedArticleDetail,
+    purchases = [],
+    outward = [],
+    setIsNewOutwardOpen,
+    setSelectedArticleForOutward,
     setEditingArticle,
     setIsEditArticleOpen,
-    purchases, 
-    outward,
-    setIsNewOutwardOpen,
-    setIsNewPurchaseOpen,
     deleteArticle
   } = useApp();
 
@@ -46,7 +39,6 @@ export const ArticleDetailModal = () => {
   const art = selectedArticleDetail;
 
   const handleDeleteArticle = async () => {
-    if (!art) return;
     const isConfirmed = await confirmDelete({
       title: `Delete Article ${art.articleNo}?`,
       text: `Are you sure you want to delete "${art.name}" (${art.articleNo})? This will permanently remove it from the warehouse catalog.`,
@@ -66,9 +58,9 @@ export const ArticleDetailModal = () => {
 
   // Find all purchase invoices that contain this article
   const articlePurchases = purchases.filter(p => 
-    p.items && p.items.some(item => item.articleNo.toUpperCase() === art.articleNo.toUpperCase())
+    p.items && p.items.some(item => (item.articleNo || '').toUpperCase() === art.articleNo.toUpperCase())
   ).map(p => {
-    const item = p.items.find(i => i.articleNo.toUpperCase() === art.articleNo.toUpperCase());
+    const item = p.items.find(i => (i.articleNo || '').toUpperCase() === art.articleNo.toUpperCase());
     return {
       purchaseId: p.id,
       invoiceNo: p.invoiceNo,
@@ -83,7 +75,7 @@ export const ArticleDetailModal = () => {
 
   // Find all outward dispatches for this article
   const articleOutward = outward.filter(o => 
-    o.articleNo.toUpperCase() === art.articleNo.toUpperCase()
+    (o.articleNo || '').toUpperCase() === art.articleNo.toUpperCase()
   );
 
   // Combine inward and outward into a chronological stock timeline
@@ -95,167 +87,146 @@ export const ArticleDetailModal = () => {
       party: p.supplierName,
       qty: p.quantity,
       unitPrice: p.unitCost,
-      details: `Container: ${p.containerNo || 'Standard Cargo'}`
+      details: `Container: ${p.containerNo || 'Cargo'}`
     })),
     ...articleOutward.map(o => ({
       type: 'OUTWARD',
       date: o.date,
       ref: `Challan #${o.challanNo}`,
-      party: `${o.customerName} (${o.destination})`,
+      party: `${o.customerName || 'Customer'} (${o.destination || 'City'})`,
       qty: o.quantity,
       unitPrice: o.unitSalePrice,
       details: `Gate Pass: ${o.gatePassNo || 'N/A'}`
     }))
-  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
-  const totalValue = (art.currentStock || 0) * (art.unitCost || 0);
+  const totalValue = (Number(art.currentStock) || 0) * (Number(art.unitCost) || 0);
+
+  const handleOpenDispatch = () => {
+    if (setSelectedArticleForOutward) setSelectedArticleForOutward(art);
+    setSelectedArticleDetail(null);
+    setIsNewOutwardOpen(true);
+  };
+
+  const handleOpenEdit = () => {
+    setEditingArticle(art);
+    setIsEditArticleOpen(true);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
         
-        {/* Header */}
-        <div className="px-6 py-5 flex items-start justify-between border-b border-slate-100 dark:border-slate-800">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-2.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 font-mono font-bold text-xs tracking-wider text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50">
+        {/* Header - Simple & Clean */}
+        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 shrink-0">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 font-mono font-bold text-xs text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-900/60">
                 {art.articleNo}
               </span>
-              <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                {art.category}
-              </span>
-              <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                {art.stuff || 'Standard Fabric'}
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
-                <MapPin className="w-3 h-3 text-amber-500" />
+              <span className="text-xs text-slate-400">•</span>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                {art.name}
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+              <span>Category: <strong>{art.category || 'Jacket'}</strong></span>
+              <span>•</span>
+              <span>Stuff: <strong>{art.stuff || 'Standard'}</strong></span>
+              <span>•</span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-slate-400" />
                 <span>{art.warehouseLocation || 'General Storage'}</span>
               </span>
-              <span className="text-xs text-slate-400">
-                Article Stock Register
-              </span>
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{art.name}</h2>
-            {art.description && (
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl">{art.description}</p>
-            )}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               type="button"
-              onClick={() => {
-                setEditingArticle(art);
-                setIsEditArticleOpen(true);
-              }}
-              className="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all flex items-center gap-1.5 font-medium cursor-pointer"
-              title="Edit Article Name, Stuff, Cost & Alert Stock"
+              onClick={handleOpenEdit}
+              className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
+              title="Edit Article Details"
             >
-              <Pencil className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-              <span>Edit Details</span>
+              <Pencil className="w-3.5 h-3.5 text-slate-500" />
+              <span>Edit</span>
             </button>
             <button
               type="button"
               onClick={handleDeleteArticle}
-              className="px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-xl transition-all flex items-center gap-1.5 font-medium cursor-pointer"
+              className="px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
               title="Delete Article"
             >
-              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <Trash2 className="w-3.5 h-3.5" />
               <span>Delete</span>
             </button>
             <button
               type="button"
               onClick={() => downloadArticleStockPDF(art, articlePurchases, articleOutward)}
-              className="px-3.5 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl transition-all flex items-center gap-1.5 shadow-xs font-medium cursor-pointer"
-              title="Download Professional Stock Ledger PDF"
+              className="px-3 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors flex items-center gap-1.5 font-medium shadow-2xs cursor-pointer"
+              title="Download Stock Ledger PDF"
             >
-              <Download className="w-3.5 h-3.5 text-white" />
-              <span>Download PDF</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>PDF</span>
             </button>
             <button
               type="button"
               onClick={() => setSelectedArticleDetail(null)}
               className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              title="Close Modal"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* 3 Core Highlight KPI Cards (Strictly as specified by client) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-6 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800">
+        {/* 3 Core Highlight KPI Cards (Total Purchased, Total Out, Current Stock) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200/80 dark:border-slate-800 shrink-0">
           
           {/* Total Purchased */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Total Purchased</span>
-              <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <Ship className="w-4 h-4" />
-              </div>
+          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+              Total Inward Purchased
+            </span>
+            <div className="text-lg font-bold font-mono text-slate-900 dark:text-white mt-0.5">
+              {(Number(art.totalPurchased) || 0).toLocaleString()} pcs
             </div>
-            <div className="text-xs text-slate-400 mb-2 font-medium">Bought from China</div>
-            <div className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">
-              {art.totalPurchased?.toLocaleString()}{' '}
-              <span className="text-xs font-normal text-slate-400">pcs</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-              Unit Cost: <strong className="text-slate-800 dark:text-slate-200 font-mono">Rs. {art.unitCost?.toLocaleString()}</strong>
+            <div className="text-[10px] text-slate-400 mt-0.5">
+              Cost: Rs. {(Number(art.unitCost) || 0).toLocaleString()} / pc
             </div>
           </div>
 
           {/* Total Out */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Total Out</span>
-              <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                <Truck className="w-4 h-4" />
-              </div>
+          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+              Total Outward Dispatched
+            </span>
+            <div className="text-lg font-bold font-mono text-slate-600 dark:text-slate-300 mt-0.5">
+              {(Number(art.totalOut) || 0).toLocaleString()} pcs
             </div>
-            <div className="text-xs text-slate-400 mb-2 font-medium">Warehouse Dispatched</div>
-            <div className="text-2xl font-extrabold font-mono text-rose-600 dark:text-rose-400">
-              {art.totalOut?.toLocaleString()}{' '}
-              <span className="text-xs font-normal text-slate-400">pcs</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-              Dispatched Ratio:{' '}
-              <strong className="text-slate-800 dark:text-slate-200">
-                {art.totalPurchased > 0 ? Math.round((art.totalOut / art.totalPurchased) * 100) : 0}% of Inward
-              </strong>
+            <div className="text-[10px] text-slate-400 mt-0.5">
+              {articleOutward.length} Challan dispatches
             </div>
           </div>
 
           {/* Current Stock */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-emerald-500/50 shadow-2xs">
-            <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-400 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Current Stock</span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <Shirt className="w-4 h-4" />
-              </div>
+          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+              Available in Warehouse
+            </span>
+            <div className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {(Number(art.currentStock) || 0).toLocaleString()} pcs
             </div>
-            <div className="text-xs text-emerald-600 dark:text-emerald-500 mb-2 font-medium flex items-center justify-between">
-              <span>Available in Warehouse</span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-                <MapPin className="w-2.5 h-2.5 text-amber-500" />
-                {art.warehouseLocation || 'Main Godown - Hall A'}
-              </span>
-            </div>
-            <div className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
-              {art.currentStock?.toLocaleString()}{' '}
-              <span className="text-xs font-normal text-emerald-600/70">pcs</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-emerald-100 dark:border-emerald-900/40 text-[11px] text-slate-600 dark:text-slate-400 flex justify-between">
-              <span>Stock Value:</span>
-              <strong className="text-slate-900 dark:text-slate-100 font-mono">
-                Rs. {totalValue.toLocaleString()}
-              </strong>
+            <div className="text-[10px] text-slate-400 mt-0.5">
+              Valuation: Rs. {totalValue.toLocaleString()}
             </div>
           </div>
 
         </div>
 
-        {/* Sub-tabs for History */}
-        <div className="px-6 pt-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex space-x-2">
+        {/* Sub-tabs and Record Outward CTA */}
+        <div className="px-6 pt-3 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900">
+          <div className="flex space-x-1 sm:space-x-2">
             {[
               { id: 'summary', label: 'Timeline & Movements', count: timelineEvents.length },
               { id: 'purchases', label: 'China Purchases', count: articlePurchases.length },
@@ -264,7 +235,7 @@ export const ArticleDetailModal = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveSubTab(tab.id)}
-                className={`pb-3 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
+                className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
                   activeSubTab === tab.id
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -278,22 +249,18 @@ export const ArticleDetailModal = () => {
             ))}
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 pb-2">
-            <button
-              onClick={() => {
-                setSelectedArticleDetail(null);
-                setIsNewOutwardOpen(true);
-              }}
-              className="px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 border border-rose-200 dark:border-rose-900/50 rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              <ArrowUpRight className="w-3.5 h-3.5" />
-              <span>Record Outward</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleOpenDispatch}
+            className="mb-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <Truck className="w-3.5 h-3.5" />
+            <span>Dispatch Outward</span>
+          </button>
         </div>
 
-        {/* Tab Content */}
-        <div className="p-6 max-h-80 overflow-y-auto">
+        {/* Tab Content Body - Flexible Scrollable Area */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
           
           {/* 1. Combined Timeline */}
           {activeSubTab === 'summary' && (
@@ -308,11 +275,11 @@ export const ArticleDetailModal = () => {
                   return (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-lg ${
-                          isInward ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                          isInward ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                         }`}>
                           {isInward ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
                         </div>
@@ -320,9 +287,9 @@ export const ArticleDetailModal = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-slate-900 dark:text-white">{evt.ref}</span>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              isInward ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800' : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                              isInward ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                             }`}>
-                              {isInward ? 'China Import' : 'Dispatch'}
+                              {isInward ? 'China Inward' : 'Outward Dispatch'}
                             </span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -333,7 +300,7 @@ export const ArticleDetailModal = () => {
 
                       <div className="text-right">
                         <div className={`text-sm font-bold font-mono ${
-                          isInward ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'
+                          isInward ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'
                         }`}>
                           {isInward ? '+' : '-'}{evt.qty.toLocaleString()} pcs
                         </div>
@@ -350,99 +317,126 @@ export const ArticleDetailModal = () => {
 
           {/* 2. Purchases History */}
           {activeSubTab === 'purchases' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="pb-2.5 font-semibold">Date</th>
-                    <th className="pb-2.5 font-semibold">Invoice No</th>
-                    <th className="pb-2.5 font-semibold">Supplier</th>
-                    <th className="pb-2.5 font-semibold text-right">Quantity</th>
-                    <th className="pb-2.5 font-semibold text-right">Unit Cost</th>
-                    <th className="pb-2.5 font-semibold text-right">Total (PKR)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {articlePurchases.slice((purPage - 1) * pageSize, purPage * pageSize).map((pur, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="py-2.5 text-slate-600 dark:text-slate-400">{pur.purchaseDate}</td>
-                      <td className="py-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">{pur.invoiceNo}</td>
-                      <td className="py-2.5 text-slate-900 dark:text-white font-medium">{pur.supplierName}</td>
-                      <td className="py-2.5 text-right font-mono font-bold text-blue-600 dark:text-blue-400">
-                        {pur.quantity.toLocaleString()} pcs
-                      </td>
-                      <td className="py-2.5 text-right font-mono text-slate-600 dark:text-slate-400">
-                        Rs. {pur.unitCost.toLocaleString()}
-                      </td>
-                      <td className="py-2.5 text-right font-mono font-bold text-slate-900 dark:text-white">
-                        Rs. {pur.total.toLocaleString()}
-                      </td>
+            <div className="space-y-4">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Invoice No</th>
+                      <th className="py-2.5 px-3">China Vendor</th>
+                      <th className="py-2.5 px-3 text-right">Quantity</th>
+                      <th className="py-2.5 px-3 text-right">Unit Cost</th>
+                      <th className="py-2.5 px-3 text-right">Total (PKR)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                    {articlePurchases.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400">
+                          No China purchase invoices recorded for this article.
+                        </td>
+                      </tr>
+                    ) : (
+                      articlePurchases.slice((purPage - 1) * pageSize, purPage * pageSize).map((pur, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">{pur.purchaseDate}</td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">{pur.invoiceNo}</td>
+                          <td className="py-2.5 px-3 text-slate-900 dark:text-white font-medium">{pur.supplierName}</td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                            {pur.quantity.toLocaleString()} pcs
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                            Rs. {pur.unitCost.toLocaleString()}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                            Rs. {pur.total.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-              <Pagination
-                currentPage={purPage}
-                totalItems={articlePurchases.length}
-                pageSize={pageSize}
-                onPageChange={setPurPage}
-                itemLabel="purchases"
-              />
+              {articlePurchases.length > pageSize && (
+                <Pagination
+                  currentPage={purPage}
+                  totalItems={articlePurchases.length}
+                  pageSize={pageSize}
+                  onPageChange={setPurPage}
+                  itemLabel="purchases"
+                />
+              )}
             </div>
           )}
 
           {/* 3. Outward Dispatches */}
           {activeSubTab === 'outward' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="pb-2.5 font-semibold">Date</th>
-                    <th className="pb-2.5 font-semibold">Challan No</th>
-                    <th className="pb-2.5 font-semibold">Customer / Destination</th>
-                    <th className="pb-2.5 font-semibold text-right">Quantity Out</th>
-                    <th className="pb-2.5 font-semibold text-right">Gate Pass</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {articleOutward.slice((outPage - 1) * pageSize, outPage * pageSize).map((out, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="py-2.5 text-slate-600 dark:text-slate-400">{out.date}</td>
-                      <td className="py-2.5 font-mono font-bold text-slate-800 dark:text-slate-200">{out.challanNo}</td>
-                      <td className="py-2.5 text-slate-900 dark:text-white">
-                        <div className="font-medium">{out.customerName}</div>
-                        <div className="text-[10px] text-slate-400">{out.destination}</div>
-                      </td>
-                      <td className="py-2.5 text-right font-mono font-bold text-rose-600 dark:text-rose-400">
-                        {out.quantity.toLocaleString()} pcs
-                      </td>
-                      <td className="py-2.5 text-right font-mono text-slate-500">{out.gatePassNo}</td>
+            <div className="space-y-4">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Challan No</th>
+                      <th className="py-2.5 px-3">Customer / Muqam</th>
+                      <th className="py-2.5 px-3 text-right">Dispatched</th>
+                      <th className="py-2.5 px-3 text-right">Gate Pass</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                    {articleOutward.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-400">
+                          No outward dispatches recorded for this article.
+                        </td>
+                      </tr>
+                    ) : (
+                      articleOutward.slice((outPage - 1) * pageSize, outPage * pageSize).map((out, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">{out.date}</td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">{out.challanNo}</td>
+                          <td className="py-2.5 px-3 text-slate-900 dark:text-white">
+                            <span className="font-semibold">{out.customerName}</span>
+                            {out.destination && (
+                              <span className="text-slate-400 text-[11px] ml-1.5">({out.destination})</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                            {out.quantity.toLocaleString()} pcs
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-500 whitespace-nowrap">{out.gatePassNo || '—'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-              <Pagination
-                currentPage={outPage}
-                totalItems={articleOutward.length}
-                pageSize={pageSize}
-                onPageChange={setOutPage}
-                itemLabel="dispatches"
-              />
+              {articleOutward.length > pageSize && (
+                <Pagination
+                  currentPage={outPage}
+                  totalItems={articleOutward.length}
+                  pageSize={pageSize}
+                  onPageChange={setOutPage}
+                  itemLabel="dispatches"
+                />
+              )}
             </div>
           )}
 
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-            Calculation: Purchased ({art.totalPurchased}) − Out ({art.totalOut}) = Stock ({art.currentStock})
+        {/* Modal Footer */}
+        <div className="px-6 py-3.5 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
+          <div className="text-slate-500 dark:text-slate-400 font-mono">
+            Purchased ({art.totalPurchased || 0}) − Dispatched ({art.totalOut || 0}) = Available Stock ({art.currentStock || 0} pcs)
           </div>
           <button
+            type="button"
             onClick={() => setSelectedArticleDetail(null)}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 text-white text-xs font-bold rounded-xl transition-colors"
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-white font-semibold rounded-xl transition-colors cursor-pointer"
           >
             Close Record
           </button>

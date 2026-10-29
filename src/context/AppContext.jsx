@@ -163,10 +163,13 @@ export const AppProvider = ({ children }) => {
   const [securitySubTab, setSecuritySubTab] = useState('devices');
 
   const [selectedArticleDetail, setSelectedArticleDetail] = useState(null);
+  const [selectedArticleForOutward, setSelectedArticleForOutward] = useState(null);
   const [selectedSupplierDetail, setSelectedSupplierDetail] = useState(null);
+  const [selectedSupplierForPayment, setSelectedSupplierForPayment] = useState(null);
   const [selectedInvoiceDetail, setSelectedInvoiceDetail] = useState(null);
   const [selectedCustomerKhata, setSelectedCustomerKhata] = useState(null);
   const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState(null);
+  const [selectedCustomerForBill, setSelectedCustomerForBill] = useState(null);
   const [editingCity, setEditingCity] = useState(null);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
   const [quickSearchTerm, setQuickSearchTerm] = useState('');
@@ -190,6 +193,7 @@ export const AppProvider = ({ children }) => {
   const [isAddStuffOpen, setIsAddStuffOpen] = useState(false);
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false);
+  const [customerFilterKey, setCustomerFilterKey] = useState(0);
 
   // ==========================================
   // FETCH LIVE DATA DYNAMICALLY FROM MYSQL
@@ -470,7 +474,8 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customers.create(custData);
       if (res?.success && res?.data) {
-        setCustomers(prev => [...prev, res.data]);
+        setCustomers(prev => [res.data, ...prev.filter(c => c.id !== res.data.id)]);
+        setCustomerFilterKey(prev => prev + 1);
         await refreshData();
         addAuditLog(
           'Shopkeeper Registered', 
@@ -504,6 +509,7 @@ export const AppProvider = ({ children }) => {
       const res = await api.customers.delete(id);
       if (res?.success) {
         setCustomers(prev => prev.filter(c => c.id !== id));
+        await refreshData();
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete customer' };
@@ -787,14 +793,20 @@ export const AppProvider = ({ children }) => {
         // Modal Controls & Selected entities
         selectedArticleDetail,
         setSelectedArticleDetail,
+        selectedArticleForOutward,
+        setSelectedArticleForOutward,
         selectedSupplierDetail,
         setSelectedSupplierDetail,
+        selectedSupplierForPayment,
+        setSelectedSupplierForPayment,
         selectedInvoiceDetail,
         setSelectedInvoiceDetail,
         selectedCustomerKhata,
         setSelectedCustomerKhata,
         selectedCustomerForPayment,
         setSelectedCustomerForPayment,
+        selectedCustomerForBill,
+        setSelectedCustomerForBill,
         editingCity,
         setEditingCity,
 
@@ -841,6 +853,7 @@ export const AppProvider = ({ children }) => {
         setIsAddCategoryOpen,
         isAddLocationOpen,
         setIsAddLocationOpen,
+        customerFilterKey,
         securitySubTab,
         setSecuritySubTab,
         activeTab,

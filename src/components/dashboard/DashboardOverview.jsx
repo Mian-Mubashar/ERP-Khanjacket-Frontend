@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import {
   Shirt,
@@ -6,36 +7,28 @@ import {
   Truck,
   Building2,
   Wallet,
-  ScanBarcode,
-  Scale,
-  FileSpreadsheet,
-  AlertTriangle,
-  Boxes,
   Eye,
-  Download,
   Calendar,
-  Clock,
-  CalendarDays,
-  CalendarRange,
   Layers,
-  RotateCcw,
   ChevronRight,
   Warehouse,
-  BadgeDollarSign,
   Receipt,
-  Sparkles,
-  Tag,
-  SlidersHorizontal,
-  CheckCircle2,
   Plus,
-  ChevronDown
+  FileSpreadsheet,
+  RotateCcw
 } from 'lucide-react';
-import { downloadWarehouseReportPDF, downloadOutwardLogPDF } from '../../utils/pdfGenerator';
-import { formatLakhCrore, formatPKR } from '../../utils/formatters';
-import { DashboardAnalyticsCharts } from './DashboardAnalyticsCharts';
-import { Pagination } from '../common/Pagination';
 
 export const DashboardOverview = ({ setActiveTab }) => {
+  const navigate = useNavigate();
+
+  const handleNavigate = (tab) => {
+    if (typeof setActiveTab === 'function') {
+      setActiveTab(tab);
+    } else {
+      navigate(`/${tab}`);
+    }
+  };
+
   const {
     articles = [],
     suppliers = [],
@@ -49,42 +42,14 @@ export const DashboardOverview = ({ setActiveTab }) => {
     setIsNewPurchaseOpen,
     setIsNewOutwardOpen,
     setIsAddArticleOpen,
-    setIsAddSupplierOpen,
-    setIsRecordPaymentOpen,
     setIsRecordCustomerPaymentOpen,
-    setSelectedArticleDetail,
-    setSelectedInvoiceDetail,
-    setIsQuickSearchOpen
+    setSelectedArticleDetail
   } = useApp();
 
-  const [showWorkflowGuide, setShowWorkflowGuide] = useState(true);
-
-  // Timeframe and Interactive Filters for Payments Summary / Stock Report section
-  const [timeframe, setTimeframe] = useState('ALL');
-  const [selectedBranch, setSelectedBranch] = useState('All branches');
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [selectedBrand, setSelectedBrand] = useState('All Brands');
-  const [selectedArticleCode, setSelectedArticleCode] = useState('All Articles');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [articlesPage, setArticlesPage] = useState(1);
-  const articlesPageSize = 10;
-
-  // Helper to format clean numeric values matching Image 2
+  // Helper to format clean numeric values
   const formatNumber = (val) => {
     if (val === null || val === undefined || isNaN(val)) return '0';
     return Math.round(Number(val)).toLocaleString('en-US');
-  };
-
-  // Helper to format currency values cleanly
-  const formatMoney = (val) => {
-    if (!val || val === 0) return 'Rs. 0';
-    const absVal = Math.abs(val);
-    const sign = val < 0 ? '-' : '';
-    if (absVal >= 1000000) {
-      return `${sign}Rs. ${(absVal / 1000000).toFixed(2)}M`;
-    }
-    return `${sign}Rs. ${absVal.toLocaleString()}`;
   };
 
   // Determine current active date matching dataset or local time
@@ -109,6 +74,32 @@ export const DashboardOverview = ({ setActiveTab }) => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
+  // Safe date normalizer (handles 'YYYY-MM-DD', ISO strings, or Date instances)
+  const normalizeDate = (rawDate) => {
+    if (!rawDate) return '';
+    if (typeof rawDate === 'string') return rawDate.split('T')[0];
+    try {
+      return new Date(rawDate).toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
+  // =========================================================================
+  // TIMEFRAME STATE (Controlled from the top command bar)
+  // Default to 'ALL' (Kul Hisaab) so user sees lifetime by default, with 1-click switch to Daily/Weekly/Monthly
+  // =========================================================================
+  const [timeframe, setTimeframe] = useState('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  // Additional fine filters for branch, category, article
+  const [selectedBranch, setSelectedBranch] = useState('All branches');
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [selectedBrand, setSelectedBrand] = useState('All Brands');
+  const [selectedArticleCode, setSelectedArticleCode] = useState('All Articles');
+  const [hoveredSalesPoint, setHoveredSalesPoint] = useState(null);
+
   const handleTimeframeChange = (mode) => {
     setTimeframe(mode);
     const today = getTodayStr();
@@ -121,19 +112,27 @@ export const DashboardOverview = ({ setActiveTab }) => {
     } else if (mode === 'MONTH') {
       setDateFrom(getDaysAgoStr(today, 30));
       setDateTo(today);
-    } else if (mode === 'MANUAL') {
-      if (!dateFrom && !dateTo) {
-        setDateFrom(getDaysAgoStr(today, 7));
-        setDateTo(today);
-      }
+    } else if (mode === 'YEAR') {
+      const year = today.split('-')[0];
+      setDateFrom(`${year}-01-01`);
+      setDateTo(`${year}-12-31`);
     } else if (mode === 'ALL') {
       setDateFrom('');
       setDateTo('');
     }
   };
 
-  const isDateInRange = (dateStr) => {
-    if (!dateStr) return true;
+  const handleCustomDateChange = (from, to) => {
+    setTimeframe('MANUAL');
+    setDateFrom(from);
+    setDateTo(to);
+  };
+
+  const isDateInRange = (rawDate) => {
+    if (timeframe === 'ALL') return true;
+    if (!rawDate) return false;
+    const dateStr = normalizeDate(rawDate);
+    if (!dateStr) return false;
     if (dateFrom && dateStr < dateFrom) return false;
     if (dateTo && dateStr > dateTo) return false;
     return true;
@@ -147,21 +146,22 @@ export const DashboardOverview = ({ setActiveTab }) => {
     return lower.includes(branchKey);
   };
 
-  // Lifetime global summaries (guaranteed Number casting to prevent string concatenation)
-  const totalStock = articles.reduce((sum, a) => sum + (Number(a.currentStock) || 0), 0);
-  const totalPurchasedQty = articles.reduce((sum, a) => sum + (Number(a.totalPurchased) || 0), 0);
-  const totalOutwardQty = articles.reduce((sum, a) => sum + (Number(a.totalOut) || 0), 0);
-  const totalPurchaseBill = purchases.reduce((sum, p) => sum + (Number(p.totalBill) || 0), 0);
-  const totalStockValue = articles.reduce((sum, a) => sum + ((Number(a.currentStock) || 0) * (Number(a.unitCost) || 0)), 0);
-  const totalOutstanding = suppliers.reduce((sum, s) => sum + (Number(s.remainingBalance) || 0), 0);
-  const totalPaid = suppliers.reduce((sum, s) => sum + (Number(s.totalPayments) || 0), 0);
-  const lowStockCount = articles.filter(a => (Number(a.currentStock) || 0) <= (Number(a.minAlertStock) || 200)).length;
+  // Clean human-readable timeframe label for badges and headers (English / Roman)
+  const timeframeLabel = 
+    timeframe === 'DAY' ? 'Daily (Today)' :
+    timeframe === 'WEEK' ? 'Weekly (Last 7 Days)' :
+    timeframe === 'MONTH' ? 'Monthly (Last 30 Days)' :
+    timeframe === 'YEAR' ? 'Yearly (2026)' :
+    timeframe === 'MANUAL' ? `Custom: ${dateFrom || 'Start'} to ${dateTo || 'End'}` :
+    'All-Time';
 
-  // Filtered transactions for dynamic Stock Report calculations
+  // =========================================================================
+  // DYNAMIC DATA FILTERING FOR THE SELECTED PERIOD
+  // =========================================================================
   const filteredPurchases = purchases.filter(p => {
     if (!isDateInRange(p.purchaseDate)) return false;
     if (selectedBranch !== 'All branches' && selectedBranch !== 'All Warehouses' && !selectedBranch.toLowerCase().includes('karachi')) {
-      return false; // China container arrivals come to Karachi Central Warehouse
+      return false;
     }
     if (selectedCategory !== 'All Categories') {
       const hasCat = p.items?.some(i => i.category === selectedCategory);
@@ -187,17 +187,14 @@ export const DashboardOverview = ({ setActiveTab }) => {
     return true;
   });
 
-  const filteredPayments = (payments || []).filter(pay => {
-    return isDateInRange(pay.date);
-  });
-
+  const filteredPayments = (payments || []).filter(pay => isDateInRange(pay.date));
   const filteredCustomerPayments = (customerPayments || []).filter(cp => {
     if (!isDateInRange(cp.date)) return false;
-    if (selectedBranch !== 'All Warehouses' && !matchBranch(cp.city)) return false;
+    if (selectedBranch !== 'All branches' && selectedBranch !== 'All Warehouses' && !matchBranch(cp.city)) return false;
     return true;
   });
 
-  // Calculate dynamic metrics for period
+  // 1. Inward & Purchases in Period
   let periodInwardQty = 0;
   let periodPurchaseBill = 0;
   let periodExtraExpenses = 0;
@@ -219,189 +216,398 @@ export const DashboardOverview = ({ setActiveTab }) => {
     periodPurchaseBill = filteredPurchases.reduce((sum, p) => sum + (Number(p.totalBill) || 0), 0);
   }
 
-  const periodAvgPurchaseRate = periodInwardQty > 0 ? Math.round(periodPurchaseBill / periodInwardQty) : 0;
+  // 2. Outward Dispatches / Sales in Period
   const periodOutwardQty = filteredOutward.reduce((sum, o) => sum + (Number(o.quantity) || 0), 0);
   const periodWholesaleSale = filteredOutward.reduce((sum, o) => sum + (Number(o.totalSaleAmount) || 0), 0);
   const periodChallansCount = filteredOutward.length;
   const periodWholesaleCities = new Set(filteredOutward.map(o => o.city).filter(Boolean)).size;
-  const periodGatePassCount = filteredOutward.filter(o => o.gatePassNo).length;
 
-  const periodSupplierPaid = filteredPurchases.reduce((sum, p) => sum + (Number(p.paidAmount) || 0), 0) +
-    filteredPayments.reduce((sum, pay) => sum + (Number(pay.amount) || 0), 0);
+  // 3. Payments Made in Period (Money Paid to Suppliers + Freight)
+  const periodSupplierPaymentsTotal = filteredPayments.reduce((sum, pay) => sum + (Number(pay.amount) || 0), 0);
+  const periodStandalonePurchaseCash = filteredPurchases.reduce((sum, p) => {
+    const amt = Number(p.paidAmount) || 0;
+    if (amt <= 0) return sum;
+    const alreadyInPayments = filteredPayments.some(pay => 
+      pay.refNo === p.invoiceNo || (pay.supplierId && pay.supplierId === p.supplierId && Number(pay.amount) === amt)
+    );
+    return alreadyInPayments ? sum : sum + amt;
+  }, 0);
+  const periodSupplierPaid = periodSupplierPaymentsTotal + periodStandalonePurchaseCash;
+  const periodTotalExpenses = periodSupplierPaid;
   const periodPayables = Math.max(0, periodPurchaseBill - periodSupplierPaid);
-  const periodSettlementRate = periodPurchaseBill > 0 ? Math.min(100, Math.round((periodSupplierPaid / periodPurchaseBill) * 100)) : (periodPurchaseBill === 0 ? 100 : 0);
-  const periodInvoicesCount = filteredPurchases.length;
-  const periodVendorsCovered = new Set(filteredPurchases.map(p => p.supplierId || p.supplierName)).size;
 
+  // 4. Customer Payments Received in Period (Wasooli + Upfront Cash Paid on Bills)
   const periodCustomerCashReceived = filteredCustomerPayments.reduce((sum, cp) => sum + (Number(cp.amount) || 0), 0);
-  const periodCustomerPending = Math.max(0, periodWholesaleSale - periodCustomerCashReceived);
-  const periodClosingNet = periodCustomerCashReceived - periodExtraExpenses;
+  const periodOutwardUpfrontCash = filteredOutward.reduce((sum, o) => {
+    const amt = Number(o.paidAmount) || 0;
+    if (amt <= 0) return sum;
+    const alreadyInPayments = filteredCustomerPayments.some(cp => 
+      cp.refNo === `REC-${o.challanNo}` || (cp.customerId && cp.customerId === o.customerId && Number(cp.amount) === amt)
+    );
+    return alreadyInPayments ? sum : sum + amt;
+  }, 0);
+  const totalPeriodIncome = periodCustomerCashReceived + periodOutwardUpfrontCash;
 
-  // Articles filtered by category, brand/stuff, and code
+  // 5. Remaining Balance generated in Period
+  const relevantCustomers = customers.filter(c => {
+    if (selectedBranch !== 'All branches' && selectedBranch !== 'All Warehouses' && !matchBranch(c.city)) return false;
+    return true;
+  });
+  const totalCustomerKhataBalance = relevantCustomers.reduce((sum, c) => sum + (Number(c.remainingBalance) || 0), 0);
+  const periodCustomerPending = (timeframe === 'ALL' && !dateFrom && !dateTo)
+    ? totalCustomerKhataBalance
+    : Math.max(0, periodWholesaleSale - totalPeriodIncome);
+  const periodClosingNet = totalPeriodIncome - periodTotalExpenses;
+
+  // Global static summaries for warehouse stock inventory
+  const totalStock = articles.reduce((sum, a) => sum + (Number(a.currentStock) || 0), 0);
+  const totalStockValue = articles.reduce((sum, a) => sum + ((Number(a.currentStock) || 0) * (Number(a.unitCost) || 0)), 0);
+  const lowStockCount = articles.filter(a => (Number(a.currentStock) || 0) <= (Number(a.minAlertStock) || 200)).length;
+
+  // Filtered Articles for Stock Register Table
   const filteredArticles = articles.filter(a => {
     if (selectedCategory !== 'All Categories' && a.category !== selectedCategory) return false;
     if (selectedBrand !== 'All Brands' && a.stuff !== selectedBrand && a.brand !== selectedBrand) return false;
     if (selectedArticleCode !== 'All Articles' && a.articleNo !== selectedArticleCode) return false;
     return true;
   });
-
-  const filteredArticlesStock = filteredArticles.reduce((sum, a) => sum + (Number(a.currentStock) || 0), 0);
   const filteredStockValue = filteredArticles.reduce((sum, a) => sum + ((Number(a.currentStock) || 0) * (Number(a.unitCost) || 0)), 0);
+  const filteredArticlesStock = filteredArticles.reduce((sum, a) => sum + (Number(a.currentStock) || 0), 0);
   const customerTotalAmount = (filteredStockValue > 0 ? filteredStockValue : totalStockValue) + periodCustomerPending;
   const comparisonAmount = customerTotalAmount - periodPayables;
-  const netPeriodStockChange = periodInwardQty - periodOutwardQty;
+
+  // =========================================================================
+  // DYNAMIC SALES TREND GRAPH DATA (Adapts to DAY, WEEK, MONTH, or YEAR)
+  // =========================================================================
+  let trendPoints = [];
+  const today = getTodayStr();
+
+  if (timeframe === 'DAY') {
+    // Break down today's dispatches or hours
+    if (filteredOutward.length > 0) {
+      trendPoints = filteredOutward.map((o, idx) => ({
+        label: o.challanNo ? `#${o.challanNo.slice(-4)}` : `B${idx + 1}`,
+        fullLabel: `${o.customerName || 'Customer'} (${o.challanNo || ''})`,
+        amount: Number(o.totalSaleAmount) || 0,
+        pcs: Number(o.quantity) || 0,
+        sub: o.destination || o.city || 'Today'
+      }));
+    } else {
+      trendPoints = [
+        { label: 'Morning', fullLabel: 'Morning 9AM-12PM', amount: 0, pcs: 0, sub: 'Aaj' },
+        { label: 'Afternoon', fullLabel: 'Afternoon 12PM-4PM', amount: 0, pcs: 0, sub: 'Aaj' },
+        { label: 'Evening', fullLabel: 'Evening 4PM-8PM', amount: 0, pcs: 0, sub: 'Aaj' },
+        { label: 'Night', fullLabel: 'Closing 8PM-10PM', amount: 0, pcs: 0, sub: 'Aaj' }
+      ];
+    }
+  } else if (timeframe === 'WEEK') {
+    // 7 Days of the Week
+    const daysArr = [6, 5, 4, 3, 2, 1, 0];
+    trendPoints = daysArr.map(dCount => {
+      const targetDate = getDaysAgoStr(today, dCount);
+      const dayName = new Date(targetDate).toLocaleDateString('en-US', { weekday: 'short' });
+      const dayDispatches = outward.filter(o => normalizeDate(o.date) === targetDate);
+      const amt = dayDispatches.reduce((s, o) => s + (Number(o.totalSaleAmount) || 0), 0);
+      const pcs = dayDispatches.reduce((s, o) => s + (Number(o.quantity) || 0), 0);
+      return {
+        label: dayName,
+        fullLabel: `${dayName} (${targetDate})`,
+        amount: amt,
+        pcs,
+        sub: `${dayDispatches.length} Challans`
+      };
+    });
+  } else if (timeframe === 'MONTH') {
+    // 5 Time Slices of the Month (Days 1-6, 7-12, 13-18, 19-24, 25-31)
+    const intervals = [
+      { label: 'W1 (1-6)', startDays: 30, endDays: 24 },
+      { label: 'W2 (7-12)', startDays: 24, endDays: 18 },
+      { label: 'W3 (13-18)', startDays: 18, endDays: 12 },
+      { label: 'W4 (19-24)', startDays: 12, endDays: 6 },
+      { label: 'W5 (25-30)', startDays: 6, endDays: 0 }
+    ];
+    trendPoints = intervals.map(inter => {
+      const startDate = getDaysAgoStr(today, inter.startDays);
+      const endDate = getDaysAgoStr(today, inter.endDays);
+      const matches = outward.filter(o => {
+        const d = normalizeDate(o.date);
+        return d && d >= startDate && d <= endDate;
+      });
+      const amt = matches.reduce((s, o) => s + (Number(o.totalSaleAmount) || 0), 0);
+      const pcs = matches.reduce((s, o) => s + (Number(o.quantity) || 0), 0);
+      return {
+        label: inter.label,
+        fullLabel: `${inter.label}: ${startDate} to ${endDate}`,
+        amount: amt,
+        pcs,
+        sub: `${matches.length} Bills`
+      };
+    });
+  } else {
+    // 12 Months (Jan - Dec) for YEAR & ALL
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    trendPoints = months.map((m, idx) => {
+      const monthDispatches = (outward || []).filter(o => {
+        const d = normalizeDate(o.date);
+        if (!d) return false;
+        const parsed = new Date(d);
+        return !isNaN(parsed.getTime()) && parsed.getMonth() === idx;
+      });
+      const amt = monthDispatches.reduce((s, o) => s + (Number(o.totalSaleAmount) || 0), 0);
+      const pcs = monthDispatches.reduce((s, o) => s + (Number(o.quantity) || 0), 0);
+      return {
+        label: m,
+        fullLabel: `${m} 2026`,
+        amount: amt,
+        pcs,
+        sub: `${monthDispatches.length} Challans`
+      };
+    });
+  }
+
+  // Calculate SVG Area Chart Geometry
+  const maxTrendAmt = Math.max(...trendPoints.map(p => p.amount), 100);
+  const chartWidth = 620;
+  const chartHeight = 180;
+  const padLeft = 45;
+  const padRight = 20;
+  const padBottom = 25;
+  const padTop = 15;
+  const graphW = chartWidth - padLeft - padRight;
+  const graphH = chartHeight - padTop - padBottom;
+  const numPoints = trendPoints.length;
+
+  const svgPoints = trendPoints.map((pt, i) => {
+    const x = numPoints > 1 ? padLeft + i * (graphW / (numPoints - 1)) : padLeft + graphW / 2;
+    const y = (chartHeight - padBottom) - (pt.amount / maxTrendAmt) * graphH;
+    return { x, y, ...pt, index: i };
+  });
+
+  let linePathD = numPoints > 0 ? `M ${svgPoints[0].x} ${svgPoints[0].y}` : '';
+  for (let i = 0; i < svgPoints.length - 1; i++) {
+    const p0 = svgPoints[i];
+    const p1 = svgPoints[i + 1];
+    const cpx1 = p0.x + (p1.x - p0.x) / 2;
+    const cpy1 = p0.y;
+    const cpx2 = p0.x + (p1.x - p0.x) / 2;
+    const cpy2 = p1.y;
+    linePathD += ` C ${cpx1} ${cpy1}, ${cpx2} ${cpy2}, ${p1.x} ${p1.y}`;
+  }
+  const areaPathD = numPoints > 0 
+    ? `${linePathD} L ${svgPoints[svgPoints.length - 1].x} ${chartHeight - padBottom} L ${svgPoints[0].x} ${chartHeight - padBottom} Z`
+    : '';
+
+  // =========================================================================
+  // DYNAMIC CITY / BRANCH DISTRIBUTION IN PERIOD (Donut Chart)
+  // =========================================================================
+  const cityCounts = {};
+  filteredOutward.forEach(o => {
+    const c = o.city || o.destination || 'Direct Shop';
+    cityCounts[c] = (cityCounts[c] || 0) + (Number(o.quantity) || 1);
+  });
+
+  const cityPalette = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
+  let rawCityList = Object.entries(cityCounts).map(([name, pcs]) => ({ name, pcs }));
+  rawCityList.sort((a, b) => b.pcs - a.pcs);
+
+  const totalPeriodBranchPcs = rawCityList.reduce((sum, c) => sum + c.pcs, 0);
+  const branchBreakdown = rawCityList.slice(0, 4).map((c, idx) => ({
+    ...c,
+    color: cityPalette[idx % cityPalette.length],
+    percent: totalPeriodBranchPcs > 0 ? ((c.pcs / totalPeriodBranchPcs) * 100).toFixed(1) : 0
+  }));
+
+  const donutRadius = 52;
+  const donutCircumference = 2 * Math.PI * donutRadius;
+  let donutOffsetAcc = 0;
 
   return (
     <div className="space-y-6">
       
-      {/* 0. Executive Operational Workflow Guide (Godam Karobar Rahnumai) */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-2xs transition-colors">
+      {/* ========================================================================= */}
+      {/* 0 & 1. UNIFIED FINANCIAL & TIMEFRAME COMMAND CONTAINER (Single Border)    */}
+      {/* User requested: "in ko aik he container ma rakhe na yar means aik he border ma ho" */}
+      {/* ========================================================================= */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-2xs transition-colors space-y-5">
         
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+        {/* Top Header & Dynamic Timeframe Switcher */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+          
+          {/* Active Period Title & Info */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0">
+              <Calendar className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-                  Godam Karobar Rahnumai (Daily Warehouse Workflow)
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                  Financial Summary & Timeframe
                 </h2>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
-                  Asaan 4-Step Guide
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/40">
+                  {timeframeLabel}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Har kaam direct 1-click se karein — non-tech users ke liye asaan aur seedha tareeqa
+                Neechay tamam Income, Expense, Maal Sent aur Graphs is muddat ke mutabiq dynamic hain
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowWorkflowGuide(prev => !prev)}
-            className="self-start sm:self-auto px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700 shadow-2xs"
-          >
-            <span>{showWorkflowGuide ? 'Chhupayein (Minimize)' : 'Kholein (Show Steps)'}</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showWorkflowGuide ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
-
-        {showWorkflowGuide && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-            
-            {/* Step 1: Article Register */}
-            <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between space-y-3 group shadow-2xs">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
-                    MARHALA 1: MAAL CODE
-                  </span>
-                  <span className="text-[11px] font-mono text-slate-400 font-semibold">{articles.length} Active</span>
-                </div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white mt-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  1. Naya Design Code
-                </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                  Jacket, Hoodie ya Trouser ka design code (maslan BF411) register karein.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddArticleOpen(true)}
-                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                <span className="text-slate-800 dark:text-white">Naya Article Darj Karein</span>
-              </button>
+          {/* Quick Timeframe Buttons & Date Range Picker (Single Row: Buttons + Manual Date Inputs Side-by-Side) */}
+          <div className="flex items-center gap-2.5 shrink-0 overflow-x-auto">
+            {/* 4 Timeframe Buttons (Yearly removed as requested) */}
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl shrink-0">
+              {[
+                { id: 'DAY', label: 'Daily' },
+                { id: 'WEEK', label: 'Weekly' },
+                { id: 'MONTH', label: 'Monthly' },
+                { id: 'ALL', label: 'All-Time' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleTimeframeChange(t.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    timeframe === t.id
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
 
-            {/* Step 2: China Inward Bill */}
-            <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between space-y-3 group shadow-2xs">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
-                    MARHALA 2: MAAL AAMAD
-                  </span>
-                  <span className="text-[11px] font-mono text-slate-400 font-semibold">{purchases.length} Bills</span>
-                </div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white mt-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  2. China Container Bill
-                </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                  Container ya factory se godam pohnchne wala maal aur bill darj karein.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsNewPurchaseOpen(true)}
-                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-600 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Ship className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span className="text-slate-800 dark:text-white">Container Bill Banayein</span>
-              </button>
-            </div>
-
-            {/* Step 3: Outward Dispatch */}
-            <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between space-y-3 group shadow-2xs">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
-                    MARHALA 3: MAAL RAWANGI
-                  </span>
-                  <span className="text-[11px] font-mono text-slate-400 font-semibold">{outward.length} Challans</span>
-                </div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white mt-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  3. Shehron ko Dispatch
-                </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                  Lahore, Karachi, Pindi ki dukanon ko gate pass challan ke sath maal bhejein.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsNewOutwardOpen(true)}
-                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-300 dark:hover:border-rose-600 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Truck className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                <span className="text-slate-800 dark:text-white">Maal Rawana Karein</span>
-              </button>
-            </div>
-
-            {/* Step 4: Khata Wasooli */}
-            <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between space-y-3 group shadow-2xs">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
-                    MARHALA 4: KHATA & WASOOLI
-                  </span>
-                  <span className="text-[11px] font-mono text-slate-400 font-semibold">{customers.length} Dukaandaar</span>
-                </div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white mt-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  4. Dukaan Wasooli
-                </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                  Dukaandaar se aane wali raqam wasool karein ya factory ko payment dein.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsRecordCustomerPaymentOpen(true)}
-                className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 border border-slate-200 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-600 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Wallet className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className="text-slate-800 dark:text-white">Wasooli Darj Karein</span>
-              </button>
+            {/* Manual Date Range Inputs (Directly in front on the same line) */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-600 dark:text-slate-300 shadow-2xs shrink-0">
+              <span className="text-[11px] font-semibold text-slate-400">Date:</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => handleCustomDateChange(e.target.value, dateTo)}
+                className="bg-transparent text-slate-700 dark:text-slate-200 outline-hidden text-xs cursor-pointer"
+                title="Start Date"
+              />
+              <span className="text-slate-400 font-medium">to</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => handleCustomDateChange(dateFrom, e.target.value)}
+                className="bg-transparent text-slate-700 dark:text-slate-200 outline-hidden text-xs cursor-pointer"
+                title="End Date"
+              />
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => handleTimeframeChange('ALL')}
+                  className="text-slate-400 hover:text-rose-500 font-bold ml-1 cursor-pointer transition-colors"
+                  title="Reset Dates to All-Time"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
-        )}
+
+        </div>
+
+        {/* 4 Metric Cards: 2 cards per row for maximum width & large amount visibility */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Card 1: TOTAL INCOME */}
+          <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-blue-400 transition-colors">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600 rounded-l-xl" />
+            <div className="flex items-center gap-3.5 pl-1">
+              <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <Wallet className="w-5.5 h-5.5 stroke-[1.8]" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                  TOTAL INCOME
+                </span>
+                <span className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-0.5 block tracking-tight">
+                  Rs. {formatNumber(totalPeriodIncome)}
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
+                  {filteredCustomerPayments.length} Wasooli Entries
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: TOTAL EXPENSE */}
+          <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-cyan-400 transition-colors">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-cyan-500 rounded-l-xl" />
+            <div className="flex items-center gap-3.5 pl-1">
+              <div className="w-12 h-12 rounded-full border-2 border-cyan-500/30 bg-cyan-50/50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+                <Layers className="w-5.5 h-5.5 stroke-[1.8]" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                  TOTAL EXPENSE
+                </span>
+                <span className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-0.5 block tracking-tight">
+                  Rs. {formatNumber(periodTotalExpenses)}
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
+                  Factory & Freight Paid
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: MAAL SENT */}
+          <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-indigo-400 transition-colors">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-600 rounded-l-xl" />
+            <div className="flex items-center gap-3.5 pl-1">
+              <div className="w-12 h-12 rounded-full border-2 border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <Truck className="w-5.5 h-5.5 stroke-[1.8]" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                  MAAL SENT
+                </span>
+                <span className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-0.5 block tracking-tight">
+                  {periodOutwardQty.toLocaleString()} pcs
+                </span>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block mt-0.5">
+                  Total Billed: Rs. {formatNumber(periodWholesaleSale)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: BAQAYA REMAINING */}
+          <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-rose-400 transition-colors">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500 rounded-l-xl" />
+            <div className="flex items-center gap-3.5 pl-1">
+              <div className="w-12 h-12 rounded-full border-2 border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <Receipt className="w-5.5 h-5.5 stroke-[1.8]" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                  BAQAYA REMAINING
+                </span>
+                <span className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 mt-0.5 block tracking-tight">
+                  Rs. {formatNumber(periodCustomerPending)}
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
+                  {periodChallansCount} Challans in {periodWholesaleCities || 1} Cities
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
       </div>
 
-      {/* 1. Quick Links Section */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xs transition-colors">
+      {/* ========================================================================= */}
+      {/* 2. QUICK ACTION SHORTCUTS (Circled in Image 2 - Retained)                 */}
+      {/* ========================================================================= */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-2xs transition-colors">
         
-        {/* Section Header with Duo-Tone Alert Badges */}
+        {/* Section Header with Alert Badges */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2">
@@ -417,823 +623,509 @@ export const DashboardOverview = ({ setActiveTab }) => {
 
           <div className="flex items-center gap-2 flex-wrap">
             {/* Payment Alert Badge */}
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleNavigate('suppliers')}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors cursor-pointer"
+              title="View Suppliers Page"
+            >
               <span className="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-rose-100 dark:ring-rose-950 shrink-0" />
               <span>Payment Alerts:</span>
               <strong className="font-mono text-slate-900 dark:text-white font-bold">
                 {suppliers.filter(s => s.remainingBalance > 0).length}
               </strong>
-            </span>
+            </button>
 
             {/* Pending Shipments Badge */}
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleNavigate('purchases')}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors cursor-pointer"
+              title="View Purchases / China Containers Page"
+            >
               <span className="w-2 h-2 rounded-full bg-blue-500 ring-2 ring-blue-100 dark:ring-blue-950 shrink-0" />
               <span>China Freight:</span>
               <strong className="font-mono text-slate-900 dark:text-white font-bold">
                 {purchases.length}
               </strong>
-            </span>
+            </button>
 
             {/* Low Stock Badge */}
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleNavigate('articles')}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors cursor-pointer"
+              title="View Articles / Stock Page"
+            >
               <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-100 dark:ring-amber-950 shrink-0" />
               <span>Kam Stock:</span>
               <strong className="font-mono text-slate-900 dark:text-white font-bold">
                 {lowStockCount}
               </strong>
-            </span>
+            </button>
           </div>
         </div>
 
-        {/* 8 Action Pills with Squircle Icon Badges, Subtitles, and Executive Eye Buttons */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-4">
+        {/* 8 Modern App Tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-4">
           
-          {/* 1. New Bill (China Import Container) */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 transition-all shadow-2xs hover:shadow-xs group">
-            <button
-              onClick={() => setIsNewPurchaseOpen(true)}
-              className="flex items-center gap-3 flex-1 text-left min-w-0 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Ship className="w-4.5 h-4.5" />
+          {/* 1. Party / Dukaandaar */}
+          <div 
+            onClick={() => handleNavigate('customers')}
+            className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-blue-100/60 dark:hover:from-slate-750 border border-blue-100 dark:border-slate-700/80 hover:border-blue-300 dark:hover:border-blue-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <Building2 className="w-5 h-5" />
               </div>
-              <div className="truncate">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 block leading-tight">
-                  New Inward Bill
-                </span>
-                <span className="text-[10px] text-slate-400 block leading-tight mt-0.5">
-                  China Container Aamad
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                if (purchases[0]) setSelectedInvoiceDetail(purchases[0]);
-                else setIsNewPurchaseOpen(true);
-              }}
-              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center transition-all shadow-2xs shrink-0 ml-1.5 cursor-pointer"
-              title="View Last Purchase Bill"
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                {customers.length} Shops
+              </span>
+            </div>
+            <div className="mt-3">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                Party (Dukaandar Khata)
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Shopkeeper ledgers & khata
+              </p>
+            </div>
           </div>
 
-          {/* 2. Stock Outward (Wholesale Dispatches) */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 transition-all shadow-2xs hover:shadow-xs group">
-            <button
-              onClick={() => setIsNewOutwardOpen(true)}
-              className="flex items-center gap-3 flex-1 text-left min-w-0 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Truck className="w-4.5 h-4.5" />
+          {/* 2. Dukaan Wasooli */}
+          <div 
+            onClick={() => handleNavigate('customers')}
+            className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-emerald-100/60 dark:hover:from-slate-750 border border-emerald-100 dark:border-slate-700/80 hover:border-emerald-300 dark:hover:border-emerald-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <Wallet className="w-5 h-5" />
               </div>
-              <div className="truncate">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 block leading-tight">
-                  Stock Outward
-                </span>
-                <span className="text-[10px] text-slate-400 block leading-tight mt-0.5">
-                  Gate Pass (Maal Rawangi)
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('outward')}
-              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center transition-all shadow-2xs shrink-0 ml-1.5 cursor-pointer"
-              title="View Outward Dispatches"
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                Cash In
+              </span>
+            </div>
+            <div className="mt-3">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                Dukaan Wasooli (Cash In)
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Collect payment & update khata
+              </p>
+            </div>
           </div>
 
-          {/* 3. Add Article (Jackets, Jerseys, T-Shirts) */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 transition-all shadow-2xs hover:shadow-xs group">
-            <button
-              onClick={() => setIsAddArticleOpen(true)}
-              className="flex items-center gap-3 flex-1 text-left min-w-0 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Shirt className="w-4.5 h-4.5" />
+          {/* 3. Maal Rawangi */}
+          <div 
+            onClick={() => handleNavigate('outward')}
+            className="p-4 rounded-2xl bg-gradient-to-br from-rose-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-rose-100/60 dark:hover:from-slate-750 border border-rose-100 dark:border-slate-700/80 hover:border-rose-300 dark:hover:border-rose-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-11 h-11 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <Truck className="w-5 h-5" />
               </div>
-              <div className="truncate">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 block leading-tight">
-                  Add Article
-                </span>
-                <span className="text-[10px] text-slate-400 block leading-tight mt-0.5">
-                  Garment Code (Naya Mal)
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                if (articles[0]) setSelectedArticleDetail(articles[0]);
-                else setIsAddArticleOpen(true);
-              }}
-              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center transition-all shadow-2xs shrink-0 ml-1.5 cursor-pointer"
-              title="View Latest Article Record"
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300">
+                {outward.length} Challans
+              </span>
+            </div>
+            <div className="mt-3">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                Maal Rawangi (Dispatches)
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Dispatch goods to wholesale shops
+              </p>
+            </div>
           </div>
 
-          {/* 4. Add Vendor (China Apparel Factories) */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 transition-all shadow-2xs hover:shadow-xs group">
-            <button
-              onClick={() => setIsAddSupplierOpen(true)}
-              className="flex items-center gap-3 flex-1 text-left min-w-0 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Building2 className="w-4.5 h-4.5" />
+          {/* 4. Godam Stock */}
+          <div 
+            onClick={() => handleNavigate('articles')}
+            className="p-4 rounded-2xl bg-gradient-to-br from-purple-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-purple-100/60 dark:hover:from-slate-750 border border-purple-100 dark:border-slate-700/80 hover:border-purple-300 dark:hover:border-purple-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-11 h-11 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <Shirt className="w-5 h-5" />
               </div>
-              <div className="truncate">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 block leading-tight">
-                  Add Vendor
-                </span>
-                <span className="text-[10px] text-slate-400 block leading-tight mt-0.5">
-                  China Factory (Supplier)
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('suppliers')}
-              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center transition-all shadow-2xs shrink-0 ml-1.5 cursor-pointer"
-              title="View Vendor Accounts"
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                {articles.length} Items
+              </span>
+            </div>
+            <div className="mt-3">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                Stock Catalog (Articles)
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Garments inventory & pieces
+              </p>
+            </div>
           </div>
 
-          {/* 5. Pay Vendor (TT / Cash Remittance) */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 transition-all shadow-2xs hover:shadow-xs group">
-            <button
-              onClick={() => setIsRecordPaymentOpen(true)}
-              className="flex items-center gap-3 flex-1 text-left min-w-0 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 border border-teal-200/50 dark:border-teal-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Wallet className="w-4.5 h-4.5" />
+          {/* 5. China Container */}
+          <div 
+            onClick={() => handleNavigate('purchases')}
+            className="p-4 rounded-2xl bg-gradient-to-br from-teal-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-teal-100/60 dark:hover:from-slate-750 border border-teal-100 dark:border-slate-700/80 hover:border-teal-300 dark:hover:border-teal-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <Ship className="w-5 h-5" />
               </div>
-              <div className="truncate">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 block leading-tight">
-                  Pay Vendor
-                </span>
-                <span className="text-[10px] text-slate-400 block leading-tight mt-0.5">
-                  Factory Adaigi (TT / Cash)
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('suppliers')}
-              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center transition-all shadow-2xs shrink-0 ml-1.5 cursor-pointer"
-              title="View Vendor Statements"
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
+                {purchases.length} Bills
+              </span>
+            </div>
+            <div className="mt-3">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                China Inward (Containers)
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Record import shipment arrivals
+              </p>
+            </div>
           </div>
 
-          {/* 6. Dukaan Wasooli (Customer Receipt) */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 transition-all shadow-2xs hover:shadow-xs group">
-            <button
-              onClick={() => setIsRecordCustomerPaymentOpen(true)}
-              className="flex items-center gap-3 flex-1 text-left min-w-0 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Receipt className="w-4.5 h-4.5" />
+          {/* 6. China Suppliers */}
+          <div 
+            onClick={() => handleNavigate('suppliers')}
+            className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-amber-100/60 dark:hover:from-slate-750 border border-amber-100 dark:border-slate-700/80 hover:border-amber-300 dark:hover:border-amber-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-11 h-11 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <Building2 className="w-5 h-5" />
               </div>
-              <div className="truncate">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 block leading-tight">
-                  Dukaan Wasooli
-                </span>
-                <span className="text-[10px] text-slate-400 block leading-tight mt-0.5">
-                  Customer Khata Receipt
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('customers')}
-              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center transition-all shadow-2xs shrink-0 ml-1.5 cursor-pointer"
-              title="View Shopkeeper Ledgers"
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200">
+                {suppliers.length} Factories
+              </span>
+            </div>
+            <div className="mt-3">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                China Vendors (Suppliers)
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Factory accounts & payments
+              </p>
+            </div>
           </div>
 
-          {/* 7. Quick Search Article */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/60 transition-all shadow-2xs hover:shadow-xs group">
-            <button
-              onClick={() => setIsQuickSearchOpen(true)}
-              className="flex items-center gap-3 flex-1 text-left min-w-0 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <ScanBarcode className="w-4.5 h-4.5" />
+          {/* 7. Roznamcha / Reports */}
+          <div 
+            onClick={() => handleNavigate('reports')}
+            className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-indigo-100/60 dark:hover:from-slate-750 border border-indigo-100 dark:border-slate-700/80 hover:border-indigo-300 dark:hover:border-indigo-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <FileSpreadsheet className="w-5 h-5" />
               </div>
-              <div className="truncate">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 block leading-tight">
-                  Maal Search
-                </span>
-                <span className="text-[10px] text-slate-400 block leading-tight mt-0.5">
-                  Fauri Design Lookup
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                if (articles[0]) setSelectedArticleDetail(articles[0]);
-                else setIsQuickSearchOpen(true);
-              }}
-              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center transition-all shadow-2xs shrink-0 ml-1.5 cursor-pointer"
-              title="Open Article Details"
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                PDF
+              </span>
+            </div>
+            <div className="mt-3">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                Reports & Hisaab Kitaab
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Download balance sheets & statements
+              </p>
+            </div>
           </div>
 
-          {/* 8. Export Ledger */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-2xs hover:shadow-xs group">
-            <button
-              onClick={() => setActiveTab('reports')}
-              className="flex items-center gap-3 flex-1 text-left min-w-0 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <FileSpreadsheet className="w-4.5 h-4.5" />
+          {/* 8. Branches & Markets */}
+          <div 
+            onClick={() => handleNavigate('branches')}
+            className="p-4 rounded-2xl bg-gradient-to-br from-slate-100/80 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-slate-200/80 dark:hover:from-slate-750 border border-slate-200 dark:border-slate-700/80 hover:border-slate-400 dark:hover:border-slate-500 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-11 h-11 rounded-2xl bg-slate-700 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <Warehouse className="w-5 h-5" />
               </div>
-              <div className="truncate">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-slate-900 dark:group-hover:text-white block leading-tight">
-                  Hisaab Kitaab
-                </span>
-                <span className="text-[10px] text-slate-400 block leading-tight mt-0.5">
-                  Download Reports PDF
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => downloadWarehouseReportPDF(articles, totalStock * 2000)}
-              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition-all shadow-2xs shrink-0 ml-1.5 cursor-pointer"
-              title="Download Ledger PDF"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                {cities.length} Cities
+              </span>
+            </div>
+            <div className="mt-3">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors">
+                Branches & Cities
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Lahore, Karachi, Pindi branches
+              </p>
+            </div>
           </div>
 
         </div>
       </div>
 
-      {/* 2. Payments Summary (Clean Executive Layout matching Reference Image 2) */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xs transition-colors space-y-6">
+      {/* ========================================================================= */}
+      {/* 3. CORE ANALYTICS HUB (Sales Overview + Branch Separation)               */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Title & Subtitle */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Payments Summary
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Account balances and period activity
-            </p>
+        {/* Left Column: Dynamic Sales Overview Chart (8 Columns) */}
+        <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-2xs transition-colors flex flex-col justify-between">
+          
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2.5 h-6 bg-indigo-600 rounded-full" />
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                  Sales & Outward Overview
+                </h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  {timeframeLabel} ke mutabiq wholesale sale aur dispatches curve
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                {trendPoints.length} Data Points ({timeframe})
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => downloadWarehouseReportPDF(filteredArticles.length > 0 ? filteredArticles : articles, periodPurchaseBill)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-2xs cursor-pointer"
-              title="Download Stock & Financial Summary PDF"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export PDF</span>
-            </button>
+
+          {/* Premium Executive KPI Summary Strip (Replaced shocking blue banner) */}
+          <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 my-4 shadow-2xs">
+            <div className="px-1">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                Total Billed Sale
+              </span>
+              <span className="text-lg sm:text-xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-0.5 block">
+                Rs. {formatNumber(periodWholesaleSale)}
+              </span>
+            </div>
+            <div className="px-1 sm:border-l sm:border-slate-200/80 dark:sm:border-slate-700/60 sm:pl-4">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                Maal Sent (Pcs)
+              </span>
+              <span className="text-lg sm:text-xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-0.5 block">
+                {periodOutwardQty.toLocaleString()} <span className="text-xs font-normal text-slate-400">pcs</span>
+              </span>
+            </div>
+            <div className="px-1 sm:border-l sm:border-slate-200/80 dark:sm:border-slate-700/60 sm:pl-4">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                Wasooli Collected
+              </span>
+              <span className="text-lg sm:text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight mt-0.5 block">
+                Rs. {formatNumber(totalPeriodIncome)}
+              </span>
+            </div>
+            <div className="px-1 sm:border-l sm:border-slate-200/80 dark:sm:border-slate-700/60 sm:pl-4">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                Khata Baqaya
+              </span>
+              <span className="text-lg sm:text-xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight mt-0.5 block">
+                Rs. {formatNumber(periodCustomerPending)}
+              </span>
+            </div>
+          </div>
+
+          {/* Dynamic SVG Area / Line Chart */}
+          <div className="relative pt-2">
+            
+            {/* Hover Tooltip */}
+            {hoveredSalesPoint && (
+              <div className="absolute top-2 right-4 bg-slate-900/95 text-white px-3 py-2 rounded-xl text-xs shadow-xl border border-slate-700 pointer-events-none z-10 flex items-center gap-3 animate-in fade-in zoom-in-95 duration-100">
+                <span className="font-bold text-blue-400">{hoveredSalesPoint.fullLabel}:</span>
+                <span className="font-mono">Rs. {formatNumber(hoveredSalesPoint.amount)}</span>
+                <span className="text-slate-400 text-[11px]">({hoveredSalesPoint.pcs.toLocaleString()} pcs)</span>
+              </div>
+            )}
+
+            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-48 sm:h-56 overflow-visible">
+              <defs>
+                <linearGradient id="dynamicSalesGradArea" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4F46E5" stopOpacity="0.18" />
+                  <stop offset="100%" stopColor="#4F46E5" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              {/* Horizontal Gridlines & Y-Axis Labels */}
+              {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+                const y = (chartHeight - padBottom) - ratio * graphH;
+                const labelVal = Math.round(ratio * (maxTrendAmt >= 1000 ? maxTrendAmt / 1000 : maxTrendAmt));
+                return (
+                  <g key={i}>
+                    <line
+                      x1={padLeft}
+                      y1={y}
+                      x2={chartWidth - padRight}
+                      y2={y}
+                      stroke="currentColor"
+                      className="text-slate-100 dark:text-slate-800"
+                      strokeWidth="1"
+                      strokeDasharray={i === 0 ? "0" : "3 3"}
+                    />
+                    <text
+                      x={padLeft - 8}
+                      y={y + 3.5}
+                      textAnchor="end"
+                      className="text-[10px] font-mono fill-slate-400 dark:fill-slate-500"
+                    >
+                      {labelVal}{maxTrendAmt >= 1000 ? 'k' : ''}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Area Gradient Fill */}
+              {areaPathD && <path d={areaPathD} fill="url(#dynamicSalesGradArea)" />}
+
+              {/* Smooth Indigo Bezier Curve Line */}
+              {linePathD && (
+                <path
+                  d={linePathD}
+                  fill="none"
+                  stroke="#4F46E5"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+
+              {/* Data Points with Hover Interaction */}
+              {svgPoints.map((p, i) => (
+                <g key={i} className="cursor-pointer" onMouseEnter={() => setHoveredSalesPoint(p)} onMouseLeave={() => setHoveredSalesPoint(null)}>
+                  <circle cx={p.x} cy={p.y} r={12} fill="transparent" />
+                  {hoveredSalesPoint?.index === i && (
+                    <circle cx={p.x} cy={p.y} r={7} fill="#4F46E5" fillOpacity="0.20" />
+                  )}
+                  <circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={hoveredSalesPoint?.index === i ? 4.5 : 3}
+                    fill="#4F46E5"
+                    stroke="#FFFFFF"
+                    strokeWidth="2"
+                    className="transition-all duration-150"
+                  />
+                  <text
+                    x={p.x}
+                    y={chartHeight - 6}
+                    textAnchor="middle"
+                    className={`text-[10px] font-semibold transition-colors ${
+                      hoveredSalesPoint?.index === i
+                        ? 'fill-indigo-600 dark:fill-indigo-400 font-bold'
+                        : 'fill-slate-400 dark:fill-slate-500'
+                    }`}
+                  >
+                    {p.label}
+                  </text>
+                </g>
+              ))}
+            </svg>
           </div>
         </div>
 
-        {/* Filter Bar Row matching Image 2 */}
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* 1. All branches */}
-            <div className="relative">
-              <select
-                value={selectedBranch}
-                onChange={e => setSelectedBranch(e.target.value)}
-                className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-normal text-slate-700 dark:text-slate-200 outline-hidden hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer shadow-2xs pr-8"
-              >
-                <option value="All branches">All branches</option>
-                {cities.map(c => (
-                  <option key={c.id || c.name} value={c.name}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+        {/* Right Column: Dynamic Branch Separation Donut Chart (4 Columns) */}
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-2xs transition-colors flex flex-col justify-between">
+          
+          {/* Header */}
+          <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+              Branch Separation
+            </h3>
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              {timeframeLabel} ke doran shehron ko maal rawangi
+            </p>
+          </div>
 
-            {/* 2. Select Category */}
-            <div className="relative">
-              <select
-                value={selectedCategory}
-                onChange={e => setSelectedCategory(e.target.value)}
-                className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-normal text-slate-700 dark:text-slate-200 outline-hidden hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer shadow-2xs pr-8"
-              >
-                <option value="All Categories">Select Category</option>
-                <option value="Jacket">Jacket</option>
-                <option value="Jersey">Jersey</option>
-                <option value="T-Shirt">T-Shirt</option>
-                <option value="Trouser">Trouser</option>
-                <option value="Hoodie">Hoodie</option>
-                <option value="Tracksuit">Tracksuit</option>
-              </select>
-            </div>
-
-            {/* 3. Select Brand */}
-            <div className="relative">
-              <select
-                value={selectedBrand}
-                onChange={e => setSelectedBrand(e.target.value)}
-                className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-normal text-slate-700 dark:text-slate-200 outline-hidden hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer shadow-2xs pr-8"
-              >
-                <option value="All Brands">Select Brand</option>
-                {stuffs.map(s => (
-                  <option key={s.id || s.name} value={s.name}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* 4. Select Item */}
-            <div className="relative">
-              <select
-                value={selectedArticleCode}
-                onChange={e => setSelectedArticleCode(e.target.value)}
-                className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-normal text-slate-700 dark:text-slate-200 outline-hidden hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer shadow-2xs pr-8"
-              >
-                <option value="All Articles">Select Item</option>
-                {articles.map(a => (
-                  <option key={a.articleNo} value={a.articleNo}>
-                    {a.articleNo} — {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 5. Date Range Input: mm/dd/yyyy to mm/dd/yyyy */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-600 dark:text-slate-300 shadow-2xs">
-              <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                className="bg-transparent text-slate-700 dark:text-slate-200 outline-hidden text-xs cursor-pointer"
-                title="Start Date"
+          {/* SVG Donut / Ring Chart (Refined & Slender) */}
+          <div className="flex items-center justify-center my-3 relative">
+            <svg viewBox="0 0 160 160" className="w-36 h-36 transform -rotate-90">
+              <circle
+                cx="80"
+                cy="80"
+                r={donutRadius}
+                fill="transparent"
+                stroke="currentColor"
+                strokeWidth="11"
+                className="text-slate-100 dark:text-slate-800"
               />
-              <span className="text-slate-400">to</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
-                className="bg-transparent text-slate-700 dark:text-slate-200 outline-hidden text-xs cursor-pointer"
-                title="End Date"
-              />
-              {(dateFrom || dateTo) && (
-                <button
-                  type="button"
-                  onClick={() => { setDateFrom(''); setDateTo(''); }}
-                  className="text-slate-400 hover:text-rose-500 font-bold ml-1 cursor-pointer"
-                  title="Clear dates"
-                >
-                  ✕
-                </button>
-              )}
+
+              {branchBreakdown.map((item, idx) => {
+                const strokeDash = (Number(item.percent) / 100) * donutCircumference;
+                const offset = donutOffsetAcc;
+                donutOffsetAcc += strokeDash;
+                return (
+                  <circle
+                    key={idx}
+                    cx="80"
+                    cy="80"
+                    r={donutRadius}
+                    fill="transparent"
+                    stroke={item.color}
+                    strokeWidth="11"
+                    strokeDasharray={`${strokeDash} ${donutCircumference}`}
+                    strokeDashoffset={-offset}
+                    className="transition-all duration-300 hover:opacity-90 cursor-pointer"
+                  />
+                );
+              })}
+            </svg>
+
+            {/* Centered Donut Hole Label */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                Maal Sent
+              </span>
+              <span className="text-xl font-bold font-mono text-slate-900 dark:text-white leading-tight">
+                {totalPeriodBranchPcs.toLocaleString()}
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">Pieces</span>
             </div>
           </div>
 
-          {/* Action Button: Manage cash */}
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => setIsRecordCustomerPaymentOpen(true)}
-              className="px-3.5 py-1.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium transition-colors shadow-2xs cursor-pointer"
-            >
-              Manage cash
-            </button>
-
-            {(selectedBranch !== 'All branches' || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands' || selectedArticleCode !== 'All Articles' || dateFrom || dateTo) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedBranch('All branches');
-                  setSelectedCategory('All Categories');
-                  setSelectedBrand('All Brands');
-                  setSelectedArticleCode('All Articles');
-                  setDateFrom('');
-                  setDateTo('');
-                }}
-                className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
-              >
-                Reset filters
-              </button>
+          {/* Legend with Percentages */}
+          <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+            {branchBreakdown.length === 0 ? (
+              <div className="text-center py-2 text-xs text-slate-400">
+                Is muddat me koi maal rawana nahi hua.
+              </div>
+            ) : (
+              branchBreakdown.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                    <span className="text-slate-600 dark:text-slate-300 font-medium truncate max-w-[140px]">
+                      {item.name}
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                    {item.percent}%
+                  </span>
+                </div>
+              ))
             )}
           </div>
-        </div>
-
-        {/* TOP ROW: 5 Columns (Clean, Minimalist Executive Layout matching Image 2) */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800">
-            
-            {/* 1. CURRENT BALANCE */}
-            <div className="sm:pr-4 space-y-1">
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase block">
-                CURRENT BALANCE
-              </span>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {formatNumber(periodClosingNet)}
-              </div>
-              <div className="space-y-1 pt-3 text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex justify-between items-center">
-                  <span>Total</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(periodCustomerCashReceived)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Used</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(periodExtraExpenses)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Transfer Out</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Transfer In</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. CASH IN HAND */}
-            <div className="sm:px-4 space-y-1 pt-4 sm:pt-0">
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase block">
-                CASH IN HAND
-              </span>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {formatNumber(periodCustomerCashReceived)}
-              </div>
-              <div className="space-y-1 pt-3 text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex justify-between items-center">
-                  <span>Total</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(periodCustomerCashReceived)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Used</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(periodExtraExpenses)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Refunded</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Transfer Out</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Transfer In</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. IN BANK */}
-            <div className="sm:px-4 space-y-1 pt-4 sm:pt-0">
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase block">
-                IN BANK
-              </span>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {formatNumber(periodSupplierPaid)}
-              </div>
-              <div className="space-y-1 pt-3 text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex justify-between items-center">
-                  <span>Total</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(periodSupplierPaid)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Used</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(periodSupplierPaid)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Refunded</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Transfer Out</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Transfer In</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 4. EXPENSES */}
-            <div className="sm:px-4 space-y-1 pt-4 sm:pt-0">
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase block">
-                EXPENSES
-              </span>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {formatNumber(periodExtraExpenses)}
-              </div>
-              <div className="space-y-1 pt-3 text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex justify-between items-center">
-                  <span>Cash used</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(periodExtraExpenses)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Bank used</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Transfer Out</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Transfer In</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">0</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 5. ITEMS STOCK */}
-            <div className="sm:pl-4 space-y-1 pt-4 sm:pt-0">
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase block">
-                ITEMS STOCK
-              </span>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {formatNumber(filteredStockValue > 0 ? filteredStockValue : totalStockValue)}
-              </div>
-              <div className="space-y-1 pt-3 text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex justify-between items-center">
-                  <span>Total value</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(filteredStockValue > 0 ? filteredStockValue : totalStockValue)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Sold amount</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(periodWholesaleSale)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Available qty</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(filteredArticlesStock > 0 ? filteredArticlesStock : totalStock)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Sold qty</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-medium">
-                    {formatNumber(periodOutwardQty)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* BOTTOM ROW: 3 Comparison Cards matching Image 2 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
-          {/* Card 1: CUSTOMER AMOUNT */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
-            <div className="flex items-baseline justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800/80">
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-                CUSTOMER AMOUNT
-              </span>
-              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono">
-                {formatNumber(customerTotalAmount)}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-3.5">
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  STOCK
-                </span>
-                <span className="text-base font-bold text-blue-600 dark:text-blue-400 font-mono mt-0.5 block">
-                  {formatNumber(filteredStockValue > 0 ? filteredStockValue : totalStockValue)}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  PENDING
-                </span>
-                <span className="text-base font-bold text-amber-500 font-mono mt-0.5 block">
-                  {formatNumber(periodCustomerPending)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: COMPARISON */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
-            <div className="flex items-baseline justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800/80">
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-                COMPARISON
-              </span>
-              <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                {formatNumber(comparisonAmount)}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-3.5">
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  CUSTOMER
-                </span>
-                <span className="text-base font-bold text-blue-600 dark:text-blue-400 font-mono mt-0.5 block">
-                  {formatNumber(customerTotalAmount)}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  VENDOR (-)
-                </span>
-                <span className="text-base font-bold text-slate-600 dark:text-slate-300 font-mono mt-0.5 block">
-                  -{formatNumber(periodPayables)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: VENDOR AMOUNT */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
-            <div className="flex items-baseline justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800/80">
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-                VENDOR AMOUNT
-              </span>
-              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono">
-                {formatNumber(periodPurchaseBill)}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-3.5">
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  PAID / GAVE
-                </span>
-                <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 block">
-                  {formatNumber(periodSupplierPaid)}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  PENDING
-                </span>
-                <span className="text-base font-bold text-amber-500 font-mono mt-0.5 block">
-                  {formatNumber(periodPayables)}
-                </span>
-              </div>
-            </div>
-          </div>
 
         </div>
 
       </div>
 
-      {/* 2.5 Analytics & Trend Charts (Stock Flow Velocity & Category/Market Share) */}
-      <DashboardAnalyticsCharts 
-        articles={articles}
-        purchases={purchases}
-        outward={outward}
-      />
-
-      {/* 3. Live Articles Stock Register Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xs transition-colors">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                Warehouse Stock Register (Godam Stock Register)
-              </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                Live Inventory
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Kisi bhee article code par click karke mukammal aamad, rawangi aur bacha hua stock dekhein
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setActiveTab('articles')}
-            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 group cursor-pointer"
+      {/* ========================================================================= */}
+      {/* 4. DASHBOARD FOOTER (Branded + Developer Credit Link)                     */}
+      {/* ========================================================================= */}
+      <footer className="pt-6 pb-4 mt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm sm:text-base text-slate-600 dark:text-slate-300">
+        <div className="font-bold tracking-wider uppercase text-slate-800 dark:text-slate-100 text-sm sm:text-base">
+          KHAN JACKET HOUSE
+        </div>
+        <div className="text-center sm:text-right font-medium">
+          Copyright &copy; 2026. All rights reserved. Powered by{' '}
+          <a
+            href="https://mubasharportfolio.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-black dark:text-white font-bold text-sm sm:text-base transition-colors duration-200 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-4 cursor-pointer"
+            title="Mubashar Portfolio"
           >
-            <span>View All ({articles.length} Articles)</span>
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-          </button>
+            Mubashar
+          </a>
+          .
         </div>
-
-        <div className="overflow-x-auto mt-3.5">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-3.5">Article Code</th>
-                <th className="py-3 px-3.5">Description (Tafseel)</th>
-                <th className="py-3 px-3.5">Category</th>
-                <th className="py-3 px-3.5 text-right">Total Inward</th>
-                <th className="py-3 px-3.5 text-right">Total Outward</th>
-                <th className="py-3 px-3.5 text-right">Current Stock</th>
-                <th className="py-3 px-3.5 text-right">Unit Cost</th>
-                <th className="py-3 px-3.5 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {filteredArticles.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="py-12 text-center">
-                    <div className="max-w-md mx-auto space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
-                        <Shirt className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                          Abhi Tak Koi Garment Article Darj Nahi Hua
-                        </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                          Godam me pehla jacket, hoodie ya jersey design code enter karne ke liye neechay button dabayein:
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsAddArticleOpen(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>+ Pehla Article Darj Karein</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredArticles.slice((articlesPage - 1) * articlesPageSize, articlesPage * articlesPageSize).map((art) => (
-                  <tr
-                    key={art.articleNo}
-                    onClick={() => setSelectedArticleDetail(art)}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group"
-                  >
-                    <td className="py-3 px-3.5">
-                      <span className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                        {art.articleNo}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3.5 font-bold text-slate-900 dark:text-white">
-                      {art.name}
-                    </td>
-                    <td className="py-3 px-3.5">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
-                        {art.category}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3.5 text-right font-mono font-semibold text-slate-600 dark:text-slate-300">
-                      {art.totalPurchased?.toLocaleString()} pcs
-                    </td>
-                    <td className="py-3 px-3.5 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">
-                      {art.totalOut?.toLocaleString()} pcs
-                    </td>
-                    <td className="py-3 px-3.5 text-right font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">
-                      {art.currentStock?.toLocaleString()} pcs
-                    </td>
-                    <td className="py-3 px-3.5 text-right font-mono text-slate-600 dark:text-slate-400 font-medium">
-                      Rs. {art.unitCost?.toLocaleString()}
-                    </td>
-                    <td className="py-3 px-3.5 text-center" onClick={e => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedArticleDetail(art)}
-                        className="w-7 h-7 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 flex items-center justify-center transition-colors mx-auto cursor-pointer"
-                        title="View Article Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* 10-Item Pagination */}
-        <Pagination
-          currentPage={articlesPage}
-          totalItems={filteredArticles.length}
-          pageSize={articlesPageSize}
-          onPageChange={setArticlesPage}
-          itemLabel="articles"
-        />
-      </div>
+      </footer>
 
     </div>
   );
 };
-

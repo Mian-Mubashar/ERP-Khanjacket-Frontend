@@ -95,18 +95,18 @@ export const AddLocationModal = () => {
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0">
               <Warehouse className="w-4.5 h-4.5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Warehouse Racks & Godowns</h2>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Warehouse Racks & Godowns</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Add and manage physical storage locations (e.g. Hall A - Rack 01, Godown 2, Front Rack)
+                Add and manage physical warehouse storage racks and halls
               </p>
             </div>
           </div>
@@ -120,7 +120,7 @@ export const AddLocationModal = () => {
         </div>
 
         {/* Content */}
-        <div className="p-5 sm:p-6 space-y-3.5">
+        <div className="p-5 sm:p-6 space-y-4">
           
           {error && (
             <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
@@ -137,19 +137,19 @@ export const AddLocationModal = () => {
           )}
 
           {/* Add form */}
-          <form onSubmit={handleSubmit} className="flex gap-2">
+          <form onSubmit={handleSubmit} className="flex gap-2.5">
             <input
               type="text"
               value={locationName}
               onChange={(e) => setLocationName(e.target.value)}
               placeholder="e.g. Hall A - Rack 01, Godown 2, Mezzanine B..."
               autoFocus
-              className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-hidden focus:border-amber-500 font-medium"
+              className="flex-1 px-3.5 py-2.5 text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
             />
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
             >
               <Plus className="w-4 h-4" />
               <span>{isSubmitting ? 'Adding...' : 'Add Location'}</span>
@@ -163,13 +163,13 @@ export const AddLocationModal = () => {
                 Saved Warehouse Locations ({warehouseLocations.length})
               </span>
               <span className="text-[10px] text-slate-400">
-                100% Dynamic MySQL Storage
+                Live Database Storage
               </span>
             </div>
 
             {warehouseLocations.length === 0 ? (
               <div className="p-5 text-center text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                Abhi koi warehouse location add nahi hui. Upar form se apni pehli godown ya rack add karen.
+                No warehouse locations added yet. Enter a rack or godown name above to register.
               </div>
             ) : (
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">

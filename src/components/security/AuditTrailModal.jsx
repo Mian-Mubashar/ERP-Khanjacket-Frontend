@@ -52,7 +52,7 @@ export const AuditTrailModal = () => {
               placeholder="Search audit trail by user, action, article or invoice..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white rounded-xl border border-slate-200 dark:border-slate-700 focus:border-blue-600 outline-hidden"
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-white rounded-xl border border-slate-200 dark:border-slate-700 focus:border-blue-600 outline-hidden transition-all"
             />
           </div>
           <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
