@@ -128,7 +128,7 @@ export const CustomersView = () => {
     if (balanceFilter === 'CLEAR') matchesBalance = bal <= 0;
 
     return matchesSearch && matchesCity && matchesBalance;
-  });
+  }).sort((a, b) => (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' }));
 
   // Calculations
   const totalPiecesDispatched = customers.reduce((sum, c) => sum + (Number(c.totalPiecesReceived) || 0), 0);

@@ -183,7 +183,7 @@ export const RecordCustomerPaymentModal = () => {
                   onChange={(e) => setCustomerId(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
                 >
-                  {customers.map(c => (
+                  {[...customers].sort((a, b) => (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.shopName} ({c.shopkeeperName} - {c.city}) — Baqaya: Rs. {Number(c.remainingBalance || 0).toLocaleString()}
                     </option>

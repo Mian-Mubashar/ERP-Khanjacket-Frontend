@@ -240,10 +240,16 @@ export const AppProvider = ({ children }) => {
         setArticles(articlesRes.value.data);
       }
       if (suppliersRes.status === 'fulfilled' && suppliersRes.value?.data) {
-        setSuppliers(suppliersRes.value.data);
+        const sortedSuppliers = [...suppliersRes.value.data].sort((a, b) => 
+          (a.company || a.name || '').localeCompare(b.company || b.name || '', undefined, { sensitivity: 'base' })
+        );
+        setSuppliers(sortedSuppliers);
       }
       if (customersRes.status === 'fulfilled' && customersRes.value?.data) {
-        setCustomers(customersRes.value.data);
+        const sortedCustomers = [...customersRes.value.data].sort((a, b) => 
+          (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })
+        );
+        setCustomers(sortedCustomers);
       }
       if (purchasesRes.status === 'fulfilled' && purchasesRes.value?.data) {
         setPurchases(purchasesRes.value.data);
@@ -474,7 +480,9 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customers.create(custData);
       if (res?.success && res?.data) {
-        setCustomers(prev => [res.data, ...prev.filter(c => c.id !== res.data.id)]);
+        setCustomers(prev => [...prev.filter(c => c.id !== res.data.id), res.data].sort((a, b) => 
+          (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })
+        ));
         setCustomerFilterKey(prev => prev + 1);
         await refreshData();
         addAuditLog(

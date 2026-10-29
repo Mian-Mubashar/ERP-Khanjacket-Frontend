@@ -16,15 +16,15 @@ export const formatLakhCrore = (num) => {
 
   if (n >= 10000000) {
     const cr = (n / 10000000).toFixed(2).replace(/\.00$/, '');
-    return `✨ ${cr} Crore PKR (${cr} Crore)`;
+    return `✨ ${cr} Crore PKR`;
   }
   if (n >= 100000) {
     const lacs = (n / 100000).toFixed(2).replace(/\.00$/, '');
-    return `✨ ${lacs} Lacs PKR (${lacs} Lakh)`;
+    return `✨ ${lacs} Lacs PKR`;
   }
   if (n >= 1000) {
     const th = (n / 1000).toFixed(1).replace(/\.0$/, '');
-    return `✨ ${th} Thousand PKR (${th} Hazaar)`;
+    return `✨ ${th}k PKR`;
   }
   return `✨ ${n.toLocaleString()} PKR`;
 };

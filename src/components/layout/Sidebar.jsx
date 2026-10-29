@@ -312,7 +312,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                 </div>
               </button>
 
-
               <button
                 onClick={() => setIsAddCustomerOpen(true)}
                 className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-normal transition-colors cursor-pointer flex items-center justify-between"
