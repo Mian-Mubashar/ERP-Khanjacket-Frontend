@@ -1,0 +1,27 @@
+# ==============================================================================
+# Hostinger / LiteSpeed / Apache React SPA URL Rewrite Configuration
+# Fixes 503 / 404 on page reload (F5 / Refresh) on /dashboard, /customers, etc.
+# ==============================================================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Do not rewrite if the requested file or directory exists (assets, images, scripts)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 2. Redirect all other requests (/dashboard, /customers, /articles, etc.) to index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Prevent browser from aggressively caching index.html so new deployments load instantly
+<Files "index.html">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </IfModule>
+</Files>
+
