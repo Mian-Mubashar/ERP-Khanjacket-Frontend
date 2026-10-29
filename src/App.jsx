@@ -121,8 +121,30 @@ const DashboardLayout = () => {
         />
 
         {/* Content Area Rendered by React Router */}
-        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-x-hidden">
-          <Outlet />
+        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-x-hidden flex flex-col justify-between">
+          <div className="flex-1">
+            <Outlet />
+          </div>
+
+          {/* Global Application Footer on Every Page */}
+          <footer className="pt-6 pb-4 mt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm sm:text-base text-slate-600 dark:text-slate-300">
+            <div className="font-bold tracking-wider uppercase text-slate-800 dark:text-slate-100 text-sm sm:text-base">
+              KHAN JACKET HOUSE
+            </div>
+            <div className="text-center sm:text-right font-medium">
+              Copyright &copy; 2026. All rights reserved. Powered by{' '}
+              <a
+                href="https://mubasharportfolio.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-black dark:text-white font-bold text-sm sm:text-base transition-colors duration-200 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-4 cursor-pointer"
+                title="Mubashar Portfolio"
+              >
+                Mubashar
+              </a>
+              .
+            </div>
+          </footer>
         </main>
       </div>
 
