@@ -274,7 +274,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           >
             <div className="flex items-center gap-3">
               <Users className="w-4.5 h-4.5 text-slate-500 dark:text-slate-400 group-hover:text-blue-500" />
-              <span>Customers (Dukaandaar)</span>
+              <span>Customers</span>
             </div>
             {expandedSections.customers ? (
               <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -465,7 +465,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           >
             <div className="flex items-center gap-3">
               <Ship className="w-4.5 h-4.5 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500" />
-              <span>China Purchases (Aamad)</span>
+              <span>China Purchases</span>
             </div>
             {expandedSections.purchases ? (
               <ChevronDown className="w-4 h-4 text-slate-400" />

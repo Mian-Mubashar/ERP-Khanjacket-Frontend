@@ -176,7 +176,7 @@ export const CustomersView = () => {
             title="Create a new customer bill / dispatch goods"
           >
             <Truck className="w-4 h-4" />
-            <span>+ Naya Bill</span>
+            <span>+ New Bill</span>
           </button>
 
           <button
