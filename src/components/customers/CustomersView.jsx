@@ -564,7 +564,7 @@ export const CustomersView = () => {
           >
             <div className="flex items-center gap-2.5">
               <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Naya Bill (Maal)</span>
+              <span>New Bill (Maal)</span>
             </div>
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
               + Bill

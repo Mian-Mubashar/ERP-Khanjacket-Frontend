@@ -327,15 +327,13 @@ export const NewPurchaseModal = () => {
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   China Supplier <span className="text-rose-500">*</span>
                 </label>
-                {suppliers.length === 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setIsAddSupplierOpen(true)}
-                    className="text-[11px] text-blue-600 hover:underline font-bold"
-                  >
-                    + Add Supplier
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setIsAddSupplierOpen(true)}
+                  className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer transition-colors"
+                >
+                  + Add Supplier
+                </button>
               </div>
               <select
                 value={supplierId}
