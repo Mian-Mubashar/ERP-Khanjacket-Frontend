@@ -12,6 +12,7 @@ import { OutwardList } from './components/outward/OutwardList';
 import { SuppliersList } from './components/suppliers/SuppliersList';
 import { ReportsView } from './components/reports/ReportsView';
 import { SecurityView } from './components/security/SecurityView';
+import { UgrahiView } from './components/ugrahi/UgrahiView';
 import { LoginView } from './components/auth/LoginView';
 
 // Modals
@@ -206,6 +207,7 @@ const AppRoutes = () => {
         <Route path="/purchases" element={<PurchasesList />} />
         <Route path="/outward" element={<OutwardList />} />
         <Route path="/suppliers" element={<SuppliersList />} />
+        <Route path="/ugrahi" element={<UgrahiView />} />
         <Route path="/reports" element={<ReportsView />} />
         <Route path="/security" element={<SecurityView />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

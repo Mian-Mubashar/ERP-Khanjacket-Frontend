@@ -133,7 +133,9 @@ export const api = {
       return request(`/purchases${query ? `?${query}` : ''}`);
     },
     getById: (id) => request(`/purchases/${id}`),
-    create: (data) => request('/purchases', { method: 'POST', body: JSON.stringify(data) })
+    create: (data) => request('/purchases', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => request(`/purchases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => request(`/purchases/${id}`, { method: 'DELETE' })
   },
 
   // Warehouse Outward Dispatches
@@ -142,7 +144,9 @@ export const api = {
       const query = new URLSearchParams(params).toString();
       return request(`/outward${query ? `?${query}` : ''}`);
     },
-    create: (data) => request('/outward', { method: 'POST', body: JSON.stringify(data) })
+    create: (data) => request('/outward', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => request(`/outward/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => request(`/outward/${id}`, { method: 'DELETE' })
   },
 
   // Suppliers & Vendor Ledgers
@@ -155,6 +159,8 @@ export const api = {
     create: (data) => request('/suppliers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/suppliers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     recordPayment: (data) => request('/payments/supplier', { method: 'POST', body: JSON.stringify(data) }),
+    updatePayment: (id, data) => request(`/payments/supplier/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deletePayment: (id) => request(`/payments/supplier/${id}`, { method: 'DELETE' }),
     listPayments: (params = {}) => {
       const query = new URLSearchParams(params).toString();
       return request(`/payments/supplier${query ? `?${query}` : ''}`);
@@ -172,6 +178,8 @@ export const api = {
     update: (id, data) => request(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id) => request(`/customers/${id}`, { method: 'DELETE' }),
     recordPayment: (data) => request('/payments/customer', { method: 'POST', body: JSON.stringify(data) }),
+    updatePayment: (id, data) => request(`/payments/customer/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deletePayment: (id) => request(`/payments/customer/${id}`, { method: 'DELETE' }),
     listPayments: (params = {}) => {
       const query = new URLSearchParams(params).toString();
       return request(`/payments/customer${query ? `?${query}` : ''}`);

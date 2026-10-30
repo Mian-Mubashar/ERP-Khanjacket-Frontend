@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronRight,
-  Warehouse
+  Warehouse,
+  ReceiptText
 } from 'lucide-react';
 import iconLogoImg from '../../images/khan jacket icon logo.png';
 
@@ -37,7 +38,8 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     outward: false,
     suppliers: false,
     reports: false,
-    security: false
+    security: false,
+    ugrahi: false
   });
 
   const toggleSection = (key) => {
@@ -142,6 +144,18 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           title="China Suppliers / Vendors"
         >
           <Building2 className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={() => setActiveTab('ugrahi')}
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+            activeTab === 'ugrahi' 
+              ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium shadow-xs' 
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+          title="Payment Collection (Ugrahi)"
+        >
+          <ReceiptText className="w-5 h-5" />
         </button>
 
         <button
@@ -452,7 +466,47 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           )}
         </div>
 
-        {/* 8. Reports & Analytics */}
+        {/* 8. Payment Collection (Ugrahi) */}
+        <div>
+          <button
+            onClick={() => toggleSection('ugrahi')}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer group ${
+              activeTab === 'ugrahi'
+                ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50/50 dark:bg-blue-950/30'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <ReceiptText className={`w-4.5 h-4.5 ${activeTab === 'ugrahi' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-blue-500'}`} />
+              <span>Payment Collection (Ugrahi)</span>
+            </div>
+            {expandedSections.ugrahi ? (
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            )}
+          </button>
+
+          {expandedSections.ugrahi && (
+            <div className="pl-9 pr-2 py-1 space-y-0.5">
+              <button
+                onClick={() => setActiveTab('ugrahi')}
+                className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                  activeTab === 'ugrahi'
+                    ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-normal'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span>Collection Sheets</span>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 9. Reports & Analytics */}
         <div>
           <button
             onClick={() => toggleSection('reports')}

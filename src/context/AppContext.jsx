@@ -55,7 +55,7 @@ export const AppProvider = ({ children }) => {
   // Derive active tab dynamically from current URL pathname
   const getTabFromPath = useCallback((pathname) => {
     const segment = pathname.replace(/^\//, '').split('/')[0];
-    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'outward', 'suppliers', 'reports', 'security'];
+    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'outward', 'suppliers', 'reports', 'security', 'ugrahi'];
     return validTabs.includes(segment) ? segment : 'dashboard';
   }, []);
 
@@ -244,12 +244,20 @@ export const AppProvider = ({ children }) => {
           (a.company || a.name || '').localeCompare(b.company || b.name || '', undefined, { sensitivity: 'base' })
         );
         setSuppliers(sortedSuppliers);
+        setSelectedSupplierDetail(prev => {
+          if (!prev) return null;
+          return sortedSuppliers.find(s => s.id === prev.id) || prev;
+        });
       }
       if (customersRes.status === 'fulfilled' && customersRes.value?.data) {
         const sortedCustomers = [...customersRes.value.data].sort((a, b) => 
           (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })
         );
         setCustomers(sortedCustomers);
+        setSelectedCustomerKhata(prev => {
+          if (!prev) return null;
+          return sortedCustomers.find(c => c.id === prev.id) || prev;
+        });
       }
       if (purchasesRes.status === 'fulfilled' && purchasesRes.value?.data) {
         setPurchases(purchasesRes.value.data);
@@ -409,6 +417,32 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const updatePurchase = async (id, data) => {
+    try {
+      const res = await api.purchases.update(id, data);
+      if (res?.success) {
+        await refreshData();
+        return { success: true, purchase: res.data };
+      }
+      return { success: false, message: res?.message || 'Failed to update purchase entry' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error updating purchase in database' };
+    }
+  };
+
+  const deletePurchase = async (id) => {
+    try {
+      const res = await api.purchases.delete(id);
+      if (res?.success) {
+        await refreshData();
+        return { success: true };
+      }
+      return { success: false, message: res?.message || 'Failed to delete purchase entry' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error deleting purchase from database' };
+    }
+  };
+
   // ==========================================
   // DYNAMIC ACTIONS: OUTWARD DISPATCHES
   // ==========================================
@@ -422,6 +456,32 @@ export const AppProvider = ({ children }) => {
       return { success: false, message: res?.message || 'Failed to record outward dispatch' };
     } catch (err) {
       return { success: false, message: err.message || 'Error recording outward dispatch in MySQL' };
+    }
+  };
+
+  const updateOutward = async (id, data) => {
+    try {
+      const res = await api.outward.update(id, data);
+      if (res?.success) {
+        await refreshData();
+        return { success: true, outward: res.data };
+      }
+      return { success: false, message: res?.message || 'Failed to update outward dispatch' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error updating outward in database' };
+    }
+  };
+
+  const deleteOutward = async (id) => {
+    try {
+      const res = await api.outward.delete(id);
+      if (res?.success) {
+        await refreshData();
+        return { success: true };
+      }
+      return { success: false, message: res?.message || 'Failed to delete outward dispatch' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error deleting outward dispatch from database' };
     }
   };
 
@@ -470,6 +530,32 @@ export const AppProvider = ({ children }) => {
       return { success: false, message: res?.message || 'Failed to record payment' };
     } catch (err) {
       return { success: false, message: err.message || 'Error recording payment in MySQL' };
+    }
+  };
+
+  const updateSupplierPayment = async (id, data) => {
+    try {
+      const res = await api.suppliers.updatePayment(id, data);
+      if (res?.success) {
+        await refreshData();
+        return { success: true, payment: res.data };
+      }
+      return { success: false, message: res?.message || 'Failed to update payment entry' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error updating payment in database' };
+    }
+  };
+
+  const deleteSupplierPayment = async (id) => {
+    try {
+      const res = await api.suppliers.deletePayment(id);
+      if (res?.success) {
+        await refreshData();
+        return { success: true };
+      }
+      return { success: false, message: res?.message || 'Failed to delete payment entry' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error deleting payment from database' };
     }
   };
 
@@ -542,6 +628,32 @@ export const AppProvider = ({ children }) => {
       return { success: false, message: res?.message || 'Failed to record customer receipt' };
     } catch (err) {
       return { success: false, message: err.message || 'Error recording customer receipt in MySQL' };
+    }
+  };
+
+  const updateCustomerPayment = async (id, data) => {
+    try {
+      const res = await api.customers.updatePayment(id, data);
+      if (res?.success) {
+        await refreshData();
+        return { success: true, payment: res.data };
+      }
+      return { success: false, message: res?.message || 'Failed to update customer payment' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error updating customer payment in database' };
+    }
+  };
+
+  const deleteCustomerPayment = async (id) => {
+    try {
+      const res = await api.customers.deletePayment(id);
+      if (res?.success) {
+        await refreshData();
+        return { success: true };
+      }
+      return { success: false, message: res?.message || 'Failed to delete customer payment' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error deleting customer payment from database' };
     }
   };
 
@@ -789,11 +901,19 @@ export const AppProvider = ({ children }) => {
         updateCustomer,
         deleteCustomer,
         recordCustomerPayment,
+        updateCustomerPayment,
+        deleteCustomerPayment,
         addSupplier,
         updateSupplier,
         addPurchase,
+        updatePurchase,
+        deletePurchase,
         addOutward,
+        updateOutward,
+        deleteOutward,
         recordPayment,
+        updateSupplierPayment,
+        deleteSupplierPayment,
         toggleDeviceStatus,
         addDevice,
         switchRole,

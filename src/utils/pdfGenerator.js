@@ -1014,3 +1014,93 @@ export const downloadBusinessReportsPDF = ({
   doc.save(`KhanClothes_Business_Report_${cleanPeriod}_${new Date().toISOString().split('T')[0]}.pdf`);
 };
 
+/**
+ * Download Professional Market Recovery / Ugrahi Sheet PDF
+ * Used by recovery agents for wholesale shop collections & field khata verification
+ */
+export const downloadUgrahiSheetPDF = (sheetData = {}) => {
+  const {
+    sheetTitle = 'Payment Collection Register (Ugrahi Sheet)',
+    sheetDate = new Date().toISOString().split('T')[0],
+    recoveryAgent = 'Field Recovery Officer',
+    targetRoute = 'General Route',
+    rows = []
+  } = sheetData;
+
+  const doc = new jsPDF('p', 'mm', 'a4');
+  let currentY = drawHeader(
+    doc,
+    sheetTitle.toUpperCase(),
+    `Route: ${targetRoute} | Collector: ${recoveryAgent}`,
+    'Collection Register'
+  );
+
+  const totalDues = rows.reduce((s, r) => s + (Number(r.totalDue) || 0), 0);
+  const totalWasool = rows.reduce((s, r) => s + (Number(r.wasool) || 0), 0);
+  const totalRemaining = totalDues - totalWasool;
+
+  // Summary box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, currentY, 182, 16, 2, 2, 'FD');
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Total Customers: ${rows.length} Shops`, 18, currentY + 6);
+  doc.text(`Date: ${sheetDate}`, 18, currentY + 11);
+
+  doc.text(`Collection Agent: ${recoveryAgent}`, 75, currentY + 6);
+  doc.text(`Market / Route: ${targetRoute}`, 75, currentY + 11);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Total Outstanding: ${formatPKR(totalDues)}`, 135, currentY + 6);
+  doc.setTextColor(16, 185, 129); // emerald-600
+  doc.text(`Total Collected: ${formatPKR(totalWasool)}`, 135, currentY + 11);
+
+  currentY += 21;
+
+  // AutoTable
+  const tableRows = rows.map((r, i) => [
+    i + 1,
+    r.name || '-',
+    r.address || '-',
+    formatPKR(r.totalDue),
+    r.wasool ? formatPKR(r.wasool) : '',
+    '' // blank for physical signature / remarks
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['#', 'Customer / Shop Name', 'Market / Address', 'Total Balance', 'Collected Wasooli', 'Signature / Remarks']],
+    body: tableRows.length ? tableRows : [['-', 'No customer entries in sheet', '-', 'Rs. 0', '', '']],
+    theme: 'grid',
+    headStyles: { fillColor: [30, 41, 59], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+    styles: { fontSize: 8, cellPadding: 2.5 },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 10 },
+      1: { fontStyle: 'bold', cellWidth: 55 },
+      2: { cellWidth: 42 },
+      3: { halign: 'right', font: 'courier', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 30 },
+      4: { halign: 'right', font: 'courier', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 25 },
+      5: { cellWidth: 20 }
+    },
+    foot: [[
+      'TOTAL',
+      `Total Shops: ${rows.length}`,
+      '',
+      formatPKR(totalDues),
+      formatPKR(totalWasool),
+      formatPKR(totalRemaining)
+    ]],
+    footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 }
+  });
+
+  const finalY = doc.lastAutoTable.finalY || currentY + 50;
+  drawFooter(doc, finalY);
+
+  const cleanName = (sheetTitle || 'Collection_Sheet').replace(/[^a-zA-Z0-9]/g, '_');
+  doc.save(`${cleanName}_${sheetDate}.pdf`);
+};
+
