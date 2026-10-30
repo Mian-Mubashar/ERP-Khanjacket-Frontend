@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronRight,
-  Plus,
   Warehouse
 } from 'lucide-react';
 import iconLogoImg from '../../images/khan jacket icon logo.png';
@@ -25,16 +24,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     cities,
     customers,
     sidebarCollapsed,
-    setIsAddArticleOpen,
-    setIsNewPurchaseOpen,
-    setIsNewOutwardOpen,
-    setSelectedCustomerForBill,
-    setIsAddSupplierOpen,
-    setIsAddCityOpen,
-    setIsAddCustomerOpen,
-    setIsRecordCustomerPaymentOpen,
-    setIsRecordPaymentOpen,
-    setIsAddStuffOpen,
     securitySubTab,
     setSecuritySubTab
   } = useApp();
@@ -247,17 +236,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                   {cities.length}
                 </span>
               </button>
-
-              <button
-                onClick={() => setIsAddCityOpen(true)}
-                className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-normal transition-colors flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span>Add Branch</span>
-                </div>
-                <Plus className="w-3.5 h-3.5 text-slate-400" />
-              </button>
             </div>
           )}
         </div>
@@ -300,27 +278,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                 <span className="text-[11px] text-slate-400 font-mono">
                   {customers.length}
                 </span>
-              </button>
-
-              <button
-                onClick={() => setIsRecordCustomerPaymentOpen(true)}
-                className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-normal transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span>Receive Payment</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => setIsAddCustomerOpen(true)}
-                className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-normal transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span>Add Shopkeeper</span>
-                </div>
-                <Plus className="w-3.5 h-3.5 text-slate-400" />
               </button>
             </div>
           )}
@@ -365,25 +322,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                   {suppliers.length}
                 </span>
               </button>
-
-              <button
-                onClick={() => setIsAddSupplierOpen(true)}
-                className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 font-normal transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span>Add Vendor</span>
-                </div>
-                <Plus className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                onClick={() => setIsRecordPaymentOpen(true)}
-                className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-normal transition-colors cursor-pointer flex items-center gap-2"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                <span>Pay Vendor</span>
-              </button>
             </div>
           )}
         </div>
@@ -426,28 +364,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                 <span className="text-[11px] text-slate-400 font-mono">
                   {articles.length}
                 </span>
-              </button>
-
-              <button
-                onClick={() => setIsAddArticleOpen(true)}
-                className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 font-normal transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span>Add Article</span>
-                </div>
-                <Plus className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                onClick={() => setIsAddStuffOpen(true)}
-                className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 font-normal transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span>Jacket Stuffs / Fabrics</span>
-                </div>
-                <Plus className="w-3.5 h-3.5 text-slate-400" />
               </button>
             </div>
           )}
@@ -492,17 +408,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                   {purchases.length}
                 </span>
               </button>
-
-              <button
-                onClick={() => setIsNewPurchaseOpen(true)}
-                className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-normal transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span>New Import Bill</span>
-                </div>
-                <Plus className="w-3.5 h-3.5 text-slate-400" />
-              </button>
             </div>
           )}
         </div>
@@ -542,17 +447,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                   <span>All Dispatches</span>
                 </div>
-              </button>
-
-              <button
-                onClick={() => setIsNewOutwardOpen(true)}
-                className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-normal transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span>Create Gate Pass</span>
-                </div>
-                <Plus className="w-3.5 h-3.5 text-slate-400" />
               </button>
             </div>
           )}
