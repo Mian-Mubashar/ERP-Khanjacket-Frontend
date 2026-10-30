@@ -509,7 +509,7 @@ export const CustomersView = () => {
                           className={`w-8 h-8 rounded-lg border transition-all inline-flex items-center justify-center shadow-2xs cursor-pointer ${
                             activeDropdown?.id === cust.id
                               ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750 hover:text-slate-900 dark:hover:text-white'
+                              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
                           }`}
                           title="Actions Menu"
                         >
@@ -545,9 +545,9 @@ export const CustomersView = () => {
             width: '210px',
             zIndex: 99999
           }}
-          className="bg-white dark:bg-slate-850 rounded-xl border border-slate-200/90 dark:border-slate-750 shadow-2xl py-1.5 text-left customer-action-menu animate-in fade-in zoom-in-95 duration-100"
+          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xl py-1.5 text-left customer-action-menu animate-in fade-in zoom-in-95 duration-100"
         >
-          <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
+          <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
             {activeDropdown.cust.shopName}
           </div>
 
@@ -579,7 +579,7 @@ export const CustomersView = () => {
               setActiveDropdown(null);
               handleOpenKhata(c);
             }}
-            className="w-full px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
+            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
           >
             <FileText className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
             <span>Khata Statement</span>
@@ -593,7 +593,7 @@ export const CustomersView = () => {
               setActiveDropdown(null);
               handleOpenPayment(c);
             }}
-            className="w-full px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
+            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
           >
             <Wallet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Receive Payment</span>
@@ -607,7 +607,7 @@ export const CustomersView = () => {
               setActiveDropdown(null);
               handleOpenEdit(c);
             }}
-            className="w-full px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
+            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
           >
             <Pencil className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             <span>Edit Shopkeeper</span>
@@ -635,7 +635,7 @@ export const CustomersView = () => {
                 }
               }
             }}
-            className="w-full px-3 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 transition-colors cursor-pointer"
+            className="w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 transition-colors cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Delete Shopkeeper</span>

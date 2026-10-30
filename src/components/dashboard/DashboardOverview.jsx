@@ -672,7 +672,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
           {/* 1. Party / Dukaandaar */}
           <div 
             onClick={() => handleNavigate('customers')}
-            className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-blue-100/60 dark:hover:from-slate-750 border border-blue-100 dark:border-slate-700/80 hover:border-blue-300 dark:hover:border-blue-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-blue-100/60 dark:hover:from-slate-700 border border-blue-100 dark:border-slate-700/80 hover:border-blue-300 dark:hover:border-blue-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
@@ -695,7 +695,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
           {/* 2. Dukaan Wasooli */}
           <div 
             onClick={() => handleNavigate('customers')}
-            className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-emerald-100/60 dark:hover:from-slate-750 border border-emerald-100 dark:border-slate-700/80 hover:border-emerald-300 dark:hover:border-emerald-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-emerald-100/60 dark:hover:from-slate-700 border border-emerald-100 dark:border-slate-700/80 hover:border-emerald-300 dark:hover:border-emerald-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
@@ -718,7 +718,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
           {/* 3. Maal Rawangi */}
           <div 
             onClick={() => handleNavigate('outward')}
-            className="p-4 rounded-2xl bg-gradient-to-br from-rose-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-rose-100/60 dark:hover:from-slate-750 border border-rose-100 dark:border-slate-700/80 hover:border-rose-300 dark:hover:border-rose-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-gradient-to-br from-rose-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-rose-100/60 dark:hover:from-slate-700 border border-rose-100 dark:border-slate-700/80 hover:border-rose-300 dark:hover:border-rose-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-11 h-11 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
@@ -741,7 +741,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
           {/* 4. Godam Stock */}
           <div 
             onClick={() => handleNavigate('articles')}
-            className="p-4 rounded-2xl bg-gradient-to-br from-purple-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-purple-100/60 dark:hover:from-slate-750 border border-purple-100 dark:border-slate-700/80 hover:border-purple-300 dark:hover:border-purple-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-gradient-to-br from-purple-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-purple-100/60 dark:hover:from-slate-700 border border-purple-100 dark:border-slate-700/80 hover:border-purple-300 dark:hover:border-purple-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-11 h-11 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
@@ -764,7 +764,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
           {/* 5. China Container */}
           <div 
             onClick={() => handleNavigate('purchases')}
-            className="p-4 rounded-2xl bg-gradient-to-br from-teal-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-teal-100/60 dark:hover:from-slate-750 border border-teal-100 dark:border-slate-700/80 hover:border-teal-300 dark:hover:border-teal-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-gradient-to-br from-teal-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-teal-100/60 dark:hover:from-slate-700 border border-teal-100 dark:border-slate-700/80 hover:border-teal-300 dark:hover:border-teal-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
@@ -787,7 +787,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
           {/* 6. China Suppliers */}
           <div 
             onClick={() => handleNavigate('suppliers')}
-            className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-amber-100/60 dark:hover:from-slate-750 border border-amber-100 dark:border-slate-700/80 hover:border-amber-300 dark:hover:border-amber-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-amber-100/60 dark:hover:from-slate-700 border border-amber-100 dark:border-slate-700/80 hover:border-amber-300 dark:hover:border-amber-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-11 h-11 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
@@ -810,7 +810,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
           {/* 7. Roznamcha / Reports */}
           <div 
             onClick={() => handleNavigate('reports')}
-            className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-indigo-100/60 dark:hover:from-slate-750 border border-indigo-100 dark:border-slate-700/80 hover:border-indigo-300 dark:hover:border-indigo-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/60 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-indigo-100/60 dark:hover:from-slate-700 border border-indigo-100 dark:border-slate-700/80 hover:border-indigo-300 dark:hover:border-indigo-500/60 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
@@ -833,7 +833,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
           {/* 8. Branches & Markets */}
           <div 
             onClick={() => handleNavigate('branches')}
-            className="p-4 rounded-2xl bg-gradient-to-br from-slate-100/80 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-slate-200/80 dark:hover:from-slate-750 border border-slate-200 dark:border-slate-700/80 hover:border-slate-400 dark:hover:border-slate-500 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-gradient-to-br from-slate-100/80 to-slate-50/80 dark:from-slate-800/80 dark:to-slate-800/40 hover:from-slate-200/80 dark:hover:from-slate-700 border border-slate-200 dark:border-slate-700/80 hover:border-slate-400 dark:hover:border-slate-500 transition-all shadow-2xs hover:shadow-md group cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-11 h-11 rounded-2xl bg-slate-700 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
