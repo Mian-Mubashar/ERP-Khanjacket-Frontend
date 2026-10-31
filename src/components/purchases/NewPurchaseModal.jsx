@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Plus, Trash2, AlertCircle, CheckCircle2, ShoppingBag, Shirt } from 'lucide-react';
+import { X, Plus, Trash2, AlertCircle, CheckCircle2, ShoppingBag, Shirt, Search } from 'lucide-react';
 import Swal, { showToast, showError } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
 
@@ -15,7 +15,9 @@ export const NewPurchaseModal = () => {
     addPurchase,
     setIsAddSupplierOpen,
     setIsAddArticleOpen,
-    setIsAddCategoryOpen 
+    setIsAddCategoryOpen,
+    selectedSupplierForBill,
+    setSelectedSupplierForBill
   } = useApp();
 
   const defaultCategories = ['Jacket', 'Hoodie', 'Zipper', 'Tracksuit', 'Trousers', 'Shirt', 'Windbreaker'];
@@ -32,6 +34,11 @@ export const NewPurchaseModal = () => {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Top China Supplier Quick Search State
+  const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
+  const [isSupplierSearchOpen, setIsSupplierSearchOpen] = useState(false);
+  const supplierSearchRef = useRef(null);
 
   // Dynamically track targeted row for newly created category
   const [categoryTargetRow, setCategoryTargetRow] = useState(null);
@@ -76,10 +83,12 @@ export const NewPurchaseModal = () => {
     prevCategoriesRef.current = categories;
   }, [categories, categoryTargetRow, items]);
 
-  // Synchronize supplierId when suppliers load, and auto-select newly registered supplier
+  // Synchronize supplierId when suppliers load, and auto-select selectedSupplierForBill or newly registered supplier
   const prevSuppliersRef = React.useRef(suppliers);
   React.useEffect(() => {
-    if (suppliers.length > 0 && !supplierId) {
+    if (selectedSupplierForBill && selectedSupplierForBill.id) {
+      setSupplierId(selectedSupplierForBill.id);
+    } else if (suppliers.length > 0 && !supplierId) {
       setSupplierId(suppliers[0].id);
     }
     const prevSups = prevSuppliersRef.current;
@@ -90,7 +99,59 @@ export const NewPurchaseModal = () => {
       }
     }
     prevSuppliersRef.current = suppliers;
-  }, [suppliers, supplierId]);
+  }, [suppliers, supplierId, selectedSupplierForBill]);
+
+  React.useEffect(() => {
+    if (isNewPurchaseOpen) {
+      setInvoiceNo(`CN-${Date.now().toString().slice(-4)}`);
+      setPurchaseDate(new Date().toISOString().split('T')[0]);
+      setError('');
+      setSuccess('');
+      if (selectedSupplierForBill && selectedSupplierForBill.id) {
+        setSupplierId(selectedSupplierForBill.id);
+        setSupplierSearchQuery(`${selectedSupplierForBill.company} (${selectedSupplierForBill.name || ''})`);
+      } else {
+        const first = suppliers.find(s => s.id === supplierId) || suppliers[0];
+        if (first) setSupplierSearchQuery(`${first.company} (${first.name || ''})`);
+        else setSupplierSearchQuery('');
+      }
+      setIsSupplierSearchOpen(false);
+    }
+  }, [isNewPurchaseOpen, selectedSupplierForBill]);
+
+  // Outside click listener for top vendor search
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (supplierSearchRef.current && !supplierSearchRef.current.contains(e.target)) {
+        setIsSupplierSearchOpen(false);
+      }
+    };
+    if (isSupplierSearchOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSupplierSearchOpen]);
+
+  // Filtered suppliers for top search bar
+  const filteredSearchSuppliers = (suppliers || []).filter(s => {
+    if (!supplierSearchQuery.trim()) return true;
+    const q = supplierSearchQuery.toLowerCase();
+    return (
+      (s.company && s.company.toLowerCase().includes(q)) ||
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.phone && s.phone.toLowerCase().includes(q)) ||
+      (s.address && s.address.toLowerCase().includes(q)) ||
+      (s.id && s.id.toLowerCase().includes(q))
+    );
+  }).slice(0, 10);
+
+  const handleSelectSupplierFromTopSearch = (s) => {
+    setSupplierId(s.id);
+    setSupplierSearchQuery(`${s.company} (${s.name || ''})`);
+    setIsSupplierSearchOpen(false);
+  };
 
   // Synchronize item row when articles load and item is unassigned
   React.useEffect(() => {
@@ -271,8 +332,14 @@ export const NewPurchaseModal = () => {
 
     showToast(`Purchase Bill #${invoiceNo.toUpperCase()} recorded successfully!`, 'success');
     setIsNewPurchaseOpen(false);
+    if (setSelectedSupplierForBill) setSelectedSupplierForBill(null);
     setInvoiceNo(`CN-${Date.now().toString().slice(-4)}`);
     setSuccess('');
+  };
+
+  const handleClose = () => {
+    setIsNewPurchaseOpen(false);
+    if (setSelectedSupplierForBill) setSelectedSupplierForBill(null);
   };
 
   return (
@@ -296,7 +363,7 @@ export const NewPurchaseModal = () => {
           </div>
           <button
             type="button"
-            onClick={() => setIsNewPurchaseOpen(false)}
+            onClick={handleClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -320,6 +387,82 @@ export const NewPurchaseModal = () => {
             </div>
           )}
 
+          {/* Top Quick Search Bar for China Supplier (Full Width) */}
+          <div className="relative">
+            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-2xs">
+              <Search className="w-4 h-4 text-blue-500 shrink-0" />
+              <input
+                type="text"
+                value={supplierSearchQuery}
+                onChange={(e) => {
+                  setSupplierSearchQuery(e.target.value);
+                  setIsSupplierSearchOpen(true);
+                }}
+                onFocus={(e) => {
+                  e.target.select();
+                  setIsSupplierSearchOpen(true);
+                }}
+                placeholder="Search China Supplier / Vendor (Type Company Name, Contact Person, Phone, or City)..."
+                className="w-full bg-transparent text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none"
+              />
+              {supplierSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSupplierSearchQuery('');
+                    setIsSupplierSearchOpen(true);
+                  }}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer rounded-md hover:bg-slate-200 dark:hover:bg-slate-700"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Live Autocomplete Dropdown */}
+            {isSupplierSearchOpen && (
+              <div 
+                ref={supplierSearchRef}
+                className="absolute z-50 left-0 right-0 mt-1.5 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in zoom-in-95 duration-100"
+              >
+                {filteredSearchSuppliers.length > 0 ? (
+                  filteredSearchSuppliers.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => handleSelectSupplierFromTopSearch(s)}
+                      className="w-full text-left px-4 py-2.5 text-xs hover:bg-blue-50/70 dark:hover:bg-slate-800/80 flex items-center justify-between gap-3 cursor-pointer transition-colors"
+                    >
+                      <div className="truncate flex-1">
+                        <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+                          {s.company}
+                        </div>
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          {s.name ? `Contact: ${s.name} • ` : ''}{s.phone || ''} {s.address ? `• ${s.address}` : ''}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                          {s.id}
+                        </span>
+                        {Number(s.remainingBalance) > 0 && (
+                          <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-200/60 dark:border-rose-900/60">
+                            Baqaya: Rs. {Number(s.remainingBalance).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-500">
+                    No supplier found matching "{supplierSearchQuery}"
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Top Row: Supplier, Date, Invoice No, Container */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <div>
@@ -337,7 +480,11 @@ export const NewPurchaseModal = () => {
               </div>
               <select
                 value={supplierId}
-                onChange={e => setSupplierId(e.target.value)}
+                onChange={e => {
+                  setSupplierId(e.target.value);
+                  const found = suppliers.find(s => s.id === e.target.value);
+                  if (found) setSupplierSearchQuery(`${found.company} (${found.name || ''})`);
+                }}
                 className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all cursor-pointer"
               >
                 {suppliers.length === 0 ? (

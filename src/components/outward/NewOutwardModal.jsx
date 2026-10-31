@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Truck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Truck, AlertCircle, CheckCircle2, Search } from 'lucide-react';
 import { showToast, showError, showWarning } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
 
@@ -43,6 +43,11 @@ export const NewOutwardModal = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Top Customer Quick Search Bar State
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
+  const searchDropdownRef = useRef(null);
+
   // Initialize or reset defaults when modal opens
   useEffect(() => {
     if (isNewOutwardOpen) {
@@ -77,6 +82,33 @@ export const NewOutwardModal = () => {
     }
   }, [isNewOutwardOpen, selectedCustomerForBill, selectedArticleForOutward, cities, articles]);
 
+  // Outside click listener for top customer search dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(e.target)) {
+        setIsSearchDropdownOpen(false);
+      }
+    };
+    if (isSearchDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSearchDropdownOpen]);
+
+  // Synchronize top search bar when modal opens or customer selected
+  useEffect(() => {
+    if (isNewOutwardOpen) {
+      if (selectedCustomerForBill) {
+        setCustomerSearchQuery(`${selectedCustomerForBill.shopName} (${selectedCustomerForBill.shopkeeperName || ''}) - ${selectedCustomerForBill.city || ''}`);
+      } else {
+        setCustomerSearchQuery('');
+      }
+      setIsSearchDropdownOpen(false);
+    }
+  }, [isNewOutwardOpen, selectedCustomerForBill]);
+
   if (!isNewOutwardOpen) return null;
 
   const currentArticle = articles.find(a => a.articleNo === selectedArticleNo) || articles[0];
@@ -85,19 +117,49 @@ export const NewOutwardModal = () => {
     .filter(c => c.city.toLowerCase() === (selectedCity || '').toLowerCase())
     .sort((a, b) => (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' }));
 
+  // Live filtered customers for top search bar
+  const filteredSearchCustomers = (customers || []).filter(c => {
+    if (!customerSearchQuery.trim()) return true;
+    const q = customerSearchQuery.toLowerCase();
+    return (
+      (c.shopName && c.shopName.toLowerCase().includes(q)) ||
+      (c.shopkeeperName && c.shopkeeperName.toLowerCase().includes(q)) ||
+      (c.city && c.city.toLowerCase().includes(q)) ||
+      (c.phone && c.phone.toLowerCase().includes(q)) ||
+      (c.marketAddress && c.marketAddress.toLowerCase().includes(q))
+    );
+  }).slice(0, 10);
+
+  const handleSelectCustomerFromTopSearch = (c) => {
+    setSelectedCustomerId(c.id);
+    if (c.city) {
+      const matchCity = cities.find(ct => ct.name.toLowerCase() === c.city.toLowerCase());
+      setSelectedCity(matchCity ? matchCity.name : c.city);
+    }
+    setCustomerName(`${c.shopName} (${c.shopkeeperName || ''})`);
+    setCustomerPhone(c.phone || '');
+    setDestination(c.marketAddress || c.city || '');
+    setCustomerSearchQuery(`${c.shopName} (${c.shopkeeperName || ''}) - ${c.city}`);
+    setIsSearchDropdownOpen(false);
+  };
+
   const handleCityChange = (cityName) => {
     setSelectedCity(cityName);
     setSelectedCustomerId('');
     setDestination(cityName);
   };
 
-  const handleCustomerSelect = (custId) => {
+  const handleCustomerSelect = (custId, opt) => {
     setSelectedCustomerId(custId);
-    const found = customers.find(c => c.id === custId);
+    const found = opt || customers.find(c => c.id === custId);
     if (found) {
-      setCustomerName(`${found.shopName} (${found.shopkeeperName})`);
+      if (found.city) setSelectedCity(found.city);
+      setCustomerName(`${found.shopName} (${found.shopkeeperName || ''})`);
       setCustomerPhone(found.phone || '');
       setDestination(found.marketAddress || found.city);
+      setCustomerSearchQuery(`${found.shopName} (${found.shopkeeperName || ''}) - ${found.city}`);
+    } else {
+      setCustomerSearchQuery('');
     }
   };
 
@@ -232,6 +294,86 @@ export const NewOutwardModal = () => {
               <span>{success}</span>
             </div>
           )}
+
+          {/* Top Customer Live Search Bar (Full Width, Right Above Customer & Destination) */}
+          <div className="relative">
+            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-2xs">
+              <Search className="w-4 h-4 text-blue-500 shrink-0" />
+              <input
+                type="text"
+                value={customerSearchQuery}
+                onChange={(e) => {
+                  setCustomerSearchQuery(e.target.value);
+                  setIsSearchDropdownOpen(true);
+                }}
+                onFocus={(e) => {
+                  e.target.select();
+                  setIsSearchDropdownOpen(true);
+                }}
+                placeholder="Search Customer / Shopkeeper (Type Shop Name, Dukandar, City, or Phone)..."
+                className="w-full bg-transparent text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none"
+              />
+              {customerSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomerSearchQuery('');
+                    setSelectedCustomerId('');
+                    setCustomerName('');
+                    setCustomerPhone('');
+                    setDestination(selectedCity || '');
+                    setIsSearchDropdownOpen(true);
+                  }}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer rounded-md hover:bg-slate-200 dark:hover:bg-slate-700"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Live Filter Autocomplete Dropdown */}
+            {isSearchDropdownOpen && (
+              <div 
+                ref={searchDropdownRef}
+                className="absolute z-50 left-0 right-0 mt-1.5 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in zoom-in-95 duration-100"
+              >
+                {filteredSearchCustomers.length > 0 ? (
+                  filteredSearchCustomers.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => handleSelectCustomerFromTopSearch(c)}
+                      className="w-full text-left px-4 py-2.5 text-xs hover:bg-blue-50/70 dark:hover:bg-slate-800/80 flex items-center justify-between gap-3 cursor-pointer transition-colors"
+                    >
+                      <div className="truncate flex-1">
+                        <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+                          {c.shopName}
+                        </div>
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          {c.shopkeeperName ? `${c.shopkeeperName} • ` : ''}{c.phone || ''} {c.marketAddress ? `• ${c.marketAddress}` : ''}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/60">
+                          {c.city}
+                        </span>
+                        {Number(c.remainingBalance) > 0 && (
+                          <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-200/60 dark:border-rose-900/60">
+                            Baqaya: Rs. {Number(c.remainingBalance).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-500">
+                    No customer found matching "{customerSearchQuery}"
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Customer Selection / Pre-filled Info Bar */}
           {selectedCustomerForBill ? (

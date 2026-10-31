@@ -158,6 +158,7 @@ export const api = {
     getById: (id) => request(`/suppliers/${id}`),
     create: (data) => request('/suppliers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/suppliers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => request(`/suppliers/${id}`, { method: 'DELETE' }),
     recordPayment: (data) => request('/payments/supplier', { method: 'POST', body: JSON.stringify(data) }),
     updatePayment: (id, data) => request(`/payments/supplier/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deletePayment: (id) => request(`/payments/supplier/${id}`, { method: 'DELETE' }),

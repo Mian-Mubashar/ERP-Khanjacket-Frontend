@@ -19,7 +19,7 @@ export const Pagination = ({
           Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{from}</span> to <span className="font-semibold text-slate-700 dark:text-slate-200">{to}</span> of <span className="font-semibold text-slate-700 dark:text-slate-200">{totalItems}</span> {itemLabel}
         </div>
         <div className="text-[11px] text-slate-400">
-          Page 1 of 1 (10 / page)
+          Page 1 of 1 ({pageSize} / page)
         </div>
       </div>
     );
@@ -40,7 +40,7 @@ export const Pagination = ({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
       <div>
-        Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{from}</span> to <span className="font-semibold text-slate-700 dark:text-slate-200">{to}</span> of <span className="font-semibold text-slate-700 dark:text-slate-200">{totalItems}</span> {itemLabel} (Limit: 10 per page)
+        Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{from}</span> to <span className="font-semibold text-slate-700 dark:text-slate-200">{to}</span> of <span className="font-semibold text-slate-700 dark:text-slate-200">{totalItems}</span> {itemLabel} ({pageSize} per page)
       </div>
 
       <div className="flex items-center gap-1.5 self-end sm:self-auto">

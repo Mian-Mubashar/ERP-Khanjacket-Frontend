@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { showToast, showError } from '../../utils/sweetalert';
 import { formatPKR, formatLakhCrore } from '../../utils/formatters';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 const generateReceiptNo = () => `REC-${Date.now().toString().slice(-4)}`;
@@ -175,20 +176,23 @@ export const RecordCustomerPaymentModal = () => {
           ) : (
             <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex-1">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Select Customer / Shopkeeper <span className="text-rose-500">*</span>
-                </label>
-                <select
+                <SearchableSelect
+                  label="Select Customer / Shopkeeper"
+                  required
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
-                >
-                  {[...customers].sort((a, b) => (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })).map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.shopName} ({c.shopkeeperName} - {c.city}) — Baqaya: Rs. {Number(c.remainingBalance || 0).toLocaleString()}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setCustomerId(val)}
+                  options={[...customers].sort((a, b) => (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' }))}
+                  getOptionValue={(c) => c.id}
+                  getOptionLabel={(c) => c.shopName}
+                  getOptionSublabel={(c) => `${c.shopkeeperName ? `${c.shopkeeperName} • ` : ''}${c.city} ${c.phone ? `• ${c.phone}` : ''}`}
+                  getOptionBadge={(c) => (
+                    <span className="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400">
+                      Baqaya: Rs. {Number(c.remainingBalance || 0).toLocaleString()}
+                    </span>
+                  )}
+                  placeholder="-- Select or Search Customer --"
+                  searchPlaceholder="Search shop name, shopkeeper, city, phone..."
+                />
               </div>
               {currentCustomer && (
                 <div className="text-right sm:pl-4 shrink-0">

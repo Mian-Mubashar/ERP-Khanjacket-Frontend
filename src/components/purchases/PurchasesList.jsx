@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Ship,
@@ -9,18 +9,158 @@ import {
   CheckCircle2,
   X,
   Receipt,
-  CreditCard
+  CreditCard,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import { downloadInvoicePDF } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
+import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
 
 export const PurchasesList = () => {
-  const { purchases, setIsNewPurchaseOpen, setSelectedArticleDetail, articles } = useApp();
+  const { 
+    purchases = [], 
+    updatePurchase,
+    deletePurchase,
+    setIsNewPurchaseOpen, 
+    setSelectedArticleDetail, 
+    articles = [] 
+  } = useApp();
 
   const [search, setSearch] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  // 3-Dots Dropdown State
+  const [activeDropdown, setActiveDropdown] = useState(null);
+
+  // Edit Modal State
+  const [editingPurchase, setEditingPurchase] = useState(null);
+  const [editForm, setEditForm] = useState({
+    invoiceNo: '',
+    purchaseDate: '',
+    containerNo: '',
+    extraExpenses: 0,
+    expenseNote: 'Freight & Clearing',
+    paidAmount: 0,
+    notes: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  // Close active dropdown on outside click, window resize, or scroll
+  useEffect(() => {
+    const handleClose = (e) => {
+      if (e?.target?.closest?.('.purchase-action-menu')) return;
+      setActiveDropdown(null);
+    };
+    if (activeDropdown) {
+      document.addEventListener('click', handleClose);
+      window.addEventListener('resize', handleClose);
+      window.addEventListener('scroll', handleClose, true);
+    }
+    return () => {
+      document.removeEventListener('click', handleClose);
+      window.removeEventListener('resize', handleClose);
+      window.removeEventListener('scroll', handleClose, true);
+    };
+  }, [activeDropdown]);
+
+  const handleToggleDropdown = (e, item) => {
+    e.stopPropagation();
+    if (activeDropdown?.id === item.id) {
+      setActiveDropdown(null);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dropdownHeight = 160;
+    const spaceBelow = window.innerHeight - rect.bottom;
+
+    let top = rect.bottom + 6;
+    if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
+      top = rect.top - dropdownHeight - 6;
+    }
+
+    const width = 185;
+    const left = Math.max(10, rect.right - width);
+
+    setActiveDropdown({
+      id: item.id,
+      item,
+      top,
+      left
+    });
+  };
+
+  const handleStartEdit = (pur) => {
+    setActiveDropdown(null);
+    setEditError('');
+    setEditForm({
+      invoiceNo: pur.invoiceNo || '',
+      purchaseDate: pur.purchaseDate || '',
+      containerNo: pur.containerNo || '',
+      extraExpenses: Number(pur.extraExpenses) || 0,
+      expenseNote: pur.expenseNote || 'Freight & Clearing',
+      paidAmount: Number(pur.paidAmount) || 0,
+      notes: pur.notes || ''
+    });
+    setEditingPurchase(pur);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingPurchase) return;
+    setIsSubmitting(true);
+    setEditError('');
+
+    try {
+      const extraExpensesNum = Math.max(0, Number(editForm.extraExpenses) || 0);
+      const paidAmountNum = Math.max(0, Number(editForm.paidAmount) || 0);
+
+      const res = await updatePurchase(editingPurchase.id, {
+        invoiceNo: editForm.invoiceNo.trim(),
+        purchaseDate: editForm.purchaseDate,
+        containerNo: editForm.containerNo.trim(),
+        extraExpenses: extraExpensesNum,
+        expenseNote: editForm.expenseNote.trim(),
+        paidAmount: paidAmountNum,
+        notes: editForm.notes.trim()
+      });
+
+      if (res?.success) {
+        showToast(`Purchase invoice #${editForm.invoiceNo} updated successfully!`, 'success');
+        setEditingPurchase(null);
+      } else {
+        setEditError(res?.message || 'Failed to update purchase invoice');
+      }
+    } catch (err) {
+      setEditError(err.message || 'An error occurred while updating purchase');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (pur) => {
+    setActiveDropdown(null);
+    const totalPcs = pur.items?.reduce((s, i) => s + (Number(i.quantity) || 0), 0) || 0;
+    const isConfirmed = await confirmDelete({
+      title: `Delete Invoice #${pur.invoiceNo}?`,
+      text: `Are you sure you want to delete China purchase invoice #${pur.invoiceNo} (${pur.supplierName})? This will safely revert ${totalPcs.toLocaleString()} pcs from warehouse stock and adjust supplier balance by Rs. ${Math.round(Number(pur.totalBill || 0)).toLocaleString()}.`,
+      confirmButtonText: 'Yes, Delete Purchase'
+    });
+
+    if (isConfirmed) {
+      const res = await deletePurchase(pur.id);
+      if (res?.success) {
+        showToast(`Invoice #${pur.invoiceNo} deleted successfully!`, 'success');
+      } else {
+        showError('Cannot Delete Purchase', res?.message || 'Failed to delete purchase record');
+      }
+    }
+  };
 
   const filteredPurchases = purchases.filter(p => 
     p.invoiceNo.toLowerCase().includes(search.toLowerCase()) ||
@@ -32,6 +172,13 @@ export const PurchasesList = () => {
   const totalPurchasesAmount = purchases.reduce((s, p) => s + (Number(p.totalBill) || 0), 0);
   const totalPaidAmount = purchases.reduce((s, p) => s + (Number(p.paidAmount) || 0), 0);
   const totalRemainingAmount = purchases.reduce((s, p) => s + (Number(p.remainingAmount) || 0), 0);
+
+  // Live calculation for edit form
+  const editItemsSubtotal = Number(editingPurchase?.itemsSubtotal) || 0;
+  const editExtraExpenses = Math.max(0, Number(editForm.extraExpenses) || 0);
+  const editTotalBill = editItemsSubtotal + editExtraExpenses;
+  const editPaidAmount = Math.max(0, Number(editForm.paidAmount) || 0);
+  const editRemaining = editTotalBill - editPaidAmount;
 
   return (
     <div className="space-y-6">
@@ -220,11 +367,16 @@ export const PurchasesList = () => {
                       {/* Action */}
                       <td className="py-3.5 px-4 text-center" onClick={e => e.stopPropagation()}>
                         <button
-                          onClick={() => setSelectedInvoice(pur)}
-                          className="w-8 h-8 rounded-lg bg-blue-50/70 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/40 hover:bg-blue-100/80 inline-flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
-                          title="View Bill Voucher"
+                          type="button"
+                          onClick={(e) => handleToggleDropdown(e, pur)}
+                          className={`w-8 h-8 rounded-lg inline-flex items-center justify-center transition-all cursor-pointer border ${
+                            activeDropdown?.id === pur.id
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                          title="Actions Menu"
                         >
-                          <Eye className="w-3.5 h-3.5" />
+                          <MoreVertical className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>
@@ -377,11 +529,279 @@ export const PurchasesList = () => {
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-end">
               <button
                 onClick={() => setSelectedInvoice(null)}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 text-white text-xs font-bold rounded-xl transition-colors"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
                 Close Bill
               </button>
             </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Floating 3-Dots Action Dropdown Menu */}
+      {activeDropdown && (
+        <div
+          style={{
+            position: 'fixed',
+            top: `${activeDropdown.top}px`,
+            left: `${activeDropdown.left}px`,
+            width: '185px',
+            zIndex: 99999
+          }}
+          className="purchase-action-menu bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xl py-1.5 text-left animate-in fade-in zoom-in-95 duration-100"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">
+            Invoice #{activeDropdown.item.invoiceNo}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const item = activeDropdown.item;
+              setActiveDropdown(null);
+              setSelectedInvoice(item);
+            }}
+            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2 transition-colors cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5 text-blue-500" />
+            <span>View Bill Voucher</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const item = activeDropdown.item;
+              setActiveDropdown(null);
+              downloadInvoicePDF(item);
+            }}
+            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>Download PDF</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleStartEdit(activeDropdown.item)}
+            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-2 transition-colors cursor-pointer"
+          >
+            <Pencil className="w-3.5 h-3.5 text-amber-500" />
+            <span>Edit Invoice</span>
+          </button>
+
+          <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+
+          <button
+            type="button"
+            onClick={() => handleDelete(activeDropdown.item)}
+            className="w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+            <span>Delete Invoice</span>
+          </button>
+        </div>
+      )}
+
+      {/* Edit Purchase Modal */}
+      {editingPurchase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative space-y-4 my-8">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <Ship className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Edit Purchase Invoice
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Invoice #{editingPurchase.invoiceNo} • Supplier: {editingPurchase.supplierName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingPurchase(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveEdit} className="space-y-3.5">
+              {editError && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              {/* Row 1: Invoice No & Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                    Invoice / Bill #
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.invoiceNo}
+                    onChange={e => setEditForm(prev => ({ ...prev, invoiceNo: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl outline-hidden focus:border-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                    Purchase Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.purchaseDate}
+                    onChange={e => setEditForm(prev => ({ ...prev, purchaseDate: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl outline-hidden focus:border-blue-600"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Container No & Expense Note */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                    Container / Bilty #
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. MSKU-902144"
+                    value={editForm.containerNo}
+                    onChange={e => setEditForm(prev => ({ ...prev, containerNo: e.target.value }))}
+                    className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl outline-hidden focus:border-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                    Duty / Expense Description
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Freight & Clearing"
+                    value={editForm.expenseNote}
+                    onChange={e => setEditForm(prev => ({ ...prev, expenseNote: e.target.value }))}
+                    className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl outline-hidden focus:border-blue-600"
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Extra Expenses & Paid Amount */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                    Extra Freight & Duties (PKR)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={editForm.extraExpenses}
+                    onChange={e => setEditForm(prev => ({ ...prev, extraExpenses: e.target.value }))}
+                    className="w-full px-3 py-2 text-xs font-bold font-mono text-blue-600 dark:text-blue-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-hidden focus:border-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                    Paid Advance (PKR)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={editForm.paidAmount}
+                    onChange={e => setEditForm(prev => ({ ...prev, paidAmount: e.target.value }))}
+                    className="w-full px-3 py-2 text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-hidden focus:border-blue-600"
+                  />
+                </div>
+              </div>
+
+              {/* Articles In Container Summary */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                  Articles in this Consignment (Stock Inward)
+                </label>
+                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/80 flex flex-wrap gap-1.5 text-xs max-h-24 overflow-y-auto">
+                  {editingPurchase.items?.map((it, idx) => (
+                    <span key={idx} className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px] text-slate-700 dark:text-slate-200">
+                      <strong>{it.articleNo}</strong>: {it.quantity} pcs @ Rs. {Number(it.unitCost).toLocaleString()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Live Calculation Preview */}
+              <div className="p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Articles Subtotal:</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">Rs. {Math.round(editItemsSubtotal).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Freight & Clearing:</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">+ Rs. {Math.round(editExtraExpenses).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-slate-900 dark:text-white pt-1.5 border-t border-blue-200 dark:border-blue-900">
+                  <span>Total Calculated Bill:</span>
+                  <span className="font-mono text-blue-700 dark:text-blue-400 text-sm">Rs. {Math.round(editTotalBill).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
+                  <span>Advance Paid:</span>
+                  <span className="font-mono">- Rs. {Math.round(editPaidAmount).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-rose-600 dark:text-rose-400 pt-1 border-t border-blue-200 dark:border-blue-900">
+                  <span>Remaining Supplier Baqaya:</span>
+                  <span className="font-mono">Rs. {Math.round(editRemaining).toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                  Notes / Remarks
+                </label>
+                <textarea
+                  rows="2"
+                  value={editForm.notes}
+                  onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Additional consignment notes..."
+                  className="w-full px-3 py-2 text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl outline-hidden focus:border-blue-600 resize-none"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingPurchase(null)}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving Changes...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
 
           </div>
         </div>

@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { X, AlertCircle, CheckCircle2, CreditCard } from 'lucide-react';
 import { showToast, showError } from '../../utils/sweetalert';
 import { formatPKR, formatLakhCrore } from '../../utils/formatters';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 export const AddPaymentModal = () => {
   const { 
@@ -150,20 +151,23 @@ export const AddPaymentModal = () => {
           {/* Supplier Select / Details Banner */}
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Select China Supplier / Vendor <span className="text-rose-500">*</span>
-              </label>
-              <select
+              <SearchableSelect
+                label="Select China Supplier / Vendor"
+                required
                 value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all cursor-pointer"
-              >
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.company} ({s.name}) — Baqaya: Rs. {Number(s.remainingBalance || 0).toLocaleString()}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setSupplierId(val)}
+                options={suppliers}
+                getOptionValue={(s) => s.id}
+                getOptionLabel={(s) => s.company}
+                getOptionSublabel={(s) => `${s.name || ''} ${s.phone ? `• ${s.phone}` : ''}`}
+                getOptionBadge={(s) => (
+                  <span className="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400">
+                    Baqaya: Rs. {Number(s.remainingBalance || 0).toLocaleString()}
+                  </span>
+                )}
+                placeholder="-- Select or Search Supplier --"
+                searchPlaceholder="Search vendor by company, contact, phone..."
+              />
             </div>
             {currentSupplier && (
               <div className="text-right sm:pl-4 shrink-0">

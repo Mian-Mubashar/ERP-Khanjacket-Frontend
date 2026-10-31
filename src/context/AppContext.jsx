@@ -166,6 +166,7 @@ export const AppProvider = ({ children }) => {
   const [selectedArticleForOutward, setSelectedArticleForOutward] = useState(null);
   const [selectedSupplierDetail, setSelectedSupplierDetail] = useState(null);
   const [selectedSupplierForPayment, setSelectedSupplierForPayment] = useState(null);
+  const [selectedSupplierForBill, setSelectedSupplierForBill] = useState(null);
   const [selectedInvoiceDetail, setSelectedInvoiceDetail] = useState(null);
   const [selectedCustomerKhata, setSelectedCustomerKhata] = useState(null);
   const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState(null);
@@ -511,6 +512,21 @@ export const AppProvider = ({ children }) => {
       return { success: false, message: res?.message || 'Failed to update supplier' };
     } catch (err) {
       return { success: false, message: err.message || 'Error updating supplier in MySQL' };
+    }
+  };
+
+  const deleteSupplier = async (id) => {
+    try {
+      const res = await api.suppliers.delete(id);
+      if (res?.success) {
+        setSuppliers(prev => prev.filter(s => s.id !== id));
+        setSelectedSupplierDetail(prev => (prev?.id === id ? null : prev));
+        await refreshData();
+        return { success: true };
+      }
+      return { success: false, message: res?.message || 'Failed to delete supplier' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error deleting supplier from MySQL' };
     }
   };
 
@@ -905,6 +921,7 @@ export const AppProvider = ({ children }) => {
         deleteCustomerPayment,
         addSupplier,
         updateSupplier,
+        deleteSupplier,
         addPurchase,
         updatePurchase,
         deletePurchase,
@@ -927,6 +944,8 @@ export const AppProvider = ({ children }) => {
         setSelectedSupplierDetail,
         selectedSupplierForPayment,
         setSelectedSupplierForPayment,
+        selectedSupplierForBill,
+        setSelectedSupplierForBill,
         selectedInvoiceDetail,
         setSelectedInvoiceDetail,
         selectedCustomerKhata,

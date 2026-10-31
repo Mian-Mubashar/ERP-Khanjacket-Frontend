@@ -153,7 +153,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
               ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium shadow-xs' 
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
-          title="Payment Collection (Ugrahi)"
+          title="Payment Collection"
         >
           <ReceiptText className="w-5 h-5" />
         </button>
@@ -478,8 +478,9 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           >
             <div className="flex items-center gap-3">
               <ReceiptText className={`w-4.5 h-4.5 ${activeTab === 'ugrahi' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-blue-500'}`} />
-              <span>Payment Collection (Ugrahi)</span>
+              <span>Payment Collection</span>
             </div>
+
             {expandedSections.ugrahi ? (
               <ChevronDown className="w-4 h-4 text-slate-400" />
             ) : (
@@ -488,6 +489,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           </button>
 
           {expandedSections.ugrahi && (
+            
             <div className="pl-9 pr-2 py-1 space-y-0.5">
               <button
                 onClick={() => setActiveTab('ugrahi')}

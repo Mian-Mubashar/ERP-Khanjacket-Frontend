@@ -10,7 +10,8 @@ import {
   Trash2,
   AlertTriangle,
   Check,
-  Loader2
+  Loader2,
+  Ship
 } from 'lucide-react';
 import { downloadSupplierStatementPDF } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
@@ -25,6 +26,8 @@ export const SupplierStatementModal = () => {
     payments = [],
     setIsRecordPaymentOpen,
     setSelectedSupplierForPayment,
+    setIsNewPurchaseOpen,
+    setSelectedSupplierForBill,
     updateSupplierPayment,
     deleteSupplierPayment,
     updatePurchase,
@@ -122,6 +125,11 @@ export const SupplierStatementModal = () => {
   const handleOpenPayment = () => {
     if (setSelectedSupplierForPayment) setSelectedSupplierForPayment(sup);
     setIsRecordPaymentOpen(true);
+  };
+
+  const handleOpenNewBill = () => {
+    if (setSelectedSupplierForBill) setSelectedSupplierForBill(sup);
+    setIsNewPurchaseOpen(true);
   };
 
   const handleOpenEdit = () => {
@@ -274,51 +282,53 @@ export const SupplierStatementModal = () => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
         
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+        {/* Header - Unified Single-Line Clean ERP Layout */}
+        <div className="px-6 py-3.5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4 bg-white dark:bg-slate-900 shrink-0">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 flex-nowrap">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white whitespace-nowrap">
                 Supplier Khata Statement
               </h2>
-              <span className="text-xs text-slate-400">•</span>
-              <span className="text-base font-semibold text-slate-700 dark:text-slate-200">
-                {sup.company}
+              <span className="text-slate-300 dark:text-slate-600 font-light">•</span>
+              <span className="text-base font-bold text-blue-600 dark:text-blue-400 truncate">
+                {sup.company || sup.name}
               </span>
-              <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200/70 dark:border-blue-900/60">
+              <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 shrink-0">
                 {sup.id}
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
               Contact: {sup.name} {sup.phone ? `• ${sup.phone}` : ''} {sup.address ? `• ${sup.address}` : ''}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={handleOpenEdit}
-              className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
+              className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
               title="Edit Vendor Details"
             >
               <Pencil className="w-3.5 h-3.5 text-slate-500" />
               <span>Edit</span>
             </button>
+
             <button
               type="button"
               onClick={() => downloadSupplierStatementPDF(sup, supPurchases, supPayments)}
-              className="px-3 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors flex items-center gap-1.5 font-medium shadow-2xs cursor-pointer"
+              className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
               title="Download Statement PDF"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5 text-slate-500" />
               <span>PDF</span>
             </button>
+
             <button
               type="button"
               onClick={() => setSelectedSupplierDetail(null)}
-              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer ml-1"
               title="Close Statement"
             >
               <X className="w-4 h-4" />
@@ -326,44 +336,44 @@ export const SupplierStatementModal = () => {
           </div>
         </div>
 
-        {/* 3 Core Highlight KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200/80 dark:border-slate-800 shrink-0">
+        {/* 3 Core Highlight KPI Cards - Compact ERP Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 px-6 py-3 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200/80 dark:border-slate-800 shrink-0">
           
           {/* Total Purchases */}
-          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+          <div className="bg-white dark:bg-slate-900 px-4 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
               Total Purchases
             </span>
-            <div className="text-lg font-bold font-mono text-slate-900 dark:text-white mt-0.5">
+            <div className="text-base sm:text-lg font-bold font-mono text-slate-900 dark:text-white mt-0.5 leading-snug">
               Rs. {Math.round(Number(sup.totalPurchases || 0)).toLocaleString()}
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
+            <div className="text-[10px] text-slate-400 mt-0.5 leading-none">
               {supPurchases.length} Consignment Invoices
             </div>
           </div>
 
           {/* Total Payments */}
-          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+          <div className="bg-white dark:bg-slate-900 px-4 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
               Total Paid (TT / Bank)
             </span>
-            <div className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+            <div className="text-base sm:text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 leading-snug">
               Rs. {Math.round(Number(sup.totalPayments || 0)).toLocaleString()}
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
+            <div className="text-[10px] text-slate-400 mt-0.5 leading-none">
               {supPayments.length} Wire Transfers Recorded
             </div>
           </div>
 
           {/* Remaining Balance */}
-          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+          <div className="bg-white dark:bg-slate-900 px-4 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
               Outstanding Baqaya Due
             </span>
-            <div className="text-lg font-bold font-mono text-rose-600 dark:text-rose-400 mt-0.5">
+            <div className="text-base sm:text-lg font-bold font-mono text-rose-600 dark:text-rose-400 mt-0.5 leading-snug">
               Rs. {Math.round(Number(sup.remainingBalance || 0)).toLocaleString()}
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
+            <div className="text-[10px] text-slate-400 mt-0.5 leading-none">
               Net Payable Accounts
             </div>
           </div>
@@ -395,18 +405,29 @@ export const SupplierStatementModal = () => {
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenPayment}
-            className="mb-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <CreditCard className="w-3.5 h-3.5" />
-            <span>Record Payment</span>
-          </button>
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              onClick={handleOpenNewBill}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Ship className="w-3.5 h-3.5" />
+              <span>+ New Bill</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenPayment}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Record Payment</span>
+            </button>
+          </div>
         </div>
 
         {/* Tab Content Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+        <div className="p-5 overflow-y-auto flex-1">
           
           {/* 1. Complete Chronological Ledger Statement */}
           {activeTab === 'statement' && (
@@ -415,27 +436,27 @@ export const SupplierStatementModal = () => {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Ref #</th>
-                      <th className="py-2.5 px-3">Particulars / Description</th>
-                      <th className="py-2.5 px-3 text-right">Debit / Bill</th>
-                      <th className="py-2.5 px-3 text-right">Credit / Paid</th>
-                      <th className="py-2.5 px-3 text-right">Running Balance</th>
-                      <th className="py-2.5 px-3 text-center w-12">Action</th>
+                      <th className="py-2.5 px-3.5">Date</th>
+                      <th className="py-2.5 px-3.5">Ref #</th>
+                      <th className="py-2.5 px-3.5">Particulars / Description</th>
+                      <th className="py-2.5 px-3.5 text-right">Debit / Bill</th>
+                      <th className="py-2.5 px-3.5 text-right">Credit / Paid</th>
+                      <th className="py-2.5 px-3.5 text-right">Running Balance</th>
+                      <th className="py-2.5 px-4 text-center w-16">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {/* Opening Balance Row */}
                     <tr className="bg-slate-50/50 dark:bg-slate-800/30 font-medium text-slate-600 dark:text-slate-400">
-                      <td className="py-2 px-3 font-mono text-[11px]">Opening</td>
-                      <td className="py-2 px-3 font-mono">—</td>
-                      <td className="py-2 px-3 text-slate-500">Initial balance brought forward</td>
-                      <td className="py-2 px-3 text-right font-mono">—</td>
-                      <td className="py-2 px-3 text-right font-mono">—</td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                      <td className="py-2.5 px-3.5 font-mono text-[11px]">Opening</td>
+                      <td className="py-2.5 px-3.5 font-mono">—</td>
+                      <td className="py-2.5 px-3.5 text-slate-500">Initial balance brought forward</td>
+                      <td className="py-2.5 px-3.5 text-right font-mono">—</td>
+                      <td className="py-2.5 px-3.5 text-right font-mono">—</td>
+                      <td className="py-2.5 px-3.5 text-right font-mono font-bold text-slate-900 dark:text-white">
                         Rs. {Math.round(Number(sup.openingBalance || 0)).toLocaleString()}
                       </td>
-                      <td className="py-2 px-3 text-center text-slate-300 dark:text-slate-600 font-mono">—</td>
+                      <td className="py-2.5 px-4 text-center text-slate-300 dark:text-slate-600 font-mono text-xs">—</td>
                     </tr>
 
                     {ledgerEntries.length === 0 ? (
@@ -447,32 +468,32 @@ export const SupplierStatementModal = () => {
                     ) : (
                       ledgerEntries.slice((statementPage - 1) * pageSize, statementPage * pageSize).map((row) => (
                         <tr key={`${row.type}-${row.id}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
                             {row.date}
                           </td>
-                          <td className="py-2.5 px-3 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                             {row.ref}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300 max-w-xs truncate" title={row.description}>
+                          <td className="py-2.5 px-3.5 text-slate-700 dark:text-slate-300 max-w-xs truncate" title={row.description}>
                             {row.description}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-right font-mono font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                             {row.debit > 0 ? `Rs. ${Math.round(row.debit).toLocaleString()}` : '—'}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                             {row.credit > 0 ? `Rs. ${Math.round(row.credit).toLocaleString()}` : '—'}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                             Rs. {Math.round(row.balanceAfter).toLocaleString()}
                           </td>
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <td className="py-2.5 px-4 text-center whitespace-nowrap">
                             <button
                               type="button"
                               onClick={(e) => handleToggleDropdown(e, row.type, row.originalItem)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                               title="Khata Actions"
                             >
-                              <MoreVertical className="w-4 h-4" />
+                              <MoreVertical className="w-3.5 h-3.5" />
                             </button>
                           </td>
                         </tr>
@@ -501,13 +522,13 @@ export const SupplierStatementModal = () => {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Invoice No</th>
-                      <th className="py-2.5 px-3">Articles & Quantities</th>
-                      <th className="py-2.5 px-3 text-right">Total Bill</th>
-                      <th className="py-2.5 px-3 text-right">Paid Advance</th>
-                      <th className="py-2.5 px-3 text-right">Remaining</th>
-                      <th className="py-2.5 px-3 text-center w-12">Action</th>
+                      <th className="py-2.5 px-3.5">Date</th>
+                      <th className="py-2.5 px-3.5">Invoice No</th>
+                      <th className="py-2.5 px-3.5">Articles & Quantities</th>
+                      <th className="py-2.5 px-3.5 text-right">Total Bill</th>
+                      <th className="py-2.5 px-3.5 text-right">Paid Advance</th>
+                      <th className="py-2.5 px-3.5 text-right">Remaining</th>
+                      <th className="py-2.5 px-4 text-center w-16">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -520,32 +541,32 @@ export const SupplierStatementModal = () => {
                     ) : (
                       supPurchases.slice((purchasesPage - 1) * pageSize, purchasesPage * pageSize).map((p) => (
                         <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
                             {p.purchaseDate}
                           </td>
-                          <td className="py-2.5 px-3 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                             {p.invoiceNo}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200">
+                          <td className="py-2.5 px-3.5 text-slate-800 dark:text-slate-200">
                             {p.items?.map(i => `${i.articleNo} (${i.quantity} pcs)`).join(', ') || 'Consignment'}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-right font-mono font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                             Rs. {Math.round(Number(p.totalBill || 0)).toLocaleString()}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                             Rs. {Math.round(Number(p.paidAmount || 0)).toLocaleString()}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-right font-mono font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
                             Rs. {Math.round(Number(p.remainingAmount || 0)).toLocaleString()}
                           </td>
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <td className="py-2.5 px-4 text-center whitespace-nowrap">
                             <button
                               type="button"
                               onClick={(e) => handleToggleDropdown(e, 'PURCHASE', p)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                               title="Purchase Actions"
                             >
-                              <MoreVertical className="w-4 h-4" />
+                              <MoreVertical className="w-3.5 h-3.5" />
                             </button>
                           </td>
                         </tr>
@@ -574,13 +595,13 @@ export const SupplierStatementModal = () => {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Method</th>
-                      <th className="py-2.5 px-3">Reference #</th>
-                      <th className="py-2.5 px-3 text-right">Paid Amount</th>
-                      <th className="py-2.5 px-3">Recorded By</th>
-                      <th className="py-2.5 px-3">Remarks</th>
-                      <th className="py-2.5 px-3 text-center w-12">Action</th>
+                      <th className="py-2.5 px-3.5">Date</th>
+                      <th className="py-2.5 px-3.5">Method</th>
+                      <th className="py-2.5 px-3.5">Reference #</th>
+                      <th className="py-2.5 px-3.5 text-right">Paid Amount</th>
+                      <th className="py-2.5 px-3.5">Recorded By</th>
+                      <th className="py-2.5 px-3.5">Remarks</th>
+                      <th className="py-2.5 px-4 text-center w-16">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -593,32 +614,32 @@ export const SupplierStatementModal = () => {
                     ) : (
                       supPayments.slice((paymentsPage - 1) * pageSize, paymentsPage * pageSize).map((pay) => (
                         <tr key={pay.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
                             {pay.date}
                           </td>
-                          <td className="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                             {pay.paymentMethod}
                           </td>
-                          <td className="py-2.5 px-3 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                             {pay.refNo}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                             Rs. {Math.round(Number(pay.amount || 0)).toLocaleString()}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                          <td className="py-2.5 px-3.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                             {pay.recordedBy || 'Admin'}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={pay.notes}>
+                          <td className="py-2.5 px-3.5 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={pay.notes}>
                             {pay.notes || '—'}
                           </td>
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <td className="py-2.5 px-4 text-center whitespace-nowrap">
                             <button
                               type="button"
                               onClick={(e) => handleToggleDropdown(e, 'PAYMENT', pay)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                               title="Payment Actions"
                             >
-                              <MoreVertical className="w-4 h-4" />
+                              <MoreVertical className="w-3.5 h-3.5" />
                             </button>
                           </td>
                         </tr>

@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { KHAN_ICON_BASE64 } from './pdfLogo';
 
 // Helper for professional currency format
 const formatPKR = (num) => {
@@ -10,59 +11,93 @@ const formatPKR = (num) => {
 const drawHeader = (doc, title, subtitle, documentNo = '') => {
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Top Dark Navy Accent Bar
+  // Top Dark Navy Bar (Deep Corporate Slate-900)
   doc.setFillColor(15, 23, 42); // slate-900
   doc.rect(0, 0, pageWidth, 28, 'F');
 
-  // Company Emblem / Badge
-  doc.setFillColor(37, 99, 235); // blue-600
-  doc.roundedRect(14, 5, 18, 18, 3, 3, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('KC', 19.5, 16.5);
+  // Top Thin Golden Accent Stripe
+  doc.setFillColor(217, 119, 6); // amber-600 gold
+  doc.rect(0, 0, pageWidth, 1.5, 'F');
 
-  // Brand Name
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('KHAN JACKET HOUSE', 37, 13);
-
-  // Brand Tagline
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(148, 163, 184); // slate-400
-  doc.text('CHINA IMPORTS, WHOLESALE DISTRIBUTION & WAREHOUSE INVENTORY', 37, 19.5);
-
-  // Document Number on Top Right
-  if (documentNo) {
+  // Business Real Golden Shield Emblem Logo
+  try {
+    doc.addImage(KHAN_ICON_BASE64, 'PNG', 14, 4.2, 15.5, 19.5);
+  } catch (e) {
+    // Elegant fallback if ever needed
+    doc.setFillColor(217, 119, 6);
+    doc.roundedRect(14, 5, 16, 18, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(96, 165, 250); // blue-400
-    doc.text(documentNo, pageWidth - 14, 13, { align: 'right' });
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184);
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - 14, 19.5, { align: 'right' });
+    doc.setFontSize(10);
+    doc.text('KJH', 17, 16);
   }
 
+  // Brand Name
+  doc.setFontSize(14.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('KHAN JACKET HOUSE', 33, 12.5);
+
+  // Brand Subtitle & Tagline
+  doc.setFontSize(7.2);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(217, 119, 6); // Golden accent
+  doc.text('WHOLESALE APPAREL & CENTRAL WAREHOUSE', 33, 17.5);
+
+  doc.setFontSize(6.8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(148, 163, 184); // slate-400
+  doc.text('Direct China Consignments • Shahdra / Lahore, Pakistan • Contact: +92 334 6582412', 33, 22.5);
+
+  // Top Right: Document Identifier & Timestamp (No restrictive border; auto-adjusts to any text length)
+  if (documentNo) {
+    doc.setFont('helvetica', 'bold');
+    let fSize = 8.5;
+    doc.setFontSize(fSize);
+    let displayText = String(documentNo).trim();
+
+    // Dynamically scale font size if text is long so it always fits perfectly
+    const maxAvailableWidth = 92;
+    while (doc.getTextWidth(displayText) > maxAvailableWidth && fSize > 6.5) {
+      fSize -= 0.4;
+      doc.setFontSize(fSize);
+    }
+    // Safe fallback truncate if an extraordinarily long string is passed
+    while (doc.getTextWidth(displayText) > maxAvailableWidth && displayText.length > 8) {
+      displayText = displayText.slice(0, -4).trim() + '...';
+    }
+
+    doc.setTextColor(96, 165, 250); // crisp light blue-400
+    doc.text(displayText, pageWidth - 14, 12.5, { align: 'right' });
+  }
+
+  // Generation Date
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.setTextColor(148, 163, 184); // slate-400
+  const genDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  doc.text(`Generated: ${genDate}`, pageWidth - 14, documentNo ? 18.5 : 14.5, { align: 'right' });
+
   // Document Title Banner below Navy Bar
-  doc.setFillColor(241, 245, 249); // slate-100
-  doc.rect(0, 28, pageWidth, 14, 'F');
+  doc.setFillColor(248, 250, 252); // slate-50
+  doc.setDrawColor(226, 232, 240); // slate-200
+  doc.rect(0, 28, pageWidth, 13, 'F');
+  doc.setLineWidth(0.3);
+  doc.line(0, 41, pageWidth, 41);
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor(30, 41, 59); // slate-800
-  doc.text(title.toUpperCase(), 14, 37.5);
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42); // slate-900
+  doc.text(title.toUpperCase(), 14, 36.5);
 
   if (subtitle) {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139); // slate-500
-    doc.text(subtitle, pageWidth - 14, 37.5, { align: 'right' });
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105); // slate-600
+    doc.text(subtitle, pageWidth - 14, 36.5, { align: 'right' });
   }
 
-  return 48; // Return next Y position
+  return 47; // Return next Y position
 };
 
 // Helper for authorized signatures and verification footer
@@ -262,7 +297,7 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
     doc,
     'Khata Statement / Ledger',
     `Wholesale Goods Outward & Receivable Ledger`,
-    `Dukaan / Shop: ${customer.shopName}`
+    `Shop: ${customer.shopName}`
   );
 
   // Financial calculations
@@ -300,7 +335,7 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
   doc.setFont('helvetica', 'bold');
   doc.text('REMAINING BAQAYA / DUE BALANCE', 125, currentY + 9);
   doc.setFontSize(11);
-  doc.setFont('courier', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text(formatPKR(currentNetBalance), 125, currentY + 17);
 
   currentY += 30;
@@ -498,7 +533,7 @@ export const downloadSupplierStatementPDF = (supplier, purchasesList = [], payme
   doc.setTextColor(225, 29, 72);
   doc.text('TOTAL REMAINING PAYABLE', 128, currentY + 9);
   doc.setFontSize(10.5);
-  doc.setFont('courier', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text(formatPKR(supplier.remainingBalance), 128, currentY + 16);
 
   currentY += 30;
@@ -1023,82 +1058,179 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
     sheetTitle = 'Payment Collection Register (Ugrahi Sheet)',
     sheetDate = new Date().toISOString().split('T')[0],
     recoveryAgent = 'Field Recovery Officer',
-    targetRoute = 'General Route',
+    targetRoute = 'All Wholesale Markets',
     rows = []
   } = sheetData;
 
   const doc = new jsPDF('p', 'mm', 'a4');
-  let currentY = drawHeader(
-    doc,
-    sheetTitle.toUpperCase(),
-    `Route: ${targetRoute} | Collector: ${recoveryAgent}`,
-    'Collection Register'
-  );
+  
+  // Format Date Safely
+  const formattedDate = (() => {
+    try {
+      if (!sheetDate) return new Date().toLocaleDateString('en-GB');
+      const d = new Date(sheetDate);
+      if (isNaN(d.getTime())) return String(sheetDate);
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch (e) {
+      return String(sheetDate || new Date().toLocaleDateString('en-GB'));
+    }
+  })();
+
+  const agentName = recoveryAgent && recoveryAgent !== 'N/A' ? recoveryAgent : 'Admin Khan';
+  const routeName = targetRoute && targetRoute !== 'N/A' ? targetRoute : 'All Wholesale Markets';
 
   const totalDues = rows.reduce((s, r) => s + (Number(r.totalDue) || 0), 0);
   const totalWasool = rows.reduce((s, r) => s + (Number(r.wasool) || 0), 0);
   const totalRemaining = totalDues - totalWasool;
 
-  // Summary box
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(14, currentY, 182, 16, 2, 2, 'FD');
+  let currentY = drawHeader(
+    doc,
+    sheetTitle.toUpperCase(),
+    `Route: ${routeName} | Collector: ${agentName}`,
+    'Collection Register'
+  );
 
-  doc.setFontSize(8);
+  // Executive KPI Summary Box (2x2 balanced grid on first page)
+  doc.setFillColor(248, 250, 252); // slate-50
+  doc.setDrawColor(226, 232, 240); // slate-200
+  doc.roundedRect(14, currentY, 182, 17, 2, 2, 'FD');
+
+  // Col 1: Total Accounts & Date
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text(`Total Customers: ${rows.length} Shops`, 18, currentY + 6);
-  doc.text(`Date: ${sheetDate}`, 18, currentY + 11);
-
-  doc.text(`Collection Agent: ${recoveryAgent}`, 75, currentY + 6);
-  doc.text(`Market / Route: ${targetRoute}`, 75, currentY + 11);
-
+  doc.text('Total Customers:', 18, currentY + 6);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text(`Total Outstanding: ${formatPKR(totalDues)}`, 135, currentY + 6);
+  doc.text(`${rows.length} Registered Shops`, 46, currentY + 6);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Collection Date:', 18, currentY + 12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(formattedDate, 46, currentY + 12);
+
+  // Col 2: Collector & Route
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Recovery Officer:', 84, currentY + 6);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(agentName, 110, currentY + 6);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Target Route:', 84, currentY + 12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(routeName, 110, currentY + 12);
+
+  // Col 3: Financial Totals (Prominent & High Contrast)
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Total Outstanding:', 142, currentY + 6);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(225, 29, 72); // rose-600
+  doc.text(formatPKR(totalDues), 190, currentY + 6, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Total Wasooli:', 142, currentY + 12);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(16, 185, 129); // emerald-600
-  doc.text(`Total Collected: ${formatPKR(totalWasool)}`, 135, currentY + 11);
+  doc.text(formatPKR(totalWasool), 190, currentY + 12, { align: 'right' });
 
-  currentY += 21;
+  currentY += 22;
 
-  // AutoTable
+  // Natural AutoTable Rows (5 Columns without Signature / Remarks column)
   const tableRows = rows.map((r, i) => [
     i + 1,
-    r.name || '-',
-    r.address || '-',
+    r.name || '—',
+    r.address || '—',
     formatPKR(r.totalDue),
-    r.wasool ? formatPKR(r.wasool) : '',
-    '' // blank for physical signature / remarks
+    r.wasool ? formatPKR(r.wasool) : ''
   ]);
 
   autoTable(doc, {
     startY: currentY,
-    head: [['#', 'Customer / Shop Name', 'Market / Address', 'Total Balance', 'Collected Wasooli', 'Signature / Remarks']],
-    body: tableRows.length ? tableRows : [['-', 'No customer entries in sheet', '-', 'Rs. 0', '', '']],
+    margin: { top: 46, bottom: 25, left: 14, right: 14 },
+    head: [['#', 'Customer / Shop Name', 'Market / Address', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']],
+    body: tableRows.length ? tableRows : [['-', 'No customer entries in sheet', '-', 'Rs. 0', '']],
     theme: 'grid',
-    headStyles: { fillColor: [30, 41, 59], fontSize: 8, fontStyle: 'bold', halign: 'center' },
-    styles: { fontSize: 8, cellPadding: 2.5 },
+    headStyles: { 
+      fillColor: [15, 23, 42], 
+      textColor: [255, 255, 255], 
+      fontSize: 8, 
+      fontStyle: 'bold', 
+      halign: 'center',
+      minCellHeight: 6.5
+    },
+    styles: { 
+      fontSize: 7.5, 
+      cellPadding: 1.8,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.1
+    },
     columnStyles: {
       0: { halign: 'center', cellWidth: 10 },
-      1: { fontStyle: 'bold', cellWidth: 55 },
-      2: { cellWidth: 42 },
-      3: { halign: 'right', font: 'courier', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 30 },
-      4: { halign: 'right', font: 'courier', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 25 },
-      5: { cellWidth: 20 }
+      1: { fontStyle: 'bold', cellWidth: 66 },
+      2: { cellWidth: 48 },
+      3: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 30 },
+      4: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 28 }
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252]
     },
     foot: [[
-      'TOTAL',
-      `Total Shops: ${rows.length}`,
-      '',
-      formatPKR(totalDues),
-      formatPKR(totalWasool),
-      formatPKR(totalRemaining)
+      {
+        content: `TOTAL (${rows.length} SHOPS):`,
+        colSpan: 3,
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 8 }
+      },
+      {
+        content: formatPKR(totalDues),
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], fontSize: 8 }
+      },
+      {
+        content: formatPKR(totalWasool),
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 8 }
+      }
     ]],
-    footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 }
+    footStyles: { 
+      fillColor: [241, 245, 249], 
+      minCellHeight: 7.5,
+      lineColor: [203, 213, 225],
+      lineWidth: 0.2
+    },
+    didDrawPage: (data) => {
+      // Draw brand header at top of continuation pages
+      if (data.pageNumber > 1) {
+        drawHeader(
+          doc,
+          sheetTitle.toUpperCase(),
+          `Route: ${routeName} | Collector: ${agentName} (Continued)`,
+          'Collection Register'
+        );
+      }
+    }
   });
 
   const finalY = doc.lastAutoTable.finalY || currentY + 50;
   drawFooter(doc, finalY);
+
+  // Subtle page numbering stamp if multi-page document
+  const totalPages = doc.internal.getNumberOfPages();
+  if (totalPages > 1) {
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Page ${p} of ${totalPages}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 4, { align: 'right' });
+    }
+  }
 
   const cleanName = (sheetTitle || 'Collection_Sheet').replace(/[^a-zA-Z0-9]/g, '_');
   doc.save(`${cleanName}_${sheetDate}.pdf`);
