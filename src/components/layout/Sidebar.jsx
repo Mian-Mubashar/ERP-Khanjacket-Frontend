@@ -489,7 +489,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           </button>
 
           {expandedSections.ugrahi && (
-            
             <div className="pl-9 pr-2 py-1 space-y-0.5">
               <button
                 onClick={() => setActiveTab('ugrahi')}

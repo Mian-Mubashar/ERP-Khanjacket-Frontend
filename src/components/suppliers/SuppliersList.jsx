@@ -16,10 +16,12 @@ import {
   X,
   RotateCcw,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
 import { Pagination } from '../common/Pagination';
+import { downloadSuppliersListPDF } from '../../utils/pdfGenerator';
 
 export const SuppliersList = () => {
   const { 
@@ -38,7 +40,7 @@ export const SuppliersList = () => {
   const [search, setSearch] = useState('');
   const [balanceFilter, setBalanceFilter] = useState('ALL'); // 'ALL' | 'DUE' | 'CLEAR'
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 20;
   const [activeDropdown, setActiveDropdown] = useState(null); // { id, sup, top, left }
 
   // Close 3-dots action dropdown on outside click, window resize, or scroll
@@ -155,6 +157,25 @@ export const SuppliersList = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Download China Suppliers List PDF */}
+          <button
+            type="button"
+            onClick={() => {
+              const targetList = filteredSuppliers.length > 0 ? filteredSuppliers : suppliers;
+              if (targetList.length === 0) {
+                showToast('No suppliers available to export', 'info');
+                return;
+              }
+              downloadSuppliersListPDF(targetList);
+              showToast('China Suppliers Register PDF downloaded successfully!', 'success');
+            }}
+            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-xs font-medium rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            title="Download China Suppliers & Accounts Register PDF"
+          >
+            <Download className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span>Download PDF</span>
+          </button>
+
           {/* New Purchase Bill / Inward Shipment Button */}
           <button
             type="button"
@@ -587,7 +608,7 @@ export const SuppliersList = () => {
         </div>
       )}
 
-      {/* 10-Item Pagination */}
+      {/* 20-Item Pagination */}
       <Pagination
         currentPage={page}
         totalItems={filteredSuppliers.length}

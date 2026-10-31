@@ -500,101 +500,387 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
 // -------------------------------------------------------------
 // 3. CHINA SUPPLIER / VENDOR STATEMENT PDF
 // -------------------------------------------------------------
-export const downloadSupplierStatementPDF = (supplier, purchasesList = [], paymentList = []) => {
+export const downloadSupplierStatementPDF = (supplier = {}, purchasesList = [], paymentList = []) => {
   const doc = new jsPDF('p', 'mm', 'a4');
+  const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const companyName = supplier.company || supplier.name || 'China Factory';
+  const supCode = supplier.id || 'SUP-001';
+
   let currentY = drawHeader(
     doc,
-    'China Supplier Account Statement',
-    'Import Purchases & Wire Remittances Ledger',
-    supplier.company
+    'CHINA SUPPLIER KHATA STATEMENT',
+    `Consignments & Wire Remittances | ${printDate}`,
+    companyName
   );
 
-  // Supplier Banner
+  // Exact figures directly matching Supplier Khata Modal
+  const totalPurchasesVal = Math.round(Number(supplier.totalPurchases !== undefined ? supplier.totalPurchases : purchasesList.reduce((s, p) => s + (Number(p.totalBill) || 0), 0)));
+  const totalPaidVal = Math.round(Number(supplier.totalPayments !== undefined ? supplier.totalPayments : paymentList.reduce((s, p) => s + (Number(p.amount) || 0), 0)));
+  const totalRemainingVal = Math.round(Number(supplier.remainingBalance !== undefined ? supplier.remainingBalance : 0));
+
+  // 1. Supplier Profile Banner (Clean single line without overlapping pill)
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(14, currentY, 182, 24, 2, 2, 'FD');
+  doc.roundedRect(14, currentY, 182, 17, 2, 2, 'FD');
 
-  doc.setFontSize(8.5);
+  doc.setFontSize(9.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text(supplier.company, 18, currentY + 6);
+  doc.text(`${companyName}  (${supCode})`, 18, currentY + 6);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Representative: ${supplier.name}  |  Phone: ${supplier.phone}`, 18, currentY + 11);
-  doc.text(`Factory Address: ${supplier.address}`, 18, currentY + 16);
+  doc.text(`Representative: ${supplier.name || 'N/A'}  |  Phone: ${supplier.phone || 'N/A'}  |  Address: ${supplier.address || 'China'}`, 18, currentY + 12);
 
-  // Balance Pill
-  doc.setFillColor(254, 242, 242);
-  doc.setDrawColor(254, 205, 211);
-  doc.roundedRect(125, currentY + 4, 66, 16, 2, 2, 'FD');
+  // Status badge on top right of banner
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  if (totalRemainingVal > 0) {
+    doc.setTextColor(225, 29, 72);
+    doc.text('ACCOUNT STATUS: OUTSTANDING DUE', 192, currentY + 9, { align: 'right' });
+  } else {
+    doc.setTextColor(16, 185, 129);
+    doc.text('ACCOUNT STATUS: SETTLED / CLEAR', 192, currentY + 9, { align: 'right' });
+  }
+
+  currentY += 21;
+
+  // 2. Exact 3 KPI Summary Cards matching ERP Modal (TOTAL PURCHASES | TOTAL PAID | OUTSTANDING BAQAYA)
+  const cardW = 58; // 58 * 3 + 4 * 2 = 182mm
+  const cardH = 20;
+
+  // Card 1: TOTAL PURCHASES
+  const x1 = 14;
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(x1, currentY, cardW, cardH, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('TOTAL PURCHASES', x1 + 4, currentY + 5.5);
+
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(12.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Rs. ${totalPurchasesVal.toLocaleString()}`, x1 + 4, currentY + 12);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`${purchasesList.length} Consignment Invoices`, x1 + 4, currentY + 16.5);
+
+  // Card 2: TOTAL PAID (TT / BANK)
+  const x2 = x1 + cardW + 4;
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(x2, currentY, cardW, cardH, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('TOTAL PAID (TT / BANK)', x2 + 4, currentY + 5.5);
+
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(12.5);
+  doc.setTextColor(16, 185, 129); // emerald-600
+  doc.text(`Rs. ${totalPaidVal.toLocaleString()}`, x2 + 4, currentY + 12);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`${paymentList.length} Wire Transfers Recorded`, x2 + 4, currentY + 16.5);
+
+  // Card 3: OUTSTANDING BAQAYA DUE
+  const x3 = x2 + cardW + 4;
+  doc.setFillColor(254, 242, 242); // rose-50
+  doc.setDrawColor(254, 205, 211); // rose-200
+  doc.roundedRect(x3, currentY, cardW, cardH, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(225, 29, 72); // rose-600
+  doc.text('OUTSTANDING BAQAYA DUE', x3 + 4, currentY + 5.5);
+
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(12.5);
+  doc.setTextColor(225, 29, 72); // rose-600
+  doc.text(`Rs. ${totalRemainingVal.toLocaleString()}`, x3 + 4, currentY + 12);
+
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(225, 29, 72);
-  doc.text('TOTAL REMAINING PAYABLE', 128, currentY + 9);
-  doc.setFontSize(10.5);
-  doc.setFont('helvetica', 'bold');
-  doc.text(formatPKR(supplier.remainingBalance), 128, currentY + 16);
+  doc.text('Net Payable Accounts', x3 + 4, currentY + 16.5);
 
-  currentY += 30;
+  currentY += cardH + 7;
 
-  // Purchases Table
+  // 3. Chronological Khata Ledger Statement Table (Exact match to Ledger Statement tab)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(30, 41, 59);
-  doc.text('CHINA INWARD INVOICES', 14, currentY);
+  doc.text('LEDGER STATEMENT', 14, currentY);
   currentY += 3;
 
-  const purRows = purchasesList.map((p, i) => [
-    i + 1,
-    p.invoiceNo,
-    p.purchaseDate,
-    p.containerNo || 'N/A',
-    `${(p.items || []).reduce((s, it) => s + (Number(it.quantity) || 0), 0).toLocaleString()} pcs`,
-    formatPKR(p.totalBill),
-    formatPKR(p.paidAmount),
-    formatPKR(p.remainingAmount)
+  const events = [];
+
+  // Opening balance row if > 0
+  if (Number(supplier.openingBalance) > 0) {
+    events.push({
+      date: 'Opening',
+      rawDate: 0,
+      ref: '—',
+      desc: 'Initial balance brought forward',
+      debit: 0,
+      credit: 0,
+      runningBalance: Number(supplier.openingBalance)
+    });
+  }
+
+  // Combine purchases and payments sorted chronologically
+  const rawTx = [
+    ...purchasesList.map(p => ({
+      date: p.purchaseDate || 'N/A',
+      rawDate: new Date(p.purchaseDate || 0).getTime(),
+      ref: `Invoice #${p.invoiceNo || 'N/A'}`,
+      desc: `Container Import (${(p.items || []).map(i => `${i.articleNo} x${i.quantity}`).join(', ') || 'Consignment Cargo'})`,
+      debit: Number(p.totalBill || 0),
+      credit: 0
+    })),
+    ...paymentList.map(pay => ({
+      date: pay.date || 'N/A',
+      rawDate: new Date(pay.date || 0).getTime(),
+      ref: `Payment (${pay.paymentMethod || 'TT'})`,
+      desc: `Ref: ${pay.refNo || 'N/A'}${pay.notes ? ' - ' + pay.notes : ' - Settlement'}`,
+      debit: 0,
+      credit: Number(pay.amount || 0)
+    }))
+  ].sort((a, b) => a.rawDate - b.rawDate);
+
+  let currentRun = Number(supplier.openingBalance || 0);
+  rawTx.forEach(tx => {
+    currentRun = currentRun + tx.debit - tx.credit;
+    events.push({
+      ...tx,
+      runningBalance: currentRun
+    });
+  });
+
+  const ledgerRows = events.map((item, idx) => [
+    idx + 1,
+    item.date,
+    item.ref,
+    item.desc,
+    item.debit > 0 ? formatPKR(item.debit) : '—',
+    item.credit > 0 ? formatPKR(item.credit) : '—',
+    formatPKR(item.runningBalance)
   ]);
 
   autoTable(doc, {
     startY: currentY,
-    head: [['#', 'Invoice #', 'Date', 'Container', 'Total Pcs', 'Total Bill', 'Paid', 'Balance Due']],
-    body: purRows.length ? purRows : [['-', '-', '-', '-', '-', 'No invoices logged', '-', '-']],
+    head: [['#', 'Date', 'Ref #', 'Particulars / Description', 'Debit / Bill', 'Credit / Paid', 'Running Balance']],
+    body: ledgerRows.length > 0 ? ledgerRows : [['-', '-', '-', 'No transactions recorded', 'Rs. 0', 'Rs. 0', 'Rs. 0']],
     theme: 'grid',
-    headStyles: { fillColor: [30, 41, 59], fontSize: 7.5 },
-    styles: { fontSize: 7.5, cellPadding: 2 }
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: 8,
+      fontStyle: 'bold',
+      halign: 'left',
+      minCellHeight: 7.5,
+      lineColor: [30, 41, 59],
+      lineWidth: 0.2
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 2.2,
+      textColor: [30, 41, 59],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.15,
+      valign: 'middle'
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 8 },
+      1: { halign: 'center', cellWidth: 20 },
+      2: { font: 'courier', fontStyle: 'bold', cellWidth: 28 },
+      3: { cellWidth: 50 },
+      4: { halign: 'right', cellWidth: 26, fontStyle: 'bold' },
+      5: { halign: 'right', cellWidth: 24, fontStyle: 'bold', textColor: [16, 185, 129] },
+      6: { halign: 'right', cellWidth: 26, fontStyle: 'bold', textColor: [225, 29, 72] }
+    },
+    foot: [[
+      {
+        content: 'TOTAL SUMMARY:',
+        colSpan: 4,
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 8.5 }
+      },
+      {
+        content: formatPKR(totalPurchasesVal),
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 8.5 }
+      },
+      {
+        content: formatPKR(totalPaidVal),
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 8.5 }
+      },
+      {
+        content: formatPKR(totalRemainingVal),
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], fontSize: 8.5 }
+      }
+    ]],
+    footStyles: {
+      fillColor: [241, 245, 249],
+      minCellHeight: 8,
+      lineColor: [203, 213, 225],
+      lineWidth: 0.2
+    }
   });
 
-  currentY = doc.lastAutoTable.finalY + 6;
+  currentY = doc.lastAutoTable.finalY + 8;
 
-  // Payments Table
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(30, 41, 59);
-  doc.text('PAYMENTS & TT WIRE REMITTANCES', 14, currentY);
-  currentY += 3;
+  // 4. Purchases History (if purchasesList > 0)
+  if (purchasesList.length > 0) {
+    if (currentY > 230) {
+      doc.addPage();
+      currentY = 20;
+    }
 
-  const payRows = paymentList.map((p, i) => [
-    i + 1,
-    p.date,
-    p.refNo,
-    p.paymentMethod,
-    p.notes || 'Payment transfer',
-    formatPKR(p.amount)
-  ]);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text('PURCHASES HISTORY', 14, currentY);
+    currentY += 3;
 
-  autoTable(doc, {
-    startY: currentY,
-    head: [['#', 'Date', 'TT / Ref #', 'Payment Method', 'Notes', 'Amount (PKR)']],
-    body: payRows.length ? payRows : [['-', '-', '-', '-', 'No remittance history', '-']],
-    theme: 'grid',
-    headStyles: { fillColor: [16, 185, 129], fontSize: 7.5 },
-    styles: { fontSize: 7.5, cellPadding: 2 }
-  });
+    const purRows = purchasesList.map((p, i) => [
+      i + 1,
+      p.invoiceNo || 'N/A',
+      p.purchaseDate || 'N/A',
+      p.containerNo || 'N/A',
+      `${(p.items || []).reduce((s, it) => s + (Number(it.quantity) || 0), 0).toLocaleString()} pcs`,
+      formatPKR(p.totalBill),
+      formatPKR(p.paidAmount),
+      formatPKR(p.remainingAmount)
+    ]);
 
-  drawFooter(doc, doc.lastAutoTable.finalY + 15);
+    const inwardPaidTotal = purchasesList.reduce((s, p) => s + (Number(p.paidAmount) || 0), 0);
+    const inwardDueTotal = purchasesList.reduce((s, p) => s + (Number(p.remainingAmount) || 0), 0);
 
-  doc.save(`KhanClothes_Supplier_${supplier.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+    autoTable(doc, {
+      startY: currentY,
+      head: [['#', 'Invoice #', 'Date', 'Container', 'Total Pcs', 'Total Bill', 'Paid', 'Balance Due']],
+      body: purRows,
+      theme: 'grid',
+      headStyles: { fillColor: [30, 41, 59], fontSize: 7.5, fontStyle: 'bold' },
+      styles: { fontSize: 7.5, cellPadding: 2, lineColor: [226, 232, 240], lineWidth: 0.15 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 8 },
+        1: { font: 'courier', fontStyle: 'bold', textColor: [37, 99, 235], cellWidth: 24 },
+        2: { halign: 'center', cellWidth: 20 },
+        3: { font: 'courier', cellWidth: 24 },
+        4: { halign: 'right', cellWidth: 20 },
+        5: { halign: 'right', cellWidth: 28, fontStyle: 'bold' },
+        6: { halign: 'right', cellWidth: 28, textColor: [16, 185, 129] },
+        7: { halign: 'right', cellWidth: 30, fontStyle: 'bold', textColor: [225, 29, 72] }
+      },
+      foot: [[
+        {
+          content: 'TOTAL PURCHASES BILL:',
+          colSpan: 5,
+          styles: { halign: 'right', fontStyle: 'bold', fontSize: 8 }
+        },
+        {
+          content: formatPKR(totalPurchasesVal),
+          styles: { halign: 'right', fontStyle: 'bold', fontSize: 8 }
+        },
+        {
+          content: formatPKR(inwardPaidTotal),
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 8 }
+        },
+        {
+          content: formatPKR(inwardDueTotal),
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], fontSize: 8 }
+        }
+      ]],
+      footStyles: { fillColor: [241, 245, 249], minCellHeight: 7.5, lineColor: [203, 213, 225], lineWidth: 0.2 }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 8;
+  }
+
+  // 5. Payments History (if paymentList > 0)
+  if (paymentList.length > 0) {
+    if (currentY > 230) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text('PAYMENTS HISTORY', 14, currentY);
+    currentY += 3;
+
+    const payRows = paymentList.map((p, i) => [
+      i + 1,
+      p.date || 'N/A',
+      p.refNo || 'N/A',
+      p.paymentMethod || 'Bank TT',
+      p.notes || 'Payment transfer',
+      formatPKR(p.amount)
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['#', 'Date', 'TT / Ref #', 'Payment Method', 'Notes', 'Amount (PKR)']],
+      body: payRows,
+      theme: 'grid',
+      headStyles: { fillColor: [16, 185, 129], fontSize: 7.5, fontStyle: 'bold' },
+      styles: { fontSize: 7.5, cellPadding: 2, lineColor: [226, 232, 240], lineWidth: 0.15 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { halign: 'center', cellWidth: 24 },
+        2: { font: 'courier', fontStyle: 'bold', cellWidth: 32 },
+        3: { cellWidth: 40 },
+        4: { cellWidth: 44 },
+        5: { halign: 'right', cellWidth: 32, fontStyle: 'bold', textColor: [16, 185, 129] }
+      },
+      foot: [[
+        {
+          content: 'TOTAL PAYMENTS PAID:',
+          colSpan: 5,
+          styles: { halign: 'right', fontStyle: 'bold', fontSize: 8 }
+        },
+        {
+          content: formatPKR(totalPaidVal),
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 8 }
+        }
+      ]],
+      footStyles: { fillColor: [241, 245, 249], minCellHeight: 7.5, lineColor: [203, 213, 225], lineWidth: 0.2 }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 8;
+  }
+
+  // Draw Footer & Signatures
+  const finalY = (doc.lastAutoTable?.finalY || currentY) + 6;
+  drawFooter(doc, finalY);
+
+  // Multi-page page numbers
+  const totalPages = doc.internal.getNumberOfPages();
+  if (totalPages > 1) {
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Page ${p} of ${totalPages}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 4, { align: 'right' });
+    }
+  }
+
+  const cleanName = (supplier.company || supplier.name || 'Supplier').replace(/[^a-zA-Z0-9]/g, '_');
+  doc.save(`KhanClothes_Supplier_${cleanName}_Khata_${printDate.replace(/\s+/g, '_')}.pdf`);
 };
 
 // -------------------------------------------------------------
@@ -1081,152 +1367,187 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
 
   const totalDues = rows.reduce((s, r) => s + (Number(r.totalDue) || 0), 0);
   const totalWasool = rows.reduce((s, r) => s + (Number(r.wasool) || 0), 0);
-  const totalRemaining = totalDues - totalWasool;
 
-  let currentY = drawHeader(
-    doc,
-    sheetTitle.toUpperCase(),
-    `Route: ${routeName} | Collector: ${agentName}`,
-    'Collection Register'
-  );
+  // Exact 20-Records per page chunking
+  const CHUNK_SIZE = 20;
+  const chunks = [];
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    chunks.push(rows.slice(i, i + CHUNK_SIZE));
+  }
+  if (chunks.length === 0) {
+    chunks.push([]);
+  }
 
-  // Executive KPI Summary Box (2x2 balanced grid on first page)
-  doc.setFillColor(248, 250, 252); // slate-50
-  doc.setDrawColor(226, 232, 240); // slate-200
-  doc.roundedRect(14, currentY, 182, 17, 2, 2, 'FD');
+  chunks.forEach((chunk, chunkIdx) => {
+    if (chunkIdx > 0) {
+      doc.addPage();
+    }
 
-  // Col 1: Total Accounts & Date
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('Total Customers:', 18, currentY + 6);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(`${rows.length} Registered Shops`, 46, currentY + 6);
+    let startY = 47;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('Collection Date:', 18, currentY + 12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(formattedDate, 46, currentY + 12);
+    if (chunkIdx === 0) {
+      // Page 1 Header
+      drawHeader(
+        doc,
+        sheetTitle.toUpperCase(),
+        `Route: ${routeName} | Collector: ${agentName}`,
+        'Collection Register'
+      );
 
-  // Col 2: Collector & Route
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('Recovery Officer:', 84, currentY + 6);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(agentName, 110, currentY + 6);
+      // Executive KPI Summary Box (2x2 balanced grid on first page with larger, prominent text)
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.roundedRect(14, 47, 182, 18, 2, 2, 'FD');
 
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('Target Route:', 84, currentY + 12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(routeName, 110, currentY + 12);
+      // Col 1: Total Accounts & Date
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Customers:', 18, 53.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(8.5);
+      doc.text(`${rows.length} Registered Shops`, 48, 53.5);
 
-  // Col 3: Financial Totals (Prominent & High Contrast)
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('Total Outstanding:', 142, currentY + 6);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(225, 29, 72); // rose-600
-  doc.text(formatPKR(totalDues), 190, currentY + 6, { align: 'right' });
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Collection Date:', 18, 60);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(8.5);
+      doc.text(formattedDate, 48, 60);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('Total Wasooli:', 142, currentY + 12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(16, 185, 129); // emerald-600
-  doc.text(formatPKR(totalWasool), 190, currentY + 12, { align: 'right' });
+      // Col 2: Collector & Route
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Recovery Officer:', 86, 53.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(8.5);
+      doc.text(agentName, 114, 53.5);
 
-  currentY += 22;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Target Route:', 86, 60);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(8.5);
+      doc.text(routeName, 114, 60);
 
-  // Natural AutoTable Rows (5 Columns without Signature / Remarks column)
-  const tableRows = rows.map((r, i) => [
-    i + 1,
-    r.name || '—',
-    r.address || '—',
-    formatPKR(r.totalDue),
-    r.wasool ? formatPKR(r.wasool) : ''
-  ]);
+      // Col 3: Financial Totals (Prominent & High Contrast, Larger font)
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Outstanding:', 140, 53.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(225, 29, 72); // rose-600
+      doc.text(formatPKR(totalDues), 190, 53.5, { align: 'right' });
 
-  autoTable(doc, {
-    startY: currentY,
-    margin: { top: 46, bottom: 25, left: 14, right: 14 },
-    head: [['#', 'Customer / Shop Name', 'Market / Address', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']],
-    body: tableRows.length ? tableRows : [['-', 'No customer entries in sheet', '-', 'Rs. 0', '']],
-    theme: 'grid',
-    headStyles: { 
-      fillColor: [15, 23, 42], 
-      textColor: [255, 255, 255], 
-      fontSize: 8, 
-      fontStyle: 'bold', 
-      halign: 'center',
-      minCellHeight: 6.5
-    },
-    styles: { 
-      fontSize: 7.5, 
-      cellPadding: 1.8,
-      textColor: [15, 23, 42],
-      lineColor: [226, 232, 240],
-      lineWidth: 0.1
-    },
-    columnStyles: {
-      0: { halign: 'center', cellWidth: 10 },
-      1: { fontStyle: 'bold', cellWidth: 66 },
-      2: { cellWidth: 48 },
-      3: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 30 },
-      4: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 28 }
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252]
-    },
-    foot: [[
-      {
-        content: `TOTAL (${rows.length} SHOPS):`,
-        colSpan: 3,
-        styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 8 }
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Wasooli:', 140, 60);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(16, 185, 129); // emerald-600
+      doc.text(formatPKR(totalWasool), 190, 60, { align: 'right' });
+
+      startY = 69;
+    } else {
+      // Continuation Page Header
+      drawHeader(
+        doc,
+        sheetTitle.toUpperCase(),
+        `Route: ${routeName} | Collector: ${agentName} (Page ${chunkIdx + 1})`,
+        'Collection Register'
+      );
+      startY = 46;
+    }
+
+    const isLastChunk = chunkIdx === chunks.length - 1;
+
+    const chunkTableRows = chunk.map((r, rIdx) => [
+      chunkIdx * CHUNK_SIZE + rIdx + 1,
+      r.name || '—',
+      r.address || '—',
+      formatPKR(r.totalDue),
+      r.wasool ? formatPKR(r.wasool) : ''
+    ]);
+
+    autoTable(doc, {
+      startY,
+      margin: { top: 46, bottom: 20, left: 14, right: 14 },
+      head: [['#', 'Customer / Shop Name', 'Market / Address', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']],
+      body: chunkTableRows.length ? chunkTableRows : [['-', 'No customer entries in sheet', '-', 'Rs. 0', '']],
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [15, 23, 42], 
+        textColor: [255, 255, 255], 
+        fontSize: 9.5, 
+        fontStyle: 'bold', 
+        halign: 'center',
+        minCellHeight: 8,
+        cellPadding: 2.2
       },
-      {
-        content: formatPKR(totalDues),
-        styles: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], fontSize: 8 }
+      styles: { 
+        fontSize: 9.2, 
+        cellPadding: 2.2,
+        minCellHeight: 7.8,
+        textColor: [15, 23, 42],
+        lineColor: [226, 232, 240],
+        lineWidth: 0.15
       },
-      {
-        content: formatPKR(totalWasool),
-        styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 8 }
-      }
-    ]],
-    footStyles: { 
-      fillColor: [241, 245, 249], 
-      minCellHeight: 7.5,
-      lineColor: [203, 213, 225],
-      lineWidth: 0.2
-    },
-    didDrawPage: (data) => {
-      // Draw brand header at top of continuation pages
-      if (data.pageNumber > 1) {
-        drawHeader(
-          doc,
-          sheetTitle.toUpperCase(),
-          `Route: ${routeName} | Collector: ${agentName} (Continued)`,
-          'Collection Register'
-        );
-      }
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10, fontStyle: 'bold' },
+        1: { fontStyle: 'bold', cellWidth: 66 },
+        2: { cellWidth: 48 },
+        3: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 29 },
+        4: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 29 }
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
+      },
+      foot: isLastChunk ? [[
+        {
+          content: `TOTAL (${rows.length} SHOPS):`,
+          colSpan: 3,
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 9.5 }
+        },
+        {
+          content: formatPKR(totalDues),
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], fontSize: 9.5 }
+        },
+        {
+          content: formatPKR(totalWasool),
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 9.5 }
+        }
+      ]] : undefined,
+      footStyles: { 
+        fillColor: [241, 245, 249], 
+        minCellHeight: 8.5,
+        lineColor: [203, 213, 225],
+        lineWidth: 0.2
+      },
+      pageBreak: 'avoid'
+    });
+
+    if (isLastChunk) {
+      const finalY = doc.lastAutoTable.finalY || startY + 50;
+      drawFooter(doc, finalY);
     }
   });
 
-  const finalY = doc.lastAutoTable.finalY || currentY + 50;
-  drawFooter(doc, finalY);
-
-  // Subtle page numbering stamp if multi-page document
+  // Page numbering stamp if multi-page document
   const totalPages = doc.internal.getNumberOfPages();
   if (totalPages > 1) {
     for (let p = 1; p <= totalPages; p++) {
       doc.setPage(p);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.5);
+      doc.setFontSize(7.5);
       doc.setTextColor(148, 163, 184);
       doc.text(`Page ${p} of ${totalPages}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 4, { align: 'right' });
     }
@@ -1236,3 +1557,223 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
   doc.save(`${cleanName}_${sheetDate}.pdf`);
 };
 
+/**
+ * Professional China Suppliers & Accounts Master PDF Register
+ * Chunks 20 vendors per page for clean full-page printing
+ */
+export const downloadSuppliersListPDF = (suppliersList = []) => {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const totalVendors = suppliersList.length;
+  const totalPurchases = suppliersList.reduce((sum, s) => sum + (Number(s.totalPurchases) || 0), 0);
+  const totalPaid = suppliersList.reduce((sum, s) => sum + (Number(s.totalPayments) || 0), 0);
+  const totalDue = suppliersList.reduce((sum, s) => sum + (Number(s.remainingBalance) || 0), 0);
+  const dueCount = suppliersList.filter(s => (Number(s.remainingBalance) || 0) > 0).length;
+  const settledCount = suppliersList.filter(s => (Number(s.remainingBalance) || 0) <= 0).length;
+
+  // Exact 20-Records per page chunking
+  const CHUNK_SIZE = 20;
+  const chunks = [];
+  for (let i = 0; i < suppliersList.length; i += CHUNK_SIZE) {
+    chunks.push(suppliersList.slice(i, i + CHUNK_SIZE));
+  }
+  if (chunks.length === 0) {
+    chunks.push([]);
+  }
+
+  chunks.forEach((chunk, chunkIdx) => {
+    if (chunkIdx > 0) {
+      doc.addPage();
+    }
+
+    let startY = 47;
+
+    if (chunkIdx === 0) {
+      // First page header with full company branding
+      drawHeader(
+        doc,
+        'CHINA SUPPLIERS & VENDORS REGISTER',
+        `Consignments, Factory Accounts & Net Payables Audit | Audit Date: ${printDate}`,
+        'Vendors Ledger'
+      );
+
+      // Executive KPI Summary Box
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(14, 47, 182, 18, 2, 2, 'FD');
+
+      // Col 1: Vendor Counts
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Suppliers:', 18, 53.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(8.5);
+      doc.text(`${totalVendors} Registered Factories`, 46, 53.5);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Active Balances:', 18, 60);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(225, 29, 72);
+      doc.text(`${dueCount} Due`, 46, 60);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`(${settledCount} Settled)`, 60, 60);
+
+      // Col 2: Purchases & Paid
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Purchases:', 88, 53.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(8.5);
+      doc.text(formatPKR(totalPurchases), 116, 53.5);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Paid (TT):', 88, 60);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(16, 185, 129);
+      doc.text(formatPKR(totalPaid), 116, 60);
+
+      // Col 3: Net Outstanding Payables
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Net Payables (Baqaya):', 145, 53.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(225, 29, 72);
+      doc.text(formatPKR(totalDue), 145, 60.5);
+
+      startY = 70;
+    } else {
+      // Continuation page header
+      drawHeader(
+        doc,
+        'CHINA SUPPLIERS & VENDORS REGISTER',
+        `Continuation Sheet - Page ${chunkIdx + 1} of ${chunks.length}`,
+        'Vendors Ledger'
+      );
+      startY = 47;
+    }
+
+    // Build Rows
+    const rows = chunk.map((s, idx) => {
+      const globalIdx = chunkIdx * CHUNK_SIZE + idx + 1;
+      const code = s.id || `SUP-${String(globalIdx).padStart(3, '0')}`;
+      const company = s.company || 'Unknown Factory';
+      const contact = s.name ? `Contact: ${s.name}` : '';
+      const compDesc = contact ? `${company}\n${contact}` : company;
+
+      const phone = s.phone || '-';
+      const address = s.address || '-';
+      const contactInfo = `${phone}\n${address}`;
+
+      const pur = formatPKR(s.totalPurchases || 0);
+      const paid = formatPKR(s.totalPayments || 0);
+      const bal = formatPKR(s.remainingBalance || 0);
+      const isDue = (Number(s.remainingBalance) || 0) > 0;
+      const status = isDue ? 'Due' : 'Clear';
+
+      return [globalIdx, code, compDesc, contactInfo, pur, paid, bal, status];
+    });
+
+    const isLastChunk = chunkIdx === chunks.length - 1;
+
+    autoTable(doc, {
+      startY,
+      head: [['#', 'Code', 'Company & Contact Person', 'Phone & Address / Location', 'Purchases', 'Paid (TT)', 'Baqaya Due', 'Status']],
+      body: rows.length > 0 ? rows : [['-', '-', 'No suppliers recorded', '-', 'Rs. 0', 'Rs. 0', 'Rs. 0', 'Clear']],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontSize: 8.5,
+        fontStyle: 'bold',
+        halign: 'left',
+        minCellHeight: 8,
+        lineColor: [30, 41, 59],
+        lineWidth: 0.2
+      },
+      styles: {
+        fontSize: 8.5,
+        cellPadding: { top: 2.5, bottom: 2.5, left: 2.5, right: 2.5 },
+        textColor: [30, 41, 59],
+        lineColor: [226, 232, 240],
+        lineWidth: 0.2,
+        valign: 'middle'
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 8, fontStyle: 'bold' },
+        1: { halign: 'center', cellWidth: 18, font: 'courier', fontStyle: 'bold', textColor: [37, 99, 235] },
+        2: { cellWidth: 42, fontStyle: 'bold' },
+        3: { cellWidth: 40, textColor: [71, 85, 105] },
+        4: { halign: 'right', cellWidth: 22 },
+        5: { halign: 'right', cellWidth: 20, fontStyle: 'bold', textColor: [16, 185, 129] },
+        6: { halign: 'right', cellWidth: 20, fontStyle: 'bold', textColor: [225, 29, 72] },
+        7: { halign: 'center', cellWidth: 12, fontStyle: 'bold' }
+      },
+      foot: isLastChunk ? [[
+        {
+          content: `TOTAL (${suppliersList.length} VENDORS):`,
+          colSpan: 4,
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 9 }
+        },
+        {
+          content: formatPKR(totalPurchases),
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 9 }
+        },
+        {
+          content: formatPKR(totalPaid),
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 9 }
+        },
+        {
+          content: formatPKR(totalDue),
+          styles: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], fontSize: 9 }
+        },
+        {
+          content: dueCount > 0 ? `${dueCount} Due` : 'Clear',
+          styles: { halign: 'center', fontStyle: 'bold', textColor: dueCount > 0 ? [225, 29, 72] : [16, 185, 129], fontSize: 8 }
+        }
+      ]] : undefined,
+      footStyles: {
+        fillColor: [241, 245, 249],
+        minCellHeight: 8.5,
+        lineColor: [203, 213, 225],
+        lineWidth: 0.2
+      },
+      pageBreak: 'avoid'
+    });
+
+    if (isLastChunk) {
+      const finalY = doc.lastAutoTable.finalY || startY + 50;
+      drawFooter(doc, finalY);
+    }
+  });
+
+  // Page numbering stamp if multi-page document
+  const totalPages = doc.internal.getNumberOfPages();
+  if (totalPages > 1) {
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Page ${p} of ${totalPages}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 4, { align: 'right' });
+    }
+  }
+
+  const fileDate = new Date().toISOString().split('T')[0];
+  doc.save(`China_Suppliers_Register_${fileDate}.pdf`);
+};

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { downloadSupplierStatementPDF } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
+import { showToast } from '../../utils/sweetalert';
 
 export const SupplierStatementModal = () => {
   const {
@@ -317,7 +318,10 @@ export const SupplierStatementModal = () => {
 
             <button
               type="button"
-              onClick={() => downloadSupplierStatementPDF(sup, supPurchases, supPayments)}
+              onClick={() => {
+                downloadSupplierStatementPDF(sup, supPurchases, supPayments);
+                showToast('Supplier statement PDF downloaded successfully!', 'success');
+              }}
               className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
               title="Download Statement PDF"
             >

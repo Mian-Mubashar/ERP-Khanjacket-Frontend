@@ -39,9 +39,9 @@ export const UgrahiView = () => {
   const [tableSearch, setTableSearch] = useState('');
   const [dueOnly, setDueOnly] = useState(false); // Toggle: Only show customers with balance > 0
 
-  // 15-Item Pagination State
+  // 20-Item Pagination State
   const [page, setPage] = useState(1);
-  const pageSize = 15;
+  const pageSize = 20;
 
   // Export Dropdown State
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -441,7 +441,7 @@ export const UgrahiView = () => {
       sheetDate,
       recoveryAgent: collectorName,
       targetRoute: routeLocation,
-      rows
+      rows: displayedRows.length > 0 ? displayedRows : rows
     });
     showToast('Collection PDF downloaded successfully!', 'success');
   };
