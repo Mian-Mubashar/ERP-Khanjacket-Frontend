@@ -1125,7 +1125,7 @@ export const downloadOutwardLogPDF = (outwardList = []) => {
     o.challanNo,
     o.articleNo,
     o.articleName || 'Garment',
-    `-${(o.quantity || 0).toLocaleString()} pcs`,
+    o.isWithoutStock ? 'Stock Unchanged' : `-${(o.quantity || 0).toLocaleString()} pcs`,
     `${o.customerName || 'Direct'} (${o.destination || 'Counter'})`,
     formatPKR(o.unitSalePrice),
     formatPKR(o.totalSaleAmount)

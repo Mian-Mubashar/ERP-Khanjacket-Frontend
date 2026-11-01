@@ -105,7 +105,7 @@ export const ArticlesList = () => {
   const isFiltered = search.trim() !== '' || selectedCategory !== 'ALL' || selectedStuff !== 'ALL' || stockFilter !== 'ALL';
 
   const filteredArticles = articles.filter(art => {
-    if (!art) return false;
+    if (!art || art.articleNo === 'DIRECT-SALE') return false;
     const term = search.trim().toLowerCase();
     const matchesSearch = !term || (
       (art.articleNo || '').toLowerCase().includes(term) ||

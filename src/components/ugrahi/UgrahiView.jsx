@@ -542,7 +542,6 @@ export const UgrahiView = () => {
           <thead>
             <tr className="bg-slate-100 font-bold border-b border-slate-800">
               <th className="border border-slate-800 p-2 text-center w-10">#</th>
-              <th className="border border-slate-800 p-2">Customer / Shop Name</th>
               <th className="border border-slate-800 p-2 text-right w-40">Total Balance</th>
               <th className="border border-slate-800 p-2 text-right w-40">Amount Received</th>
             </tr>

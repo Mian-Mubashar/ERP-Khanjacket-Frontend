@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Truck, AlertCircle, CheckCircle2, Search } from 'lucide-react';
+import { X, Truck, AlertCircle, CheckCircle2, Search, User, Package, CreditCard, FileText } from 'lucide-react';
 import { showToast, showError, showWarning } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
 
@@ -39,6 +39,8 @@ export const NewOutwardModal = () => {
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [isCustomArticle, setIsCustomArticle] = useState(false);
   const [customArticleNo, setCustomArticleNo] = useState('');
+  const [itemDescription, setItemDescription] = useState('');
+  const [isWithoutStock, setIsWithoutStock] = useState(false);
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -54,6 +56,8 @@ export const NewOutwardModal = () => {
       setChallanNo(generateChallan());
       setGatePassNo(generateGatePass());
       setDate(getTodayDate());
+      setIsWithoutStock(false);
+      setItemDescription('');
       setError('');
       setSuccess('');
 
@@ -192,7 +196,7 @@ export const NewOutwardModal = () => {
     setError('');
     setSuccess('');
 
-    if (!activeArticleCode) {
+    if (!isWithoutStock && !activeArticleCode) {
       showError('Article Required', 'Please select or enter an Article Code to dispatch.');
       setError('Please select or enter an Article Code to dispatch.');
       return;
@@ -212,12 +216,13 @@ export const NewOutwardModal = () => {
       return;
     }
 
-    if (!isCustomArticle && numQty > availableStock) {
+    if (!isWithoutStock && !isCustomArticle && numQty > availableStock) {
       showWarning('Stock Alert', `Dispatching ${numQty} pcs. Warehouse recorded stock is ${availableStock} pcs.`);
     }
 
     const res = await addOutward({
-      articleNo: activeArticleCode,
+      articleNo: isWithoutStock ? 'DIRECT-SALE' : activeArticleCode,
+      articleName: isWithoutStock ? (itemDescription.trim() || 'Direct Bill (Bina Stock)') : undefined,
       quantity: numQty,
       challanNo: challanNo.trim(),
       date,
@@ -230,7 +235,8 @@ export const NewOutwardModal = () => {
       paidAmount: Number(paidAmount) || 0,
       paymentMethod,
       gatePassNo: gatePassNo.trim(),
-      notes: notes.trim()
+      notes: notes.trim(),
+      isWithoutStock: Boolean(isWithoutStock)
     });
 
     if (!res || !res.success) {
@@ -246,27 +252,41 @@ export const NewOutwardModal = () => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
         
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                New Bill / Dispatch Challan
-              </h2>
-              {selectedCustomerForBill && (
-                <span className="text-xs text-slate-400">•</span>
-              )}
-              {selectedCustomerForBill && (
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  {selectedCustomerForBill.shopName}
-                </span>
-              )}
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              isWithoutStock
+                ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400'
+                : 'bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400'
+            }`}>
+              <Truck className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Create outward bill & update customer khata balance
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                  New Bill / Dispatch Challan
+                </h2>
+                {isWithoutStock && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300/50 dark:border-amber-800">
+                    Direct Bill (No Stock Deduct)
+                  </span>
+                )}
+                {selectedCustomerForBill && (
+                  <span className="text-xs text-slate-400">•</span>
+                )}
+                {selectedCustomerForBill && (
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    {selectedCustomerForBill.shopName}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Create outward bill & update customer khata balance
+              </p>
+            </div>
           </div>
           <button
             type="button"
@@ -278,26 +298,26 @@ export const NewOutwardModal = () => {
           </button>
         </div>
 
-        {/* Form Body - Wide, Balanced & Compact */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-3.5 overflow-y-auto flex-1">
+        {/* Form Body - Visual Cards & Spacious Flow */}
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-slate-950/40">
           
           {error && (
-            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+            <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{success}</span>
             </div>
           )}
 
-          {/* Top Customer Live Search Bar (Full Width, Right Above Customer & Destination) */}
+          {/* Top Customer Live Search Bar */}
           <div className="relative">
-            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-2xs">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700/80 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-xs">
               <Search className="w-4 h-4 text-blue-500 shrink-0" />
               <input
                 type="text"
@@ -324,7 +344,7 @@ export const NewOutwardModal = () => {
                     setDestination(selectedCity || '');
                     setIsSearchDropdownOpen(true);
                   }}
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer rounded-md hover:bg-slate-200 dark:hover:bg-slate-700"
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
                   title="Clear search"
                 >
                   <X className="w-4 h-4" />
@@ -375,36 +395,45 @@ export const NewOutwardModal = () => {
             )}
           </div>
 
-          {/* Customer Selection / Pre-filled Info Bar */}
-          {selectedCustomerForBill ? (
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                  Customer
-                </span>
-                <div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">
-                    {selectedCustomerForBill.shopName}
-                  </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 ml-1.5">
-                    {selectedCustomerForBill.shopkeeperName ? `(${selectedCustomerForBill.shopkeeperName})` : ''} • {selectedCustomerForBill.city} {selectedCustomerForBill.phone ? `• ${selectedCustomerForBill.phone}` : ''} {selectedCustomerForBill.marketAddress ? `• ${selectedCustomerForBill.marketAddress}` : ''}
-                  </span>
+          {/* Section 1: Customer & Destination Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <User className="w-3.5 h-3.5" />
                 </div>
+                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                  Customer & Destination
+                </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedCustomerForBill(null)}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer shrink-0"
-              >
-                Change
-              </button>
+              <span className="text-[11px] text-slate-400 font-medium">Select city & shopkeeper</span>
             </div>
-          ) : (
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Customer & Destination
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+
+            {selectedCustomerForBill ? (
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
+                    Customer Active
+                  </span>
+                  <div>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {selectedCustomerForBill.shopName}
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-1.5">
+                      {selectedCustomerForBill.shopkeeperName ? `(${selectedCustomerForBill.shopkeeperName})` : ''} • {selectedCustomerForBill.city} {selectedCustomerForBill.phone ? `• ${selectedCustomerForBill.phone}` : ''} {selectedCustomerForBill.marketAddress ? `• ${selectedCustomerForBill.marketAddress}` : ''}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCustomerForBill(null)}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer shrink-0"
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     City / Branch <span className="text-rose-500">*</span>
@@ -465,80 +494,137 @@ export const NewOutwardModal = () => {
                   />
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Main 2-Column Grid: Left = Goods & Quantity | Right = Financials & Payment */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+          {/* Section 2: Items & Financials (2 Roomy Cards) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
             
-            {/* LEFT COLUMN: Article Selection & Quantity */}
-            <div className="space-y-3.5 flex flex-col justify-between">
+            {/* Card 2A: Garment & Stock / Bill Items */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4 flex flex-col justify-between">
               <div>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  Garment & Stock
-                </h3>
-
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    Article / Garment Code <span className="text-rose-500">*</span>
-                  </label>
-                  {!isCustomArticle && (
-                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                      Godam Stock: <strong className="text-slate-800 dark:text-slate-200">{availableStock.toLocaleString()}</strong> pcs
-                    </span>
-                  )}
-                </div>
-
-                {!isCustomArticle ? (
-                  <select
-                    value={selectedArticleNo}
-                    onChange={e => handleArticleSelect(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all cursor-pointer"
-                  >
-                    {articles.map(a => (
-                      <option key={a.articleNo} value={a.articleNo}>
-                        {a.articleNo} — {a.name} ({a.currentStock} pcs stock)
-                      </option>
-                    ))}
-                    <option value="__NEW__">+ Custom Article Code...</option>
-                  </select>
-                ) : (
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-3.5">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. JK-2026"
-                      value={customArticleNo}
-                      onChange={e => setCustomArticleNo(e.target.value)}
-                      className="flex-1 px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
-                    />
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                      isWithoutStock
+                        ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400'
+                        : 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400'
+                    }`}>
+                      <Package className="w-3.5 h-3.5" />
+                    </div>
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      {isWithoutStock ? 'Items & Quantity' : 'Garment & Stock'}
+                    </h3>
+                  </div>
+
+                  {/* Two-Way Toggle: With Stock vs Without Stock */}
+                  <div className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs shadow-2xs">
                     <button
                       type="button"
-                      onClick={() => setIsCustomArticle(false)}
-                      className="px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                      onClick={() => setIsWithoutStock(false)}
+                      className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        !isWithoutStock
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
                     >
-                      List
+                      With Stock
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsWithoutStock(true)}
+                      className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        isWithoutStock
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      Without Stock
                     </button>
                   </div>
-                )}
-              </div>
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Quantity (Pieces) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={quantity}
-                  onChange={e => setQuantity(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all"
-                />
+                {!isWithoutStock ? (
+                  /* WITH STOCK: Full Article Code Selector */
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        Article / Garment Code <span className="text-rose-500">*</span>
+                      </label>
+                      {!isCustomArticle && (
+                        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                          Godam Stock: <strong className="text-slate-800 dark:text-slate-200">{availableStock.toLocaleString()}</strong> pcs
+                        </span>
+                      )}
+                    </div>
+
+                    {!isCustomArticle ? (
+                      <select
+                        value={selectedArticleNo}
+                        onChange={e => handleArticleSelect(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all cursor-pointer"
+                      >
+                        {articles.filter(a => a.articleNo !== 'DIRECT-SALE').map(a => (
+                          <option key={a.articleNo} value={a.articleNo}>
+                            {a.articleNo} — {a.name} ({a.currentStock} pcs stock)
+                          </option>
+                        ))}
+                        <option value="__NEW__">+ Custom Article Code...</option>
+                      </select>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. JK-2026"
+                          value={customArticleNo}
+                          onChange={e => setCustomArticleNo(e.target.value)}
+                          className="flex-1 px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomArticle(false)}
+                          className="px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                        >
+                          List
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* WITHOUT STOCK: Simple Optional Description (No Article required) */
+                  <div className="mb-4">
+                    <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                      Item / Mal Description <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Mixed Jackets / Garments (or leave blank)"
+                      value={itemDescription}
+                      onChange={e => setItemDescription(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                )}
+
+                {/* Quantity Input */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                    Quantity (Pieces) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={quantity}
+                    onChange={e => setQuantity(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all"
+                  />
+                </div>
               </div>
 
               {/* Quick Fill Pills & Stock Preview */}
-              <div className="flex items-center justify-between text-xs pt-1 flex-wrap gap-2">
+              <div className="flex items-center justify-between text-xs pt-3 flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800/60">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs font-medium text-slate-400">Quick:</span>
                   {[50, 100, 200, 500].map(q => (
@@ -555,7 +641,7 @@ export const NewOutwardModal = () => {
                       {q}
                     </button>
                   ))}
-                  {availableStock > 0 && (
+                  {!isWithoutStock && availableStock > 0 && (
                     <button
                       type="button"
                       onClick={() => setQuantity(availableStock)}
@@ -566,7 +652,7 @@ export const NewOutwardModal = () => {
                   )}
                 </div>
 
-                {!isCustomArticle && (
+                {!isWithoutStock && !isCustomArticle && (
                   <span className="text-xs text-slate-500 dark:text-slate-400">
                     Remaining: <strong className="font-mono text-slate-700 dark:text-slate-200">{Math.max(0, availableStock - Number(quantity || 0)).toLocaleString()} pcs</strong>
                   </span>
@@ -574,14 +660,22 @@ export const NewOutwardModal = () => {
               </div>
             </div>
 
-            {/* RIGHT COLUMN: Rate, Total Bill & Upfront Payment */}
-            <div className="space-y-3.5 flex flex-col justify-between">
+            {/* Card 2B: Pricing & Khata */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4 flex flex-col justify-between">
               <div>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  Pricing & Khata
-                </h3>
-                
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-3.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <CreditCard className="w-3.5 h-3.5" />
+                    </div>
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      Pricing & Khata
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">Sale rate & payment</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                       Rate per Piece (PKR)
@@ -600,68 +694,78 @@ export const NewOutwardModal = () => {
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                       Total Bill Amount
                     </label>
-                    <div className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white flex items-center">
+                    <div className="w-full px-3.5 py-2.5 bg-slate-100/80 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                      <span className="text-xs text-slate-400 font-sans font-medium">PKR</span>
                       <span>Rs. {totalBillAmount.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Upfront Payment Fields */}
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Payment Received (Optional)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="0 (if unpaid)"
-                    value={paidAmount}
-                    onChange={e => setPaidAmount(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
-                  />
-                </div>
+                {/* Upfront Payment Fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Payment Received (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="0 (if unpaid)"
+                      value={paidAmount}
+                      onChange={e => setPaidAmount(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Payment Method
-                  </label>
-                  <select
-                    value={paymentMethod}
-                    onChange={e => setPaymentMethod(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden cursor-pointer transition-all"
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CHEQUE">Cheque</option>
-                    <option value="ONLINE">Online / Easypaisa</option>
-                  </select>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Payment Method
+                    </label>
+                    <select
+                      value={paymentMethod}
+                      onChange={e => setPaymentMethod(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden cursor-pointer transition-all"
+                    >
+                      <option value="CASH">Cash</option>
+                      <option value="BANK_TRANSFER">Bank Transfer</option>
+                      <option value="CHEQUE">Cheque</option>
+                      <option value="ONLINE">Online / Easypaisa</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
               {/* Live Khata Balance Strip */}
-              <div className="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs font-mono">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs font-mono">
                 <span className="text-slate-500 dark:text-slate-400 font-sans text-xs">
                   Bill: <strong className="font-mono text-slate-800 dark:text-slate-200">Rs. {totalBillAmount.toLocaleString()}</strong>
                 </span>
                 <span className="text-slate-500 dark:text-slate-400 font-sans text-xs">
-                  Received: <strong className="font-mono text-slate-800 dark:text-slate-200">Rs. {(Number(paidAmount) || 0).toLocaleString()}</strong>
+                  Received: <strong className="font-mono text-emerald-600 dark:text-emerald-400">Rs. {(Number(paidAmount) || 0).toLocaleString()}</strong>
                 </span>
                 <span className="text-slate-700 dark:text-slate-200 font-sans text-xs">
-                  Baqaya Khata: <strong className="font-mono text-slate-900 dark:text-white">Rs. {Math.max(0, totalBillAmount - (Number(paidAmount) || 0)).toLocaleString()}</strong>
+                  Net Baqaya: <strong className="font-mono text-rose-600 dark:text-rose-400 font-bold">Rs. {Math.max(0, totalBillAmount - (Number(paidAmount) || 0)).toLocaleString()}</strong>
                 </span>
               </div>
             </div>
 
           </div>
 
-          {/* Bottom Logistics Row (Challan #, Date, Gate Pass, Transport Notes) in 4 neat columns */}
-          <div className="pt-2">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-              Logistics & Documentation
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* Section 3: Logistics & Documentation Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center">
+                  <FileText className="w-3.5 h-3.5" />
+                </div>
+                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                  Logistics & Documentation
+                </h3>
+              </div>
+              <span className="text-[11px] text-slate-400 font-medium">Challan & Gate Pass Details</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Challan #
@@ -715,31 +819,47 @@ export const NewOutwardModal = () => {
 
         </form>
 
-        {/* Modal Footer */}
-        <div className="px-6 py-3.5 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            Total Bill: <strong className="font-mono text-slate-900 dark:text-white">Rs. {totalBillAmount.toLocaleString()}</strong>
-            {Number(paidAmount) > 0 && (
-              <span className="ml-2 text-slate-400">
-                • Net Baqaya: <strong className="font-mono text-slate-800 dark:text-slate-200">Rs. {Math.max(0, totalBillAmount - (Number(paidAmount) || 0)).toLocaleString()}</strong>
+        {/* Modal Footer - Clean, Spacious, High-Contrast */}
+        <div className="px-6 py-4 bg-white dark:bg-slate-900 border-t border-slate-200/90 dark:border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Invoice</span>
+              <span className="text-base font-extrabold font-mono text-slate-900 dark:text-white">
+                Rs. {totalBillAmount.toLocaleString()}
               </span>
+            </div>
+            {Number(paidAmount) > 0 && (
+              <>
+                <div className="h-7 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Net Baqaya</span>
+                  <span className="text-sm font-bold font-mono text-rose-600 dark:text-rose-400">
+                    Rs. {Math.max(0, totalBillAmount - (Number(paidAmount) || 0)).toLocaleString()}
+                  </span>
+                </div>
+              </>
             )}
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSubmit}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+              className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-2 ${
+                isWithoutStock
+                  ? 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800 shadow-amber-600/25'
+                  : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-blue-600/25'
+              }`}
             >
-              <Truck className="w-3.5 h-3.5" />
-              <span>Dispatch & Generate Bill</span>
+              <Truck className="w-4 h-4" />
+              <span>{isWithoutStock ? 'Dispatch Bill (Without Stock)' : 'Dispatch & Generate Bill'}</span>
             </button>
           </div>
         </div>

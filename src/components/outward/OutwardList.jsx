@@ -143,14 +143,16 @@ export const OutwardList = () => {
     setActiveDropdown(null);
     const ok = await confirmDelete({
       title: 'Delete Outward Dispatch?',
-      text: `Are you sure you want to delete Challan #${item.challanNo} (${item.quantity} pcs)? Warehouse godam stock will be restored and customer khata balance will be reverted.`,
+      text: item.isWithoutStock
+        ? `Are you sure you want to delete Challan #${item.challanNo} (${item.quantity} pcs)? This was a Direct Bill (without stock), so only customer khata will be reverted (stock will not change).`
+        : `Are you sure you want to delete Challan #${item.challanNo} (${item.quantity} pcs)? Warehouse godam stock will be restored and customer khata balance will be reverted.`,
       confirmButtonText: 'Yes, Delete Dispatch'
     });
 
     if (ok) {
       const res = await deleteOutward(item.id);
       if (res?.success) {
-        showToast(`Challan #${item.challanNo} deleted & stock restored!`, 'success');
+        showToast(`Challan #${item.challanNo} deleted successfully!`, 'success');
       } else {
         showError(res?.message || 'Failed to delete dispatch');
       }
@@ -170,14 +172,16 @@ export const OutwardList = () => {
     return matchesSearch && matchesDate;
   });
 
-  const totalPiecesOut = filteredOutward.reduce((s, o) => s + (Number(o.quantity) || 0), 0);
+  const totalPiecesOut = filteredOutward
+    .filter(o => !o.isWithoutStock)
+    .reduce((s, o) => s + (Number(o.quantity) || 0), 0);
   const totalAmountValue = filteredOutward.reduce((s, o) => s + (Number(o.totalSaleAmount) || 0), 0);
 
   // CSV Export
   const exportOutwardCSV = () => {
     const headers = ['Date,Challan No,Article Code,Article Name,Quantity Out,Customer,Destination,Gate Pass,Recorded By\n'];
     const rows = filteredOutward.map(o => 
-      `"${o.date}","${o.challanNo}","${o.articleNo}","${o.articleName}",${o.quantity},"${o.customerName}","${o.destination}","${o.gatePassNo}","${o.recordedBy}"`
+      `"${o.date}","${o.challanNo}","${o.articleNo}","${o.articleName}",${o.isWithoutStock ? '"Stock Unchanged"' : o.quantity},"${o.customerName}","${o.destination}","${o.gatePassNo}","${o.recordedBy}"`
     );
     const blob = new Blob([...headers, ...rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -359,22 +363,35 @@ export const OutwardList = () => {
 
                     {/* Challan & Gate Pass */}
                     <td className="py-3.5 px-4">
-                      <div className="font-mono font-bold text-slate-800 dark:text-slate-200">{item.challanNo}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{item.challanNo}</span>
+                        {item.isWithoutStock && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/80" title="Direct bill without deducting warehouse stock">
+                            Without Stock
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-slate-400">Gate Pass: {item.gatePassNo}</div>
                     </td>
 
                     {/* Article Code */}
                     <td className="py-3.5 px-4">
-                      <button
-                        onClick={() => {
-                          const art = articles.find(a => a.articleNo === item.articleNo);
-                          if (art) setSelectedArticleDetail(art);
-                        }}
-                        className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-1 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-600 hover:text-white transition-colors"
-                        title="Click to view full article ledger"
-                      >
-                        {item.articleNo}
-                      </button>
+                      {item.isWithoutStock ? (
+                        <span className="font-mono font-semibold text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700">
+                          {item.articleNo || 'DIRECT'}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const art = articles.find(a => a.articleNo === item.articleNo);
+                            if (art) setSelectedArticleDetail(art);
+                          }}
+                          className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-1 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"
+                          title="Click to view full article ledger"
+                        >
+                          {item.articleNo}
+                        </button>
+                      )}
                     </td>
 
                     {/* Article Name */}
@@ -388,8 +405,16 @@ export const OutwardList = () => {
                     </td>
 
                     {/* Quantity Out */}
-                    <td className="py-3.5 px-4 text-right font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">
-                      -{item.quantity?.toLocaleString()} pcs
+                    <td className="py-3.5 px-4 text-right">
+                      {item.isWithoutStock ? (
+                        <span className="inline-block px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/80 whitespace-nowrap">
+                          Stock Unchanged
+                        </span>
+                      ) : (
+                        <div className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">
+                          -{item.quantity?.toLocaleString()} pcs
+                        </div>
+                      )}
                     </td>
 
                     {/* Customer & Destination */}
@@ -621,7 +646,9 @@ export const OutwardList = () => {
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-400 text-right max-w-[200px]">
-                  Warehouse stock & customer balance will auto-reconcile
+                  {editingItem?.isWithoutStock
+                    ? 'Direct Bill: Stock unchanged, khata will reconcile'
+                    : 'Warehouse stock & customer balance will auto-reconcile'}
                 </div>
               </div>
 

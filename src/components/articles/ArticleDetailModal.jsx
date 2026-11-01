@@ -404,7 +404,13 @@ export const ArticleDetailModal = () => {
                             )}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                            {out.quantity.toLocaleString()} pcs
+                            {out.isWithoutStock ? (
+                              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                Stock Unchanged
+                              </span>
+                            ) : (
+                              `${out.quantity.toLocaleString()} pcs`
+                            )}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono text-slate-500 whitespace-nowrap">{out.gatePassNo || '—'}</td>
                         </tr>
