@@ -124,44 +124,98 @@ export const UgrahiView = () => {
     return [];
   });
 
-  // Track if we have already auto-populated on first customer load
-  const hasInitializedRef = useRef(false);
-
-  // Auto-populate with ONLY Ugrahi-marked customers by default on initial mount
+  // Live Synchronization & Auto-population Effect:
+  // Keeps active collection rows 100% in sync with live MySQL customers state (balances, new payments, outward bills, additions, removals)
   useEffect(() => {
-    if (customers.length > 0 && !hasInitializedRef.current) {
-      // Clear legacy cache that might contain all customers from before route-filtering
-      const cacheVersion = localStorage.getItem('kc_ugrahi_route_filter_v2');
-      if (!cacheVersion) {
-        localStorage.removeItem('kc_active_collection_rows');
-        localStorage.setItem('kc_ugrahi_route_filter_v2', 'true');
-      } else {
-        const saved = localStorage.getItem('kc_active_collection_rows');
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              const ugrahiIds = new Set(ugrahiCustomers.map(c => c.id));
-              const valid = parsed.filter(r => !r.customerId || ugrahiIds.has(r.customerId));
-              setRows(valid);
-              hasInitializedRef.current = true;
-              return;
-            }
-          } catch (e) {
-            // ignore error
-          }
+    if (!customers || customers.length === 0) return;
+
+    setRows(prevRows => {
+      const custMap = new Map(customers.map(c => [c.id, c]));
+      const ugrahiIds = new Set(ugrahiCustomers.map(c => c.id));
+
+      // Case A: Initial mount or empty rows -> populate from ugrahiCustomers for active route
+      if (!prevRows || prevRows.length === 0) {
+        let source = ugrahiCustomers;
+        if (selectedCity && selectedCity !== 'ALL') {
+          source = ugrahiCustomers.filter(
+            c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
+          );
         }
+        return mapCustomersToRows(source, dueOnly);
       }
 
-      // Default: Load ONLY Ugrahi-marked customers
-      const allRows = mapCustomersToRows(ugrahiCustomers, dueOnly);
-      setRows(allRows);
-      setSelectedCity('ALL');
-      setSheetTitle('All Routes Payment Collection Sheet');
-      setRouteLocation('All Wholesale Routes');
-      hasInitializedRef.current = true;
-    }
-  }, [customers, ugrahiCustomers, dueOnly]);
+      let hasChanges = false;
+
+      // Case B: Rows already exist (from localStorage or active state) -> sync live balances and customer info
+      const updatedExisting = prevRows
+        .filter(r => {
+          // Manual custom rows (without customerId) are always preserved
+          if (!r.customerId) return true;
+          // If customer was removed from Payment Collection, remove from active sheet
+          if (!ugrahiIds.has(r.customerId)) {
+            hasChanges = true;
+            return false;
+          }
+          // If a specific city/route filter is active, verify route still matches
+          if (selectedCity && selectedCity !== 'ALL') {
+            const cust = custMap.get(r.customerId);
+            const matchesRoute = cust && (cust.ugrahiRoute || cust.city || '').toLowerCase() === selectedCity.toLowerCase();
+            if (!matchesRoute) {
+              hasChanges = true;
+              return false;
+            }
+          }
+          return true;
+        })
+        .map(r => {
+          if (!r.customerId) return r;
+          const cust = custMap.get(r.customerId);
+          if (!cust) return r;
+
+          const freshDue = Number(cust.remainingBalance) || 0;
+          const freshName = `${cust.shopName} ${cust.shopkeeperName ? `(${cust.shopkeeperName})` : ''}`.trim();
+          const freshAddress = cust.marketAddress ? `${cust.marketAddress}, ${cust.city}` : cust.city || '';
+          const freshCity = cust.ugrahiRoute || cust.city || '';
+
+          if (
+            r.totalDue !== freshDue ||
+            r.name !== freshName ||
+            r.address !== freshAddress ||
+            r.city !== freshCity
+          ) {
+            hasChanges = true;
+            return {
+              ...r,
+              totalDue: freshDue,
+              name: freshName,
+              address: freshAddress,
+              city: freshCity
+            };
+          }
+          return r;
+        });
+
+      // Check if any customer marked in Payment Collection is missing from rows
+      const existingCustIds = new Set(updatedExisting.filter(r => r.customerId).map(r => r.customerId));
+      let missingCandidates = ugrahiCustomers.filter(c => !existingCustIds.has(c.id));
+      if (selectedCity && selectedCity !== 'ALL') {
+        missingCandidates = missingCandidates.filter(
+          c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
+        );
+      }
+      if (dueOnly) {
+        missingCandidates = missingCandidates.filter(c => Number(c.remainingBalance || 0) > 0);
+      }
+
+      if (missingCandidates.length > 0) {
+        hasChanges = true;
+        const newRows = mapCustomersToRows(missingCandidates, dueOnly);
+        return [...updatedExisting, ...newRows];
+      }
+
+      return hasChanges ? updatedExisting : prevRows;
+    });
+  }, [customers, ugrahiCustomers, selectedCity, dueOnly]);
 
   // Saved Sheets Library
   const [savedSheets, setSavedSheets] = useState(() => {
