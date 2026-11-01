@@ -55,14 +55,16 @@ export const AppProvider = ({ children }) => {
   // Derive active tab dynamically from current URL pathname
   const getTabFromPath = useCallback((pathname) => {
     const segment = pathname.replace(/^\//, '').split('/')[0];
-    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'outward', 'suppliers', 'reports', 'security', 'ugrahi'];
+    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'outward', 'suppliers', 'reports', 'security', 'payment-collection'];
+    if (segment === 'ugrahi') return 'payment-collection';
     return validTabs.includes(segment) ? segment : 'dashboard';
   }, []);
 
   const activeTab = getTabFromPath(location.pathname);
 
   const setActiveTab = useCallback((tab) => {
-    navigate(`/${tab}`);
+    const target = (tab === 'ugrahi' || tab === 'payment-collection') ? 'payment-collection' : tab;
+    navigate(`/${target}`);
   }, [navigate]);
 
   // Securely verify JWT session with Backend /auth/me on initial app boot or refresh

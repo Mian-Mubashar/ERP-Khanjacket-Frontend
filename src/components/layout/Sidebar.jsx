@@ -147,9 +147,9 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
         </button>
 
         <button
-          onClick={() => setActiveTab('ugrahi')}
+          onClick={() => setActiveTab('payment-collection')}
           className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'ugrahi' 
+            activeTab === 'payment-collection' || activeTab === 'ugrahi'
               ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium shadow-xs' 
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
@@ -466,18 +466,18 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           )}
         </div>
 
-        {/* 8. Payment Collection (Ugrahi) */}
+        {/* 8. Payment Collection */}
         <div>
           <button
             onClick={() => toggleSection('ugrahi')}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer group ${
-              activeTab === 'ugrahi'
+              activeTab === 'payment-collection' || activeTab === 'ugrahi'
                 ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50/50 dark:bg-blue-950/30'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
             }`}
           >
             <div className="flex items-center gap-3">
-              <ReceiptText className={`w-4.5 h-4.5 ${activeTab === 'ugrahi' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-blue-500'}`} />
+              <ReceiptText className={`w-4.5 h-4.5 ${(activeTab === 'payment-collection' || activeTab === 'ugrahi') ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-blue-500'}`} />
               <span>Payment Collection</span>
             </div>
 
@@ -491,9 +491,9 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           {expandedSections.ugrahi && (
             <div className="pl-9 pr-2 py-1 space-y-0.5">
               <button
-                onClick={() => setActiveTab('ugrahi')}
+                onClick={() => setActiveTab('payment-collection')}
                 className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                  activeTab === 'ugrahi'
+                  activeTab === 'payment-collection' || activeTab === 'ugrahi'
                     ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-normal'
                 }`}

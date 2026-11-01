@@ -207,7 +207,8 @@ const AppRoutes = () => {
         <Route path="/purchases" element={<PurchasesList />} />
         <Route path="/outward" element={<OutwardList />} />
         <Route path="/suppliers" element={<SuppliersList />} />
-        <Route path="/ugrahi" element={<UgrahiView />} />
+        <Route path="/payment-collection" element={<UgrahiView />} />
+        <Route path="/ugrahi" element={<Navigate to="/payment-collection" replace />} />
         <Route path="/reports" element={<ReportsView />} />
         <Route path="/security" element={<SecurityView />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
