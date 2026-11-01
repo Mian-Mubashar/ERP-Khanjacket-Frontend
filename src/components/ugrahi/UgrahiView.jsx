@@ -25,6 +25,7 @@ import {
 import Swal, { showToast, confirmDelete, showError } from '../../utils/sweetalert';
 import { downloadUgrahiSheetPDF } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
+import { UGRAHI_ROUTES } from '../../constants/ugrahiRoutes';
 import logoImg from '../../images/khan jacket logo.png';
 
 export const UgrahiView = () => {
@@ -76,6 +77,11 @@ export const UgrahiView = () => {
     };
   }, [activeSavedMenuId]);
 
+  // Only customers explicitly marked for Ugrahi (Payment Collection)
+  const ugrahiCustomers = useMemo(() => {
+    return customers.filter(c => c && (c.inUgrahi === true || c.inUgrahi === 1));
+  }, [customers]);
+
   // Helper to map DB customers to collection sheet rows
   const mapCustomersToRows = (custList, filterDueOnly = false) => {
     let list = custList || [];
@@ -87,26 +93,20 @@ export const UgrahiView = () => {
       customerId: c.id,
       name: `${c.shopName} ${c.shopkeeperName ? `(${c.shopkeeperName})` : ''}`,
       address: c.marketAddress ? `${c.marketAddress}, ${c.city}` : c.city || '',
-      city: c.city || '',
+      city: c.ugrahiRoute || c.city || '',
       totalDue: Number(c.remainingBalance) || 0,
       wasool: ''
     }));
   };
 
-  // Compute shop count per city for fast pills & dropdown
-  const cityCounts = useMemo(() => {
-    const counts = {};
-    customers.forEach(c => {
-      const city = c.city || 'Other';
-      counts[city] = (counts[city] || 0) + 1;
+  // Compute shop count per Ugrahi route (Lahore, Raiwind, Sheikhupura, Multan, Sialkot)
+  const routeCounts = useMemo(() => {
+    const counts = { ALL: ugrahiCustomers.length };
+    UGRAHI_ROUTES.forEach(r => {
+      counts[r] = ugrahiCustomers.filter(c => (c.ugrahiRoute || c.city || '').toLowerCase() === r.toLowerCase()).length;
     });
     return counts;
-  }, [customers]);
-
-  // Active cities with count > 0 (filters out non-active cities like Islamabad (0))
-  const activeCities = useMemo(() => {
-    return cities.filter(c => (cityCounts[c.name] || 0) > 0);
-  }, [cities, cityCounts]);
+  }, [ugrahiCustomers]);
 
   // Initial Rows Data with LocalStorage fallback
   const [rows, setRows] = useState(() => {
@@ -127,32 +127,41 @@ export const UgrahiView = () => {
   // Track if we have already auto-populated on first customer load
   const hasInitializedRef = useRef(false);
 
-  // Auto-populate with ALL customers by default on initial mount (without noisy toast)
+  // Auto-populate with ONLY Ugrahi-marked customers by default on initial mount
   useEffect(() => {
     if (customers.length > 0 && !hasInitializedRef.current) {
-      const saved = localStorage.getItem('kc_active_collection_rows');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setRows(parsed);
-            hasInitializedRef.current = true;
-            return;
+      // Clear legacy cache that might contain all customers from before route-filtering
+      const cacheVersion = localStorage.getItem('kc_ugrahi_route_filter_v2');
+      if (!cacheVersion) {
+        localStorage.removeItem('kc_active_collection_rows');
+        localStorage.setItem('kc_ugrahi_route_filter_v2', 'true');
+      } else {
+        const saved = localStorage.getItem('kc_active_collection_rows');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const ugrahiIds = new Set(ugrahiCustomers.map(c => c.id));
+              const valid = parsed.filter(r => !r.customerId || ugrahiIds.has(r.customerId));
+              setRows(valid);
+              hasInitializedRef.current = true;
+              return;
+            }
+          } catch (e) {
+            // ignore error
           }
-        } catch (e) {
-          // ignore error
         }
       }
 
-      // Default: Load all database customers
-      const allRows = mapCustomersToRows(customers, dueOnly);
+      // Default: Load ONLY Ugrahi-marked customers
+      const allRows = mapCustomersToRows(ugrahiCustomers, dueOnly);
       setRows(allRows);
       setSelectedCity('ALL');
-      setSheetTitle('All Cities Payment Collection Sheet');
-      setRouteLocation('All Wholesale Markets');
+      setSheetTitle('All Routes Payment Collection Sheet');
+      setRouteLocation('All Wholesale Routes');
       hasInitializedRef.current = true;
     }
-  }, [customers, dueOnly]);
+  }, [customers, ugrahiCustomers, dueOnly]);
 
   // Saved Sheets Library
   const [savedSheets, setSavedSheets] = useState(() => {
@@ -273,34 +282,27 @@ export const UgrahiView = () => {
     setRows(prev => prev.filter(r => r.id !== id));
   };
 
-  // City Filter Change Handler (Supports 'ALL' and specific cities)
-  const handleCityChange = (cityName) => {
-    setSelectedCity(cityName);
+  // Route Filter Change Handler (Supports 'ALL' and the 5 specific Ugrahi Routes)
+  const handleCityChange = (routeName) => {
+    setSelectedCity(routeName);
     setTableSearch('');
 
-    if (!cityName || cityName === 'ALL') {
-      const allRows = mapCustomersToRows(customers, dueOnly);
+    if (!routeName || routeName === 'ALL') {
+      const allRows = mapCustomersToRows(ugrahiCustomers, dueOnly);
       setRows(allRows);
-      setSheetTitle('All Cities Payment Collection Sheet');
-      setRouteLocation('All Wholesale Markets');
+      setSheetTitle('All Routes Payment Collection Sheet');
+      setRouteLocation('All Wholesale Routes');
       return;
     }
 
-    const cityCustomers = customers.filter(
-      c => (c.city || '').toLowerCase() === cityName.toLowerCase()
+    const routeCustomers = ugrahiCustomers.filter(
+      c => (c.ugrahiRoute || c.city || '').toLowerCase() === routeName.toLowerCase()
     );
 
-    if (cityCustomers.length === 0) {
-      setRows([]);
-      setSheetTitle(`${cityName} Collection Sheet`);
-      setRouteLocation(`${cityName} Wholesale Market`);
-      return;
-    }
-
-    const cityRows = mapCustomersToRows(cityCustomers, dueOnly);
-    setRows(cityRows);
-    setSheetTitle(`${cityName} Collection Sheet`);
-    setRouteLocation(`${cityName} Wholesale Market`);
+    const routeRows = mapCustomersToRows(routeCustomers, dueOnly);
+    setRows(routeRows);
+    setSheetTitle(`${routeName} Payment Collection Sheet`);
+    setRouteLocation(`${routeName} Wholesale Route`);
   };
 
   // Toggle "Only Baqaya Due" filter
@@ -308,28 +310,31 @@ export const UgrahiView = () => {
     const nextDue = !dueOnly;
     setDueOnly(nextDue);
 
-    let source = customers;
+    let source = ugrahiCustomers;
     if (selectedCity && selectedCity !== 'ALL') {
-      source = customers.filter(c => (c.city || '').toLowerCase() === selectedCity.toLowerCase());
+      source = ugrahiCustomers.filter(
+        c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
+      );
     }
 
     const updated = mapCustomersToRows(source, nextDue);
     setRows(updated);
   };
 
-  // Reset / Load All Customers Button
+  // Reset / Load All Collection Customers Button
   const handleResetToAll = () => {
-    if (customers.length === 0) {
-      showError('No Customers', 'No customers found in database.');
+    if (ugrahiCustomers.length === 0) {
+      showToast('No customers currently added to Payment Collection', 'info');
+      setRows([]);
       return;
     }
-    const allRows = mapCustomersToRows(customers, dueOnly);
+    const allRows = mapCustomersToRows(ugrahiCustomers, dueOnly);
     setRows(allRows);
     setSelectedCity('ALL');
-    setSheetTitle('All Cities Payment Collection Sheet');
-    setRouteLocation('All Wholesale Markets');
+    setSheetTitle('All Routes Payment Collection Sheet');
+    setRouteLocation('All Wholesale Routes');
     setTableSearch('');
-    showToast(`Loaded ${allRows.length} customers!`, 'success');
+    showToast(`Loaded ${allRows.length} collection accounts!`, 'success');
   };
 
   // Reset to New Fresh Blank Sheet
@@ -484,9 +489,8 @@ export const UgrahiView = () => {
             <tr className="bg-slate-100 font-bold border-b border-slate-800">
               <th className="border border-slate-800 p-2 text-center w-10">#</th>
               <th className="border border-slate-800 p-2">Customer / Shop Name</th>
-              <th className="border border-slate-800 p-2">Location / Address</th>
-              <th className="border border-slate-800 p-2 text-right w-36">Total Balance</th>
-              <th className="border border-slate-800 p-2 text-right w-36">Amount Received</th>
+              <th className="border border-slate-800 p-2 text-right w-40">Total Balance</th>
+              <th className="border border-slate-800 p-2 text-right w-40">Amount Received</th>
             </tr>
           </thead>
           <tbody>
@@ -494,7 +498,6 @@ export const UgrahiView = () => {
               <tr key={row.id || idx} className="border-b border-slate-300">
                 <td className="border border-slate-800 p-2 text-center font-bold">{idx + 1}</td>
                 <td className="border border-slate-800 p-2 font-semibold">{row.name || '—'}</td>
-                <td className="border border-slate-800 p-2">{row.address || '—'}</td>
                 <td className="border border-slate-800 p-2 text-right font-mono font-bold">
                   {row.totalDue ? `Rs. ${Number(row.totalDue).toLocaleString()}` : '—'}
                 </td>
@@ -506,7 +509,7 @@ export const UgrahiView = () => {
           </tbody>
           <tfoot>
             <tr className="bg-slate-100 font-bold border-t-2 border-slate-800 text-sm">
-              <td colSpan="3" className="border border-slate-800 p-2 text-right font-bold">
+              <td colSpan="2" className="border border-slate-800 p-2 text-right font-bold">
                 Grand Total ({rows.length} Accounts):
               </td>
               <td className="border border-slate-800 p-2 text-right font-mono font-bold">
@@ -755,32 +758,32 @@ export const UgrahiView = () => {
               />
             </div>
 
-            {/* City Dropdown Filter */}
+            {/* Ugrahi Route Dropdown Filter */}
             <div>
               <select
                 value={selectedCity}
                 onChange={e => handleCityChange(e.target.value)}
                 className="w-full px-3 py-1.5 bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold text-blue-800 dark:text-blue-300 outline-hidden focus:border-blue-500 transition-colors cursor-pointer"
-                title="Filter by City / Route"
+                title="Filter by Ugrahi Route"
               >
-                <option value="ALL">All Cities ({customers.length} Shops)</option>
-                {activeCities.map(c => (
-                  <option key={c.id} value={c.name}>
-                    {c.name} ({cityCounts[c.name] || 0} Shops)
+                <option value="ALL">All Cities</option>
+                {UGRAHI_ROUTES.map(route => (
+                  <option key={route} value={route}>
+                    {route}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Active Cities Chips Bar (Only Cities with Count > 0) */}
+          {/* 5 Dedicated Collection Routes Chips Bar */}
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] font-semibold text-slate-400 mr-1 flex items-center gap-1">
               <Filter className="w-3 h-3 text-slate-400" />
-              <span>Cities:</span>
+              <span>Route Lists:</span>
             </span>
 
-            {/* All Cities Chip */}
+            {/* All Routes Chip */}
             <button
               type="button"
               onClick={() => handleCityChange('ALL')}
@@ -790,25 +793,25 @@ export const UgrahiView = () => {
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
-              All Cities ({customers.length})
+              All Routes ({routeCounts.ALL})
             </button>
 
-            {/* Active Cities Only (count > 0, non-active hidden) */}
-            {activeCities.map(c => {
-              const count = cityCounts[c.name] || 0;
-              const isSelected = selectedCity?.toLowerCase() === c.name.toLowerCase();
+            {/* 5 Dedicated Routes: Lahore, Raiwind, Sheikhupura, Multan, Sialkot */}
+            {UGRAHI_ROUTES.map(route => {
+              const count = routeCounts[route] || 0;
+              const isSelected = selectedCity?.toLowerCase() === route.toLowerCase();
               return (
                 <button
-                  key={c.id}
+                  key={route}
                   type="button"
-                  onClick={() => handleCityChange(c.name)}
+                  onClick={() => handleCityChange(route)}
                   className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-blue-600 text-white shadow-2xs'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
-                  {c.name} ({count})
+                  {route} ({count})
                 </button>
               );
             })}
@@ -904,7 +907,9 @@ export const UgrahiView = () => {
                           {tableSearch ? `No customers matching "${tableSearch}"` : 'No customers in sheet'}
                         </p>
                         <p className="text-xs text-slate-500">
-                          Click below to load registered database customers or add a custom row.
+                          {ugrahiCustomers.length === 0
+                            ? 'No customers added to Payment Collection yet. In Customers page, mark shops with "Include in Payment Collection" and select a route.'
+                            : 'Click below to load Payment Collection customers or add a custom row.'}
                         </p>
                         <div className="flex items-center justify-center gap-2 pt-1.5">
                           <button
@@ -913,7 +918,7 @@ export const UgrahiView = () => {
                             className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
                           >
                             <RotateCcw className="w-3 h-3" />
-                            <span>Load All Customers ({customers.length})</span>
+                            <span>Load Collection Customers ({ugrahiCustomers.length})</span>
                           </button>
                           <button
                             type="button"

@@ -1473,7 +1473,6 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
     const chunkTableRows = chunk.map((r, rIdx) => [
       chunkIdx * CHUNK_SIZE + rIdx + 1,
       r.name || '—',
-      r.address || '—',
       formatPKR(r.totalDue),
       r.wasool ? formatPKR(r.wasool) : ''
     ]);
@@ -1481,8 +1480,8 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
     autoTable(doc, {
       startY,
       margin: { top: 46, bottom: 20, left: 14, right: 14 },
-      head: [['#', 'Customer / Shop Name', 'Market / Address', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']],
-      body: chunkTableRows.length ? chunkTableRows : [['-', 'No customer entries in sheet', '-', 'Rs. 0', '']],
+      head: [['#', 'Customer / Shop Name', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']],
+      body: chunkTableRows.length ? chunkTableRows : [['-', 'No customer entries in sheet', 'Rs. 0', '']],
       theme: 'grid',
       headStyles: { 
         fillColor: [15, 23, 42], 
@@ -1502,11 +1501,10 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
         lineWidth: 0.15
       },
       columnStyles: {
-        0: { halign: 'center', cellWidth: 10, fontStyle: 'bold' },
-        1: { fontStyle: 'bold', cellWidth: 66 },
-        2: { cellWidth: 48 },
-        3: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 29 },
-        4: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 29 }
+        0: { halign: 'center', cellWidth: 12, fontStyle: 'bold' },
+        1: { fontStyle: 'bold', cellWidth: 110 },
+        2: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 30 },
+        3: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 30 }
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252]
@@ -1514,7 +1512,7 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
       foot: isLastChunk ? [[
         {
           content: `TOTAL (${rows.length} SHOPS):`,
-          colSpan: 3,
+          colSpan: 2,
           styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 9.5 }
         },
         {
