@@ -28,6 +28,56 @@ import { Pagination } from '../common/Pagination';
 import { UGRAHI_ROUTES } from '../../constants/ugrahiRoutes';
 import logoImg from '../../images/khan jacket logo.png';
 
+// Editable Serial Number Input for Row Reordering
+const SrNoInput = ({ rowId, currentSrNo, totalRows, onMove }) => {
+  const [val, setVal] = useState(String(currentSrNo));
+  const isInputFocused = useRef(false);
+
+  useEffect(() => {
+    if (!isInputFocused.current) {
+      setVal(String(currentSrNo));
+    }
+  }, [currentSrNo]);
+
+  const handleCommit = (overrideVal) => {
+    isInputFocused.current = false;
+    const raw = overrideVal !== undefined ? overrideVal : val;
+    const num = parseInt(raw, 10);
+    if (!isNaN(num) && num > 0 && num !== currentSrNo) {
+      onMove(rowId, num);
+    } else {
+      setVal(String(currentSrNo));
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      min="1"
+      max={totalRows || 9999}
+      value={val}
+      onFocus={(e) => {
+        isInputFocused.current = true;
+        e.target.select();
+      }}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={() => handleCommit()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          handleCommit(e.currentTarget.value);
+          e.currentTarget.blur();
+        } else if (e.key === 'Escape') {
+          isInputFocused.current = false;
+          setVal(String(currentSrNo));
+          e.currentTarget.blur();
+        }
+      }}
+      className="w-12 h-6.5 text-center font-mono font-bold text-xs bg-slate-50 hover:bg-white focus:bg-white dark:bg-slate-800/80 dark:hover:bg-slate-800 dark:focus:bg-slate-800 border border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600 focus:border-blue-500 rounded-md outline-hidden text-slate-700 dark:text-slate-200 transition-all cursor-text shadow-2xs focus:ring-2 focus:ring-blue-500/20"
+      title={`Current: #${currentSrNo}. Type a new position number and press Enter to reorder.`}
+    />
+  );
+};
+
 export const UgrahiView = () => {
   const { customers = [], cities = [], currentUser } = useApp();
 
@@ -336,6 +386,58 @@ export const UgrahiView = () => {
     setRows(prev => prev.filter(r => r.id !== id));
   };
 
+  // Reorder Row by User-Specified Serial Number
+  const handleMoveRow = (rowId, targetPosition) => {
+    const targetPos = parseInt(targetPosition, 10);
+    if (isNaN(targetPos) || targetPos < 1) return;
+
+    setRows(prevRows => {
+      // If table search is active, reorder relative to displayed items
+      if (tableSearch && tableSearch.trim()) {
+        const fromDispIdx = displayedRows.findIndex(r => r.id === rowId);
+        if (fromDispIdx === -1) return prevRows;
+
+        const clampedTarget = Math.max(1, Math.min(displayedRows.length, targetPos));
+        if (clampedTarget === fromDispIdx + 1) return prevRows;
+
+        const targetRow = displayedRows[clampedTarget - 1];
+        if (!targetRow || targetRow.id === rowId) return prevRows;
+
+        const fromRealIdx = prevRows.findIndex(r => r.id === rowId);
+        const toRealIdx = prevRows.findIndex(r => r.id === targetRow.id);
+        if (fromRealIdx === -1 || toRealIdx === -1) return prevRows;
+
+        const next = [...prevRows];
+        const [moved] = next.splice(fromRealIdx, 1);
+        next.splice(toRealIdx, 0, moved);
+        showToast(`Row moved to #${clampedTarget}`, 'success');
+        return next;
+      }
+
+      // Normal view
+      const fromIndex = prevRows.findIndex(r => r.id === rowId);
+      if (fromIndex === -1) return prevRows;
+
+      const clampedTargetPos = Math.max(1, Math.min(prevRows.length, targetPos));
+      const toIndex = clampedTargetPos - 1;
+
+      if (fromIndex === toIndex) return prevRows;
+
+      const next = [...prevRows];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+
+      // Navigate to the target page if position is outside current page
+      const targetPage = Math.floor(toIndex / pageSize) + 1;
+      if (targetPage !== page) {
+        setPage(targetPage);
+      }
+
+      showToast(`Row moved to #${clampedTargetPos}`, 'success');
+      return next;
+    });
+  };
+
   // Route Filter Change Handler (Supports 'ALL' and the 5 specific Ugrahi Routes)
   const handleCityChange = (routeName) => {
     setSelectedCity(routeName);
@@ -507,10 +609,6 @@ export const UgrahiView = () => {
 
   return (
     <div className="space-y-4">
-      
-      {/* ========================================================= */}
-      {/* PRINT-ONLY VIEW (Clean A4 Collection Pad Layout)           */}
-      {/* ========================================================= */}
       <div className="hidden print:block font-sans text-black p-6 bg-white">
         <div className="border-b-2 border-slate-900 pb-4 mb-4">
           <div className="flex justify-between items-start">
@@ -942,7 +1040,7 @@ export const UgrahiView = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  <th className="py-2.5 px-3 text-center w-10">#</th>
+                  <th className="py-2.5 px-2 text-center w-14" title="Serial Number (Type new number & press Enter to reorder)">#</th>
                   <th className="py-2.5 px-3 min-w-[240px]">Customer / Shop Name</th>
                   <th className="py-2.5 px-3 min-w-[200px]">Location / Address</th>
                   <th className="py-2.5 px-3 min-w-[150px] text-right">Total Balance (PKR)</th>
@@ -993,9 +1091,14 @@ export const UgrahiView = () => {
                         key={row.id || idx}
                         className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors group"
                       >
-                        {/* Sr. No */}
-                        <td className="py-1.5 px-3 text-center font-mono font-bold text-slate-400 text-xs">
-                          {srNo}
+                        {/* Sr. No (Editable Reorder Input) */}
+                        <td className="py-1.5 px-2 text-center">
+                          <SrNoInput
+                            rowId={row.id}
+                            currentSrNo={srNo}
+                            totalRows={displayedRows.length}
+                            onMove={handleMoveRow}
+                          />
                         </td>
 
                       {/* Customer Name (Single Clean Input, Zero Duplicate Sub-Text) */}
