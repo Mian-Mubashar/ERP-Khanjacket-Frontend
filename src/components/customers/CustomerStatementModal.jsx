@@ -10,9 +10,10 @@ import {
   Trash2,
   AlertTriangle,
   Check,
-  Loader2
+  Loader2,
+  ReceiptText
 } from 'lucide-react';
-import { downloadCustomerKhataPDF } from '../../utils/pdfGenerator';
+import { downloadCustomerKhataPDF, formatCleanBillNo } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
 
 export const CustomerStatementModal = () => {
@@ -23,6 +24,7 @@ export const CustomerStatementModal = () => {
     setIsRecordCustomerPaymentOpen,
     setIsNewOutwardOpen,
     setSelectedCustomerForBill,
+    setSelectedDispatchForBill,
     setEditingCustomer,
     setIsEditCustomerOpen,
     updateCustomer,
@@ -129,14 +131,18 @@ export const CustomerStatementModal = () => {
 
   // 2. Outward Dispatches (Debits / Billed goods)
   customerDispatches.forEach(d => {
+    const cleanBillNo = formatCleanBillNo(d.challanNo);
+    const isDirect = d.isWithoutStock || d.articleNo === 'DIRECT-SALE';
+    const articleLabel = isDirect ? (d.articleName || 'Direct Sale (Bina Stock)') : d.articleNo;
+
     events.push({
       id: `disp-${d.id}`,
       originalItem: d,
       date: d.date,
       rawDate: new Date(d.date || d.createdAt || 0).getTime(),
       type: 'DISPATCH',
-      ref: d.challanNo,
-      desc: `Maal Rawangi (Bill #${d.challanNo}) — ${d.articleNo}`,
+      ref: cleanBillNo ? `BILL-${cleanBillNo}` : d.challanNo,
+      desc: `Bill #${cleanBillNo} — ${articleLabel}`,
       subDesc: `${(d.quantity || 0).toLocaleString()} pcs @ Rs. ${(d.unitSalePrice || 0).toLocaleString()} ${d.destination ? `| Muqam: ${d.destination}` : ''}`,
       debit: Number(d.totalSaleAmount) || 0,
       credit: 0
@@ -186,6 +192,11 @@ export const CustomerStatementModal = () => {
   const handleOpenEdit = () => {
     setEditingCustomer(selectedCustomerKhata);
     setIsEditCustomerOpen(true);
+  };
+
+  const handleShowBill = (item) => {
+    setActiveDropdown(null);
+    setSelectedDispatchForBill(item);
   };
 
   // Toggle 3-dots action dropdown
@@ -607,7 +618,7 @@ export const CustomerStatementModal = () => {
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-semibold">
                       <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Challan #</th>
+                      <th className="py-2.5 px-3">Bill #</th>
                       <th className="py-2.5 px-3">Article</th>
                       <th className="py-2.5 px-3 text-right">Quantity</th>
                       <th className="py-2.5 px-3 text-right">Rate</th>
@@ -626,7 +637,9 @@ export const CustomerStatementModal = () => {
                       customerDispatches.slice((dispPage - 1) * pageSize, dispPage * pageSize).map(d => (
                         <tr key={d.id} className="hover:bg-slate-50/50">
                           <td className="py-2.5 px-3 text-slate-500">{d.date}</td>
-                          <td className="py-2.5 px-3 font-mono font-medium text-slate-900 dark:text-white">{d.challanNo}</td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-blue-600 dark:text-blue-400">
+                            Bill #{formatCleanBillNo(d.challanNo)}
+                          </td>
                           <td className="py-2.5 px-3">
                             <span className="font-medium text-slate-900 dark:text-white">{d.articleNo}</span>
                             <span className="text-[10px] text-slate-400 block">{d.articleName}</span>
@@ -743,10 +756,21 @@ export const CustomerStatementModal = () => {
       {/* Floating 3-Dots Action Dropdown Menu */}
       {activeDropdown && (
         <div
-          className="customer-statement-action-menu fixed z-[999] bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 py-1.5 min-w-[150px] animate-in fade-in zoom-in-95 duration-100"
+          className="customer-statement-action-menu fixed z-[999] bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 py-1.5 min-w-[160px] animate-in fade-in zoom-in-95 duration-100"
           style={{ top: `${activeDropdown.top}px`, left: `${activeDropdown.left}px` }}
           onClick={(e) => e.stopPropagation()}
         >
+          {activeDropdown.type === 'DISPATCH' && (
+            <button
+              type="button"
+              onClick={() => handleShowBill(activeDropdown.item)}
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center gap-2 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800"
+            >
+              <ReceiptText className="w-3.5 h-3.5 text-blue-500" />
+              <span>Show Bill (Parcha)</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => handleStartEdit(activeDropdown.type, activeDropdown.item)}

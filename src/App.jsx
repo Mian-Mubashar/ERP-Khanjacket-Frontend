@@ -28,6 +28,7 @@ import { RecordCustomerPaymentModal } from './components/customers/RecordCustome
 import { CustomerStatementModal } from './components/customers/CustomerStatementModal';
 import { NewPurchaseModal } from './components/purchases/NewPurchaseModal';
 import { NewOutwardModal } from './components/outward/NewOutwardModal';
+import { BillDetailModal } from './components/outward/BillDetailModal';
 import { AddSupplierModal } from './components/suppliers/AddSupplierModal';
 import { EditSupplierModal } from './components/suppliers/EditSupplierModal';
 import { AddPaymentModal } from './components/suppliers/AddPaymentModal';
@@ -168,7 +169,8 @@ const DashboardLayout = () => {
       <RecordCustomerPaymentModal />
       <AddPaymentModal />
 
-      {/* 3. Nested Dialogs (z-[70]) */}
+      {/* 3. Nested Dialogs (z-[70] / z-[80]) */}
+      <BillDetailModal />
       <AddStuffModal />
       <AddCategoryModal />
       <AddLocationModal />

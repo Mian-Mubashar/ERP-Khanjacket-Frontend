@@ -13,15 +13,16 @@ import {
   X,
   Loader2,
   Check,
-  AlertCircle
+  AlertCircle,
+  ReceiptText
 } from 'lucide-react';
-import { downloadOutwardLogPDF } from '../../utils/pdfGenerator';
+import { downloadOutwardLogPDF, formatCleanBillNo } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
 import { formatLakhCrore } from '../../utils/formatters';
 import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
 
 export const OutwardList = () => {
-  const { outward, setIsNewOutwardOpen, setSelectedArticleDetail, articles, updateOutward, deleteOutward } = useApp();
+  const { outward, setIsNewOutwardOpen, setSelectedArticleDetail, setSelectedDispatchForBill, articles, updateOutward, deleteOutward } = useApp();
 
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -333,7 +334,7 @@ export const OutwardList = () => {
             <thead>
               <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-4">Date</th>
-                <th className="py-3 px-4">Challan / Gate Pass</th>
+                <th className="py-3 px-4">Bill # / Gate Pass</th>
                 <th className="py-3 px-4">Article Code</th>
                 <th className="py-3 px-4">Article Description</th>
                 <th className="py-3 px-4 text-right">Quantity Out</th>
@@ -361,10 +362,12 @@ export const OutwardList = () => {
                       {item.date}
                     </td>
 
-                    {/* Challan & Gate Pass */}
+                    {/* Bill & Gate Pass */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{item.challanNo}</span>
+                        <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                          Bill #{formatCleanBillNo(item.challanNo)}
+                        </span>
                         {item.isWithoutStock && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/80" title="Direct bill without deducting warehouse stock">
                             Without Stock
@@ -478,8 +481,20 @@ export const OutwardList = () => {
           className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-2xl py-1.5 text-left outward-action-menu animate-in fade-in zoom-in-95 duration-100"
         >
           <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">
-            Challan #{activeDropdown.item.challanNo}
+            Bill #{formatCleanBillNo(activeDropdown.item.challanNo)}
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedDispatchForBill(activeDropdown.item);
+              setActiveDropdown(null);
+            }}
+            className="w-full px-3 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center gap-2 transition-colors cursor-pointer border-b border-slate-100 dark:border-slate-800"
+          >
+            <ReceiptText className="w-3.5 h-3.5 text-blue-500" />
+            <span>Show Bill (Parcha)</span>
+          </button>
 
           <button
             type="button"

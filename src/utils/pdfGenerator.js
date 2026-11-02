@@ -1775,3 +1775,248 @@ export const downloadSuppliersListPDF = (suppliersList = []) => {
   const fileDate = new Date().toISOString().split('T')[0];
   doc.save(`China_Suppliers_Register_${fileDate}.pdf`);
 };
+
+// -------------------------------------------------------------
+// 10. WHOLESALE OUTWARD DISPATCH BILL (MAAL PARCHA) PDF
+// -------------------------------------------------------------
+export const formatCleanBillNo = (challanNo) => {
+  if (!challanNo) return '';
+  const str = String(challanNo).trim();
+  const match = str.match(/^(?:CH-)?(?:\d{4}-)?(.+)$/i);
+  return match ? match[1] : str;
+};
+
+export const downloadDispatchBillPDF = ({
+  billNo,
+  date,
+  customerName,
+  customerPhone,
+  destination,
+  gatePassNo,
+  notes,
+  items = [],
+  totalPieces = 0,
+  totalBillAmount = 0,
+  paidAmount = 0,
+  customerKhataBalance = null
+}) => {
+  try {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const cleanBill = formatCleanBillNo(billNo) || 'BILL';
+
+    let currentY = drawHeader(
+      doc,
+      'Wholesale Dispatch Bill (Maal Parcha)',
+      'Customer Invoice & Consignment Voucher',
+      `Bill #${cleanBill}`
+    );
+
+    // 2-Column Metadata Grid (Clean borders, zero bloated background)
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(226, 232, 240); // slate-200
+    doc.setLineWidth(0.3);
+    doc.roundedRect(14, currentY, 182, 26, 2, 2, 'FD');
+
+    // Subtle Vertical Divider in Metadata Box
+    doc.setDrawColor(241, 245, 249);
+    doc.line(105, currentY + 3, 105, currentY + 23);
+
+    // Column 1: Billed To / Customer Details (Left)
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text('BILLED TO (DUKAANDAR):', 18, currentY + 6);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.text(customerName || 'Wholesale Customer', 18, currentY + 12);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105); // slate-600
+    doc.text(`Location: ${destination || 'Wholesale Market, Lahore'}`, 18, currentY + 17.5);
+
+    if (customerPhone) {
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Phone: ${customerPhone}`, 18, currentY + 22.5);
+    }
+
+    // Column 2: Dispatch & Logistics Details (Right)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text('DISPATCH & LOGISTICS:', 110, currentY + 6);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(37, 99, 235); // blue-600
+    doc.text(`Bill #${cleanBill}`, 110, currentY + 12);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Date: ${date || new Date().toISOString().split('T')[0]}`, 110, currentY + 17.5);
+
+    const gpInfo = [
+      gatePassNo ? `Gate Pass: ${gatePassNo}` : '',
+      notes ? `Transport: ${notes}` : ''
+    ].filter(Boolean).join('  |  ') || 'Direct Delivery / Goods Transport';
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(gpInfo.length > 45 ? gpInfo.slice(0, 42) + '...' : gpInfo, 110, currentY + 22.5);
+
+    currentY += 31;
+
+    // Compact Data Table
+    const tableData = items.map((item, index) => {
+      const isDirect = item.isWithoutStock || item.articleNo === 'DIRECT-SALE';
+      const code = isDirect ? 'Direct Bill' : (item.articleNo || '—');
+      const desc = isDirect 
+        ? (item.articleName || 'Direct Sale (Bina Stock)')
+        : (item.articleName || item.category || 'Garment Jacket');
+      const qty = Number(item.quantity) || 0;
+      const rate = Number(item.unitSalePrice) || 0;
+      const total = Number(item.totalSaleAmount) || (qty * rate);
+
+      return [
+        index + 1,
+        code,
+        desc,
+        `${qty.toLocaleString()} pcs`,
+        formatPKR(rate),
+        formatPKR(total)
+      ];
+    });
+
+    const computedTotalQty = totalPieces || items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+    const computedTotalAmount = totalBillAmount || items.reduce((s, i) => s + (Number(i.totalSaleAmount) || 0), 0);
+    const numPaid = Number(paidAmount) || 0;
+    const netDue = Math.max(0, computedTotalAmount - numPaid);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['#', 'Article Code', 'Description / Stuff', 'Quantity', 'Unit Rate', 'Total Amount (PKR)']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [248, 250, 252], // slate-50
+        textColor: [15, 23, 42],     // slate-900 high contrast
+        fontSize: 8,
+        fontStyle: 'bold',
+        halign: 'left',
+        lineWidth: 0.2,
+        lineColor: [226, 232, 240]
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2.8,
+        textColor: [51, 65, 85],
+        lineColor: [241, 245, 249],
+        lineWidth: 0.15
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { cellWidth: 32, fontStyle: 'bold', textColor: [15, 23, 42] },
+        2: { cellWidth: 62 },
+        3: { halign: 'right', cellWidth: 24, fontStyle: 'bold' },
+        4: { halign: 'right', cellWidth: 26 },
+        5: { halign: 'right', cellWidth: 28, fontStyle: 'bold', textColor: [15, 23, 42] }
+      },
+      foot: [[
+        { content: 'Bill Subtotal:', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold', textColor: [71, 85, 105] } },
+        { content: `${computedTotalQty.toLocaleString()} pcs`, styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42] } },
+        { content: '', styles: { halign: 'right' } },
+        { content: formatPKR(computedTotalAmount), styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42] } }
+      ]],
+      footStyles: {
+        fillColor: [248, 250, 252],
+        fontSize: 8.5,
+        fontStyle: 'bold',
+        lineColor: [226, 232, 240],
+        lineWidth: 0.2
+      }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 6;
+
+    // Structured Right-Aligned Summary Table & Left Remarks
+    const summaryWidth = 82;
+    const summaryX = pageWidth - 14 - summaryWidth;
+
+    // Left Notes / Policy Block
+    doc.setFillColor(250, 250, 250);
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(14, currentY, 88, 30, 1.5, 1.5, 'FD');
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100, 116, 139);
+    doc.text('TERMS & CONSIGNMENT NOTES:', 18, currentY + 5.5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    doc.text('• Maal ba-hifazat check kar ke wasool paya.', 18, currentY + 11);
+    doc.text('• Billed amount has been recorded in customer khata ledger.', 18, currentY + 16);
+    doc.text('• Valid without physical stamp for computerized khata accounts.', 18, currentY + 21);
+    doc.text('• Central Warehouse: Shahdra / Lahore • 0334-6582412', 18, currentY + 26);
+
+    // Right Structured Tabular Financial Summary
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(summaryX, currentY, summaryWidth, 30, 1.5, 1.5, 'FD');
+
+    const summaryRows = [
+      { label: `Bill Total (${computedTotalQty} pcs):`, val: formatPKR(computedTotalAmount), bold: false, color: [15, 23, 42] },
+      { label: 'Wasooli (Payment Received):', val: formatPKR(numPaid), bold: false, color: [16, 185, 129] },
+      { label: 'Net Bill Baqaya:', val: formatPKR(netDue), bold: true, color: netDue > 0 ? [225, 29, 72] : [16, 185, 129] },
+      { 
+        label: 'Total Khata Balance Due:', 
+        val: formatPKR(customerKhataBalance != null ? customerKhataBalance : netDue), 
+        bold: true, 
+        color: [15, 23, 42],
+        isFinal: true
+      }
+    ];
+
+    let rowY = currentY + 5;
+    summaryRows.forEach((r, idx) => {
+      if (r.isFinal) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(summaryX + 0.3, rowY - 3.8, summaryWidth - 0.6, 7.2, 'F');
+        doc.setDrawColor(226, 232, 240);
+        doc.line(summaryX, rowY - 3.8, summaryX + summaryWidth, rowY - 3.8);
+      }
+
+      doc.setFont('helvetica', r.bold ? 'bold' : 'normal');
+      doc.setFontSize(r.isFinal ? 8 : 7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(r.label, summaryX + 4, rowY);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(r.color[0], r.color[1], r.color[2]);
+      doc.text(r.val, summaryX + summaryWidth - 4, rowY, { align: 'right' });
+
+      rowY += 6.5;
+    });
+
+    currentY += 36;
+
+    // Signatures Footer
+    drawFooter(doc, currentY);
+
+    const safeFile = `Khan_Jacket_Bill_${cleanBill}.pdf`;
+    doc.save(safeFile);
+    return true;
+  } catch (err) {
+    console.error('[downloadDispatchBillPDF Error]:', err);
+    throw err;
+  }
+};

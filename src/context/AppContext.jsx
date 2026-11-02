@@ -173,6 +173,7 @@ export const AppProvider = ({ children }) => {
   const [selectedCustomerKhata, setSelectedCustomerKhata] = useState(null);
   const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState(null);
   const [selectedCustomerForBill, setSelectedCustomerForBill] = useState(null);
+  const [selectedDispatchForBill, setSelectedDispatchForBill] = useState(null);
   const [editingCity, setEditingCity] = useState(null);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
   const [quickSearchTerm, setQuickSearchTerm] = useState('');
@@ -956,6 +957,8 @@ export const AppProvider = ({ children }) => {
         setSelectedCustomerForPayment,
         selectedCustomerForBill,
         setSelectedCustomerForBill,
+        selectedDispatchForBill,
+        setSelectedDispatchForBill,
         editingCity,
         setEditingCity,
 

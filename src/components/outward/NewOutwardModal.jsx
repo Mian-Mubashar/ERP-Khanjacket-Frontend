@@ -5,7 +5,7 @@ import { showToast, showError, showWarning } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
-const generateChallan = () => `CH-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
+const generateBillNo = () => `${Date.now().toString().slice(-4)}`;
 const generateGatePass = () => `GP-${Date.now().toString().slice(-4)}`;
 
 export const NewOutwardModal = () => {
@@ -24,7 +24,7 @@ export const NewOutwardModal = () => {
 
   const [selectedArticleNo, setSelectedArticleNo] = useState('');
   const [quantity, setQuantity] = useState(100);
-  const [challanNo, setChallanNo] = useState(generateChallan);
+  const [challanNo, setChallanNo] = useState(generateBillNo);
   const [date, setDate] = useState(getTodayDate);
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -53,7 +53,7 @@ export const NewOutwardModal = () => {
   // Initialize or reset defaults when modal opens
   useEffect(() => {
     if (isNewOutwardOpen) {
-      setChallanNo(generateChallan());
+      setChallanNo(generateBillNo());
       setGatePassNo(generateGatePass());
       setDate(getTodayDate());
       setIsWithoutStock(false);
@@ -246,7 +246,7 @@ export const NewOutwardModal = () => {
     }
 
     const paidNotice = Number(paidAmount) > 0 ? ` [Wasooli Rs. ${Number(paidAmount).toLocaleString()}]` : '';
-    showToast(`Challan #${challanNo}: ${numQty} pcs dispatched to ${finalCustomerName}!${paidNotice}`, 'success');
+    showToast(`Bill #${challanNo}: ${numQty} pcs dispatched to ${finalCustomerName}!${paidNotice}`, 'success');
     handleClose();
   };
 
@@ -768,12 +768,13 @@ export const NewOutwardModal = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Challan #
+                  Bill # (Parcha / Invoice)
                 </label>
                 <input
                   type="text"
                   value={challanNo}
                   onChange={e => setChallanNo(e.target.value)}
+                  placeholder="e.g. 5318"
                   className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
                 />
               </div>
