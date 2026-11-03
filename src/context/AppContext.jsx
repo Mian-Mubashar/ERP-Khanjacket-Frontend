@@ -150,6 +150,7 @@ export const AppProvider = ({ children }) => {
   const [articles, setArticles] = useState([]);
   const [stuffs, setStuffs] = useState([]);
   const [cities, setCities] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [customerPayments, setCustomerPayments] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -217,6 +218,7 @@ export const AppProvider = ({ children }) => {
         purchasesRes,
         outwardRes,
         citiesRes,
+        areasRes,
         stuffsRes,
         categoriesRes,
         locationsRes,
@@ -231,6 +233,7 @@ export const AppProvider = ({ children }) => {
         api.purchases.list(),
         api.outward.list(),
         api.cities.list(),
+        api.areas.list(),
         api.stuffs.list(),
         api.stuffs.listCategories(),
         api.locations.list(),
@@ -271,6 +274,9 @@ export const AppProvider = ({ children }) => {
       }
       if (citiesRes.status === 'fulfilled' && citiesRes.value?.data) {
         setCities(citiesRes.value.data);
+      }
+      if (areasRes.status === 'fulfilled' && areasRes.value?.data) {
+        setAreas(areasRes.value.data);
       }
       if (stuffsRes.status === 'fulfilled' && stuffsRes.value?.data) {
         setStuffs(stuffsRes.value.data);
@@ -722,6 +728,37 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const addArea = async ({ name, cityName }) => {
+    const trimmedName = (name || '').trim();
+    const trimmedCity = (cityName || '').trim();
+    if (!trimmedName || !trimmedCity) {
+      return { success: false, message: 'Area name and City name are required' };
+    }
+    try {
+      const res = await api.areas.create({ name: trimmedName, cityName: trimmedCity });
+      if (res?.success && res?.data) {
+        setAreas(prev => [...prev.filter(a => a.id !== res.data.id), res.data]);
+        return { success: true, area: res.data };
+      }
+      return { success: false, message: res?.message || 'Failed to add area' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error adding area to MySQL' };
+    }
+  };
+
+  const deleteArea = async (id) => {
+    try {
+      const res = await api.areas.delete(id);
+      if (res?.success) {
+        setAreas(prev => prev.filter(a => a.id !== id));
+        return { success: true };
+      }
+      return { success: false, message: res?.message || 'Failed to delete area' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error deleting area from MySQL' };
+    }
+  };
+
   const addStuff = async (stuffName) => {
     const trimmed = stuffName.trim();
     if (!trimmed) return { success: false, message: 'Stuff / fabric name is required' };
@@ -891,6 +928,8 @@ export const AppProvider = ({ children }) => {
         articles,
         stuffs,
         cities,
+        areas,
+        setAreas,
         customers,
         customerPayments,
         suppliers,
@@ -916,6 +955,8 @@ export const AppProvider = ({ children }) => {
         addCity,
         updateCity,
         deleteCity,
+        addArea,
+        deleteArea,
         addCustomer,
         updateCustomer,
         deleteCustomer,

@@ -195,6 +195,16 @@ export const api = {
     delete: (id) => request(`/cities/${id}`, { method: 'DELETE' })
   },
 
+  // City Areas / Localities
+  areas: {
+    list: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return request(`/areas${query ? `?${query}` : ''}`);
+    },
+    create: (data) => request('/areas', { method: 'POST', body: JSON.stringify(data) }),
+    delete: (id) => request(`/areas/${id}`, { method: 'DELETE' })
+  },
+
   // Fabrics & Categories
   stuffs: {
     list: () => request('/stuffs'),

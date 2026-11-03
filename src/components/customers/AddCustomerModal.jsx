@@ -6,11 +6,12 @@ import { formatLakhCrore } from '../../utils/formatters';
 import { UGRAHI_ROUTES } from '../../constants/ugrahiRoutes';
 
 export const AddCustomerModal = () => {
-  const { isAddCustomerOpen, setIsAddCustomerOpen, cities, addCustomer } = useApp();
+  const { isAddCustomerOpen, setIsAddCustomerOpen, cities, areas = [], addCustomer } = useApp();
 
   const [shopName, setShopName] = useState('');
   const [shopkeeperName, setShopkeeperName] = useState('');
   const [city, setCity] = useState(cities[0]?.name || 'Lahore');
+  const [area, setArea] = useState('');
   const [phone, setPhone] = useState('');
   const [marketAddress, setMarketAddress] = useState('');
   const [openingBalance, setOpeningBalance] = useState('');
@@ -20,6 +21,8 @@ export const AddCustomerModal = () => {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const cityAreas = areas.filter(a => (a.cityName || '').toLowerCase() === (city || '').toLowerCase());
 
   if (!isAddCustomerOpen) return null;
 
@@ -44,6 +47,7 @@ export const AddCustomerModal = () => {
       shopName: shopName.trim(),
       shopkeeperName: (shopkeeperName.trim() || shopName.trim()),
       city,
+      area: area.trim(),
       phone: phone.trim(),
       marketAddress: marketAddress.trim(),
       openingBalance: Number(openingBalance) || 0,
@@ -62,6 +66,7 @@ export const AddCustomerModal = () => {
     setIsAddCustomerOpen(false);
     setShopName('');
     setShopkeeperName('');
+    setArea('');
     setPhone('');
     setMarketAddress('');
     setOpeningBalance('');
@@ -143,21 +148,45 @@ export const AddCustomerModal = () => {
               </div>
             </div>
 
-            {/* Row 2: City / Branch & Phone */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Row 2: City / Branch, Area & Phone (3 Columns) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   City / Branch <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
+                  onChange={(e) => {
+                    setCity(e.target.value);
+                  }}
+                  className="w-full px-3 py-2 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all cursor-pointer"
                 >
                   {cities.map(c => (
                     <option key={c.id} value={c.name}>{c.name}</option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                  <span>Area / Locality</span>
+                  <span className="text-[10px] text-slate-400 font-normal">e.g. Shahdara, Cantt</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="customer-add-areas-list"
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    placeholder="Type or pick area..."
+                    className="w-full px-3 py-2 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                  />
+                  <datalist id="customer-add-areas-list">
+                    {cityAreas.map((a, i) => (
+                      <option key={a.id || i} value={a.name} />
+                    ))}
+                  </datalist>
+                </div>
               </div>
 
               <div>
@@ -169,7 +198,7 @@ export const AddCustomerModal = () => {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0300-1234567"
-                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
+                  className="w-full px-3 py-2 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-hidden transition-all"
                 />
               </div>
             </div>

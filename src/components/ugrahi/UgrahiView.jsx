@@ -20,7 +20,10 @@ import {
   X,
   Filter,
   ChevronDown,
-  MoreVertical
+  MoreVertical,
+  ArrowUp,
+  ArrowDown,
+  ListOrdered
 } from 'lucide-react';
 import Swal, { showToast, confirmDelete, showError } from '../../utils/sweetalert';
 import { downloadUgrahiSheetPDF } from '../../utils/pdfGenerator';
@@ -79,7 +82,7 @@ const SrNoInput = ({ rowId, currentSrNo, totalRows, onMove }) => {
 };
 
 export const UgrahiView = () => {
-  const { customers = [], cities = [], currentUser } = useApp();
+  const { customers = [], cities = [], areas = [], currentUser } = useApp();
 
   // Sheet Meta Information
   const [sheetTitle, setSheetTitle] = useState('All Cities Payment Collection Sheet');
@@ -87,8 +90,15 @@ export const UgrahiView = () => {
   const [collectorName, setCollectorName] = useState(currentUser?.name || 'Admin Khan');
   const [routeLocation, setRouteLocation] = useState('All Wholesale Markets');
   const [selectedCity, setSelectedCity] = useState('ALL');
+  const [selectedAreaFilter, setSelectedAreaFilter] = useState('ALL');
   const [tableSearch, setTableSearch] = useState('');
   const [dueOnly, setDueOnly] = useState(false); // Toggle: Only show customers with balance > 0
+
+  // Area Append & Route Ordering State
+  const [isAppendAreaMenuOpen, setIsAppendAreaMenuOpen] = useState(false);
+  const appendAreaMenuRef = useRef(null);
+  const [isArrangeModalOpen, setIsArrangeModalOpen] = useState(false);
+  const [modalAreaOrder, setModalAreaOrder] = useState([]);
 
   // 20-Item Pagination State
   const [page, setPage] = useState(1);
@@ -107,14 +117,17 @@ export const UgrahiView = () => {
       if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target)) {
         setIsExportOpen(false);
       }
+      if (appendAreaMenuRef.current && !appendAreaMenuRef.current.contains(e.target)) {
+        setIsAppendAreaMenuOpen(false);
+      }
     };
-    if (isExportOpen) {
+    if (isExportOpen || isAppendAreaMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isExportOpen]);
+  }, [isExportOpen, isAppendAreaMenuOpen]);
 
   // Outside click listener for Saved Sheets item 3-dots menu
   useEffect(() => {
@@ -144,10 +157,65 @@ export const UgrahiView = () => {
       name: `${c.shopName} ${c.shopkeeperName ? `(${c.shopkeeperName})` : ''}`,
       address: c.marketAddress ? `${c.marketAddress}, ${c.city}` : c.city || '',
       city: c.ugrahiRoute || c.city || '',
+      area: c.area || '',
       totalDue: Number(c.remainingBalance) || 0,
       wasool: ''
     }));
   };
+
+  // Compute available areas for active route
+  const availableAreasForRoute = useMemo(() => {
+    let cityCustomers = ugrahiCustomers;
+    if (selectedCity && selectedCity !== 'ALL') {
+      cityCustomers = ugrahiCustomers.filter(
+        c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
+      );
+    }
+
+    const areaSet = new Set();
+    if (selectedCity && selectedCity !== 'ALL') {
+      areas
+        .filter(a => (a.cityName || '').toLowerCase() === selectedCity.toLowerCase())
+        .forEach(a => areaSet.add(a.name));
+    } else {
+      areas.forEach(a => areaSet.add(a.name));
+    }
+
+    cityCustomers.forEach(c => {
+      if (c.area && c.area.trim()) {
+        areaSet.add(c.area.trim());
+      }
+    });
+
+    return Array.from(areaSet).sort((a, b) => a.localeCompare(b));
+  }, [areas, ugrahiCustomers, selectedCity]);
+
+  // Compute shop count per area
+  const areaCounts = useMemo(() => {
+    let cityCustomers = ugrahiCustomers;
+    if (selectedCity && selectedCity !== 'ALL') {
+      cityCustomers = ugrahiCustomers.filter(
+        c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
+      );
+    }
+    const counts = { ALL: cityCustomers.length };
+    availableAreasForRoute.forEach(areaName => {
+      counts[areaName] = cityCustomers.filter(
+        c => (c.area || '').toLowerCase() === areaName.toLowerCase()
+      ).length;
+    });
+    return counts;
+  }, [ugrahiCustomers, selectedCity, availableAreasForRoute]);
+
+  // Sort areas for append dropdown: areas with customers first, then alphabetical
+  const sortedAreasForAppend = useMemo(() => {
+    return [...availableAreasForRoute].sort((a, b) => {
+      const countA = areaCounts[a] || 0;
+      const countB = areaCounts[b] || 0;
+      if (countA !== countB) return countB - countA;
+      return a.localeCompare(b);
+    });
+  }, [availableAreasForRoute, areaCounts]);
 
   // Compute shop count per Ugrahi route (Lahore, Raiwind, Sheikhupura, Multan, Sialkot)
   const routeCounts = useMemo(() => {
@@ -226,12 +294,14 @@ export const UgrahiView = () => {
           const freshName = `${cust.shopName} ${cust.shopkeeperName ? `(${cust.shopkeeperName})` : ''}`.trim();
           const freshAddress = cust.marketAddress ? `${cust.marketAddress}, ${cust.city}` : cust.city || '';
           const freshCity = cust.ugrahiRoute || cust.city || '';
+          const freshArea = cust.area || '';
 
           if (
             r.totalDue !== freshDue ||
             r.name !== freshName ||
             r.address !== freshAddress ||
-            r.city !== freshCity
+            r.city !== freshCity ||
+            r.area !== freshArea
           ) {
             hasChanges = true;
             return {
@@ -239,7 +309,8 @@ export const UgrahiView = () => {
               totalDue: freshDue,
               name: freshName,
               address: freshAddress,
-              city: freshCity
+              city: freshCity,
+              area: freshArea
             };
           }
           return r;
@@ -303,23 +374,30 @@ export const UgrahiView = () => {
 
   const remainingBalance = totalOutstanding - totalCollected;
 
-  // Filtered rows for live in-table search
+  // Filtered rows for area filter and live in-table search
   const displayedRows = useMemo(() => {
-    if (!tableSearch.trim()) return rows;
-    const q = tableSearch.toLowerCase();
-    return rows.filter(r => {
-      return (
-        (r.name || '').toLowerCase().includes(q) ||
-        (r.address || '').toLowerCase().includes(q) ||
-        (r.city || '').toLowerCase().includes(q)
-      );
-    });
-  }, [rows, tableSearch]);
+    let list = rows;
+    if (selectedAreaFilter && selectedAreaFilter !== 'ALL') {
+      list = list.filter(r => (r.area || '').toLowerCase() === selectedAreaFilter.toLowerCase());
+    }
+    if (tableSearch && tableSearch.trim()) {
+      const q = tableSearch.toLowerCase();
+      list = list.filter(r => {
+        return (
+          (r.name || '').toLowerCase().includes(q) ||
+          (r.address || '').toLowerCase().includes(q) ||
+          (r.city || '').toLowerCase().includes(q) ||
+          (r.area || '').toLowerCase().includes(q)
+        );
+      });
+    }
+    return list;
+  }, [rows, selectedAreaFilter, tableSearch]);
 
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [tableSearch, selectedCity, dueOnly]);
+  }, [tableSearch, selectedCity, selectedAreaFilter, dueOnly]);
 
   // Sliced rows for 12-item page limit
   const paginatedRows = useMemo(() => {
@@ -371,6 +449,7 @@ export const UgrahiView = () => {
             name: `${matched.shopName} ${matched.shopkeeperName ? `(${matched.shopkeeperName})` : ''}`,
             address: matched.marketAddress ? `${matched.marketAddress}, ${matched.city}` : matched.city || '',
             city: matched.city || '',
+            area: matched.area || '',
             totalDue: matched.remainingBalance || 0,
             customerId: matched.id
           };
@@ -441,6 +520,7 @@ export const UgrahiView = () => {
   // Route Filter Change Handler (Supports 'ALL' and the 5 specific Ugrahi Routes)
   const handleCityChange = (routeName) => {
     setSelectedCity(routeName);
+    setSelectedAreaFilter('ALL');
     setTableSearch('');
 
     if (!routeName || routeName === 'ALL') {
@@ -459,6 +539,124 @@ export const UgrahiView = () => {
     setRows(routeRows);
     setSheetTitle(`${routeName} Payment Collection Sheet`);
     setRouteLocation(`${routeName} Wholesale Route`);
+  };
+
+  // Append Area Customers Sequentially Below Current Sheet
+  const handleAppendArea = (areaName) => {
+    setIsAppendAreaMenuOpen(false);
+
+    let candidates = ugrahiCustomers.filter(
+      c => (c.area || '').toLowerCase() === areaName.toLowerCase()
+    );
+    if (selectedCity && selectedCity !== 'ALL') {
+      candidates = candidates.filter(
+        c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
+      );
+    }
+    if (dueOnly) {
+      candidates = candidates.filter(c => Number(c.remainingBalance || 0) > 0);
+    }
+
+    if (candidates.length === 0) {
+      showToast(`No collection customers found in area "${areaName}"`, 'info');
+      return;
+    }
+
+    setRows(prevRows => {
+      const existingCustIds = new Set(prevRows.filter(r => r.customerId).map(r => r.customerId));
+      const toAdd = candidates.filter(c => !existingCustIds.has(c.id));
+
+      if (toAdd.length === 0) {
+        // If all already exist in sheet, bring them sequentially to bottom
+        const others = prevRows.filter(r => (r.area || '').toLowerCase() !== areaName.toLowerCase());
+        const thisAreaRows = prevRows.filter(r => (r.area || '').toLowerCase() === areaName.toLowerCase());
+        showToast(`Moved ${thisAreaRows.length} "${areaName}" shops to bottom of sheet`, 'success');
+        return [...others, ...thisAreaRows];
+      }
+
+      const newRows = mapCustomersToRows(toAdd, dueOnly);
+      showToast(`Appended ${newRows.length} shops from "${areaName}" below current list!`, 'success');
+      return [...prevRows, ...newRows];
+    });
+  };
+
+  // Open Route Order / Arrange Modal
+  const handleOpenArrangeModal = () => {
+    const presentAreas = [];
+    const seen = new Set();
+    rows.forEach(r => {
+      const a = (r.area || '').trim();
+      if (a && !seen.has(a.toLowerCase())) {
+        seen.add(a.toLowerCase());
+        presentAreas.push(a);
+      }
+    });
+
+    availableAreasForRoute.forEach(a => {
+      if (!seen.has(a.toLowerCase())) {
+        seen.add(a.toLowerCase());
+        presentAreas.push(a);
+      }
+    });
+
+    if (presentAreas.length === 0) {
+      showToast('No areas assigned to customers in this sheet yet.', 'info');
+      return;
+    }
+
+    setModalAreaOrder(presentAreas);
+    setIsArrangeModalOpen(true);
+  };
+
+  // Move Area Up in Modal Sequence
+  const handleMoveAreaUp = (index) => {
+    if (index <= 0) return;
+    setModalAreaOrder(prev => {
+      const copy = [...prev];
+      const temp = copy[index - 1];
+      copy[index - 1] = copy[index];
+      copy[index] = temp;
+      return copy;
+    });
+  };
+
+  // Move Area Down in Modal Sequence
+  const handleMoveAreaDown = (index) => {
+    if (index >= modalAreaOrder.length - 1) return;
+    setModalAreaOrder(prev => {
+      const copy = [...prev];
+      const temp = copy[index + 1];
+      copy[index + 1] = copy[index];
+      copy[index] = temp;
+      return copy;
+    });
+  };
+
+  // Apply Area Sequence Reordering to Rows
+  const handleApplyAreaSequence = () => {
+    setRows(prevRows => {
+      const areaRank = new Map();
+      modalAreaOrder.forEach((name, index) => {
+        areaRank.set(name.toLowerCase(), index);
+      });
+      const fallbackRank = modalAreaOrder.length + 999;
+
+      const sorted = [...prevRows].sort((a, b) => {
+        const rankA = areaRank.has((a.area || '').toLowerCase())
+          ? areaRank.get((a.area || '').toLowerCase())
+          : fallbackRank;
+        const rankB = areaRank.has((b.area || '').toLowerCase())
+          ? areaRank.get((b.area || '').toLowerCase())
+          : fallbackRank;
+
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+
+      showToast('Sheet rearranged by your Area Route sequence!', 'success');
+      return sorted;
+    });
+    setIsArrangeModalOpen(false);
   };
 
   // Toggle "Only Baqaya Due" filter
@@ -487,6 +685,7 @@ export const UgrahiView = () => {
     const allRows = mapCustomersToRows(ugrahiCustomers, dueOnly);
     setRows(allRows);
     setSelectedCity('ALL');
+    setSelectedAreaFilter('ALL');
     setSheetTitle('All Routes Payment Collection Sheet');
     setRouteLocation('All Wholesale Routes');
     setTableSearch('');
@@ -871,7 +1070,7 @@ export const UgrahiView = () => {
         </div>
 
         {/* Streamlined Single Horizontal Filter & Config Bar */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
+        <div className="relative z-30 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
           {/* Single Row: Title, Date, Collector, City Dropdown */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
             {/* Sheet Title */}
@@ -982,6 +1181,129 @@ export const UgrahiView = () => {
               <span>Only Baqaya Due</span>
               {dueOnly && <span className="text-[9px] bg-white/25 px-1 rounded font-bold">Active</span>}
             </button>
+          </div>
+
+          {/* Dedicated Areas Sub-bar: Clean Header + Prominent Actions, and Scrollable/Clean Chips */}
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
+            {/* Header with Title on Left and Actions on Right */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Area Route Planning:</span>
+                </span>
+                <span className="text-[11px] text-slate-400 hidden sm:inline">
+                  (Filter view by area, append specific areas, or sequence route)
+                </span>
+              </div>
+
+              {/* Action Buttons: + Append Area Dropdown & Route Order by Area Button */}
+              <div className="flex items-center gap-2 relative">
+                {/* + Append Area to Sheet Dropdown */}
+                <div className="relative" ref={appendAreaMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsAppendAreaMenuOpen(prev => !prev)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="Add shops of a specific area sequentially below existing list"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Append Area</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-blue-200" />
+                  </button>
+
+                  {isAppendAreaMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 py-2 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-72 overflow-y-auto">
+                      <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/70">
+                        <span>Pick Area to Append Below</span>
+                        <span className="text-[10px] font-mono text-slate-400">{sortedAreasForAppend.length} Areas</span>
+                      </div>
+                      {sortedAreasForAppend.length === 0 ? (
+                        <div className="px-3.5 py-4 text-xs text-slate-400 italic text-center">No areas available</div>
+                      ) : (
+                        sortedAreasForAppend.map(areaName => {
+                          const count = areaCounts[areaName] || 0;
+                          return (
+                            <button
+                              key={areaName}
+                              type="button"
+                              onClick={() => handleAppendArea(areaName)}
+                              className="w-full text-left px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 flex items-center justify-between cursor-pointer transition-colors border-b border-slate-50 dark:border-slate-800/30 last:border-b-0"
+                            >
+                              <span className="font-semibold flex items-center gap-1.5">
+                                <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
+                                <span className="truncate">{areaName}</span>
+                              </span>
+                              <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full shrink-0 ${
+                                count > 0 
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                              }`}>
+                                {count} {count === 1 ? 'shop' : 'shops'}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Arrange / Route Order by Areas Button */}
+                <button
+                  type="button"
+                  onClick={handleOpenArrangeModal}
+                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  title="Organize / Reorder all shops in sheet by Area sequence (e.g. Shahdara first, then Cantt)"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Route Order by Area</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Area Filter Chips Strip */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[11px] font-semibold text-slate-400 mr-1 flex items-center gap-1 shrink-0">
+                <span>View Filter:</span>
+              </span>
+
+              {/* All Areas Chip */}
+              <button
+                type="button"
+                onClick={() => setSelectedAreaFilter('ALL')}
+                className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  selectedAreaFilter === 'ALL' || !selectedAreaFilter
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                All Areas ({areaCounts.ALL})
+              </button>
+
+              {/* Individual Area Chips */}
+              {availableAreasForRoute.map(areaName => {
+                const count = areaCounts[areaName] || 0;
+                const isSelected = selectedAreaFilter.toLowerCase() === areaName.toLowerCase();
+                return (
+                  <button
+                    key={areaName}
+                    type="button"
+                    onClick={() => setSelectedAreaFilter(isSelected ? 'ALL' : areaName)}
+                    className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : count > 0
+                          ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200/60 dark:border-blue-900/40'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>📍 {areaName}</span>
+                    {count > 0 && <span className="font-bold">({count})</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -1115,13 +1437,21 @@ export const UgrahiView = () => {
 
                       {/* Location / Address */}
                       <td className="py-1.5 px-3">
-                        <input
-                          type="text"
-                          value={row.address}
-                          onChange={e => handleRowChange(row.id, 'address', e.target.value)}
-                          placeholder="e.g. Anarkali, Thokar, Raja Bazaar"
-                          className="w-full px-2.5 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 outline-hidden transition-all"
-                        />
+                        <div className="flex items-center gap-1.5">
+                          {row.area && (
+                            <span className="shrink-0 inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/50">
+                              <MapPin className="w-2.5 h-2.5" />
+                              <span>{row.area}</span>
+                            </span>
+                          )}
+                          <input
+                            type="text"
+                            value={row.address}
+                            onChange={e => handleRowChange(row.id, 'address', e.target.value)}
+                            placeholder="e.g. Anarkali, Thokar, Raja Bazaar"
+                            className="w-full px-2.5 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 outline-hidden transition-all"
+                          />
+                        </div>
                       </td>
 
                       {/* Total Balance (Right Aligned Number) */}
@@ -1374,6 +1704,122 @@ export const UgrahiView = () => {
               >
                 Close
               </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* ARRANGE AREA ROUTE SEQUENCE MODAL                         */}
+      {/* ========================================================= */}
+      {isArrangeModalOpen && (
+        <div className="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>Route Sequence by Area</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Arrange your recovery route order. All shops in this sheet will be organized in this area order.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsArrangeModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Area Sequence List */}
+            <div className="p-4 overflow-y-auto space-y-2 flex-1">
+              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>Recovery Sequence Order</span>
+                <span>Use arrows to move up/down</span>
+              </div>
+
+              {modalAreaOrder.map((areaName, idx) => {
+                const count = rows.filter(r => (r.area || '').toLowerCase() === areaName.toLowerCase()).length;
+                return (
+                  <div
+                    key={areaName}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between gap-3 transition-all hover:border-amber-300 dark:hover:border-amber-700/60"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                          📍 {areaName}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          {count} {count === 1 ? 'shop' : 'shops'} in active sheet
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleMoveAreaUp(idx)}
+                        disabled={idx === 0}
+                        className={`p-1.5 rounded-lg border transition-all ${
+                          idx === 0
+                            ? 'opacity-30 border-slate-200 text-slate-400 cursor-not-allowed'
+                            : 'border-slate-200 hover:bg-white hover:border-slate-300 dark:border-slate-700 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs'
+                        }`}
+                        title="Move Up"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleMoveAreaDown(idx)}
+                        disabled={idx === modalAreaOrder.length - 1}
+                        className={`p-1.5 rounded-lg border transition-all ${
+                          idx === modalAreaOrder.length - 1
+                            ? 'opacity-30 border-slate-200 text-slate-400 cursor-not-allowed'
+                            : 'border-slate-200 hover:bg-white hover:border-slate-300 dark:border-slate-700 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs'
+                        }`}
+                        title="Move Down"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Top area (#1) will appear first in the sheet.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsArrangeModalOpen(false)}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyAreaSequence}
+                  className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Apply Route Sequence</span>
+                </button>
+              </div>
             </div>
 
           </div>

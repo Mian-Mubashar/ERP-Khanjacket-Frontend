@@ -1472,7 +1472,7 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
 
     const chunkTableRows = chunk.map((r, rIdx) => [
       chunkIdx * CHUNK_SIZE + rIdx + 1,
-      r.name || '—',
+      r.area ? `${r.name || '—'} [${r.area}]` : (r.name || '—'),
       formatPKR(r.totalDue),
       r.wasool ? formatPKR(r.wasool) : ''
     ]);
