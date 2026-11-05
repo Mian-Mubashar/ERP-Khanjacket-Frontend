@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   ReceiptText,
@@ -99,6 +99,79 @@ export const UgrahiView = () => {
   const appendAreaMenuRef = useRef(null);
   const [isArrangeModalOpen, setIsArrangeModalOpen] = useState(false);
   const [modalAreaOrder, setModalAreaOrder] = useState([]);
+
+  // Persistent Area Sequence Order Map (Permanently remembered across reloads, sheets, and resets)
+  const [areaSequencesMap, setAreaSequencesMap] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kc_area_route_sequences_map');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed === 'object' && parsed !== null) {
+          return parsed;
+        }
+      }
+      const single = localStorage.getItem('kc_preferred_area_sequence');
+      if (single) {
+        const parsedSingle = JSON.parse(single);
+        if (Array.isArray(parsedSingle) && parsedSingle.length > 0) {
+          return { ALL: parsedSingle, Lahore: parsedSingle };
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load area sequence map:', e);
+    }
+    return {};
+  });
+
+  // Save to localStorage whenever areaSequencesMap changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('kc_area_route_sequences_map', JSON.stringify(areaSequencesMap));
+    } catch (e) {
+      console.error('Failed to save area sequences map:', e);
+    }
+  }, [areaSequencesMap]);
+
+  // Helper to get active saved sequence for city/route
+  const getActiveSequence = useCallback((cityKey = selectedCity) => {
+    const key = cityKey || 'ALL';
+    if (areaSequencesMap[key] && Array.isArray(areaSequencesMap[key]) && areaSequencesMap[key].length > 0) {
+      return areaSequencesMap[key];
+    }
+    if (areaSequencesMap['ALL'] && Array.isArray(areaSequencesMap['ALL']) && areaSequencesMap['ALL'].length > 0) {
+      return areaSequencesMap['ALL'];
+    }
+    try {
+      const single = localStorage.getItem('kc_preferred_area_sequence');
+      if (single) {
+        const parsed = JSON.parse(single);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  }, [areaSequencesMap, selectedCity]);
+
+  // Sorter utility: Sorts rows strictly by the active area sequence order
+  const sortRowsByAreaSequence = useCallback((rowsList, sequenceOrder) => {
+    if (!rowsList || rowsList.length === 0) return [];
+    if (!sequenceOrder || sequenceOrder.length === 0) return rowsList;
+
+    const areaRank = new Map();
+    sequenceOrder.forEach((name, index) => {
+      if (name) areaRank.set(String(name).trim().toLowerCase(), index);
+    });
+    const fallbackRank = sequenceOrder.length + 999;
+
+    return [...rowsList].sort((a, b) => {
+      const aArea = (a.area || '').trim().toLowerCase();
+      const bArea = (b.area || '').trim().toLowerCase();
+      const rankA = areaRank.has(aArea) ? areaRank.get(aArea) : fallbackRank;
+      const rankB = areaRank.has(bArea) ? areaRank.get(bArea) : fallbackRank;
+
+      if (rankA !== rankB) return rankA - rankB;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }, []);
 
   // 20-Item Pagination State
   const [page, setPage] = useState(1);
@@ -251,7 +324,7 @@ export const UgrahiView = () => {
       const custMap = new Map(customers.map(c => [c.id, c]));
       const ugrahiIds = new Set(ugrahiCustomers.map(c => c.id));
 
-      // Case A: Initial mount or empty rows -> populate from ugrahiCustomers for active route
+      // Case A: Initial mount or empty rows -> populate from ugrahiCustomers for active route in saved area sequence
       if (!prevRows || prevRows.length === 0) {
         let source = ugrahiCustomers;
         if (selectedCity && selectedCity !== 'ALL') {
@@ -259,7 +332,8 @@ export const UgrahiView = () => {
             c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
           );
         }
-        return mapCustomersToRows(source, dueOnly);
+        const mapped = mapCustomersToRows(source, dueOnly);
+        return sortRowsByAreaSequence(mapped, getActiveSequence(selectedCity));
       }
 
       let hasChanges = false;
@@ -331,12 +405,13 @@ export const UgrahiView = () => {
       if (missingCandidates.length > 0) {
         hasChanges = true;
         const newRows = mapCustomersToRows(missingCandidates, dueOnly);
-        return [...updatedExisting, ...newRows];
+        const combined = [...updatedExisting, ...newRows];
+        return sortRowsByAreaSequence(combined, getActiveSequence(selectedCity));
       }
 
       return hasChanges ? updatedExisting : prevRows;
     });
-  }, [customers, ugrahiCustomers, selectedCity, dueOnly]);
+  }, [customers, ugrahiCustomers, selectedCity, dueOnly, getActiveSequence, sortRowsByAreaSequence]);
 
   // Saved Sheets Library
   const [savedSheets, setSavedSheets] = useState(() => {
@@ -523,9 +598,12 @@ export const UgrahiView = () => {
     setSelectedAreaFilter('ALL');
     setTableSearch('');
 
+    const targetSeq = getActiveSequence(routeName);
+
     if (!routeName || routeName === 'ALL') {
       const allRows = mapCustomersToRows(ugrahiCustomers, dueOnly);
-      setRows(allRows);
+      const sorted = sortRowsByAreaSequence(allRows, targetSeq);
+      setRows(sorted);
       setSheetTitle('All Routes Payment Collection Sheet');
       setRouteLocation('All Wholesale Routes');
       return;
@@ -536,7 +614,8 @@ export const UgrahiView = () => {
     );
 
     const routeRows = mapCustomersToRows(routeCustomers, dueOnly);
-    setRows(routeRows);
+    const sorted = sortRowsByAreaSequence(routeRows, targetSeq);
+    setRows(sorted);
     setSheetTitle(`${routeName} Payment Collection Sheet`);
     setRouteLocation(`${routeName} Wholesale Route`);
   };
@@ -582,20 +661,57 @@ export const UgrahiView = () => {
 
   // Open Route Order / Arrange Modal
   const handleOpenArrangeModal = () => {
+    const currentKey = selectedCity || 'ALL';
+    const activeSeq = getActiveSequence(currentKey);
     const presentAreas = [];
     const seen = new Set();
+
+    // Collect all areas currently present in sheet rows
+    const sheetAreaMap = new Map();
     rows.forEach(r => {
       const a = (r.area || '').trim();
-      if (a && !seen.has(a.toLowerCase())) {
-        seen.add(a.toLowerCase());
+      if (a) {
+        sheetAreaMap.set(a.toLowerCase(), a);
+      }
+    });
+
+    // 1. First: Areas present in current sheet that have a saved sequence order (in exact saved order!)
+    activeSeq.forEach(a => {
+      const trimmed = (a || '').trim();
+      const lower = trimmed.toLowerCase();
+      if (trimmed && sheetAreaMap.has(lower) && !seen.has(lower)) {
+        seen.add(lower);
+        presentAreas.push(sheetAreaMap.get(lower) || trimmed);
+      }
+    });
+
+    // 2. Then: Any areas present in active sheet that are not yet in the saved sequence
+    rows.forEach(r => {
+      const a = (r.area || '').trim();
+      const lower = a.toLowerCase();
+      if (a && !seen.has(lower)) {
+        seen.add(lower);
         presentAreas.push(a);
       }
     });
 
+    // 3. Then: Any other saved sequence areas for this route (even if currently 0 active shops)
+    activeSeq.forEach(a => {
+      const trimmed = (a || '').trim();
+      const lower = trimmed.toLowerCase();
+      if (trimmed && !seen.has(lower)) {
+        seen.add(lower);
+        presentAreas.push(trimmed);
+      }
+    });
+
+    // 4. Finally: Any remaining registered areas for this route
     availableAreasForRoute.forEach(a => {
-      if (!seen.has(a.toLowerCase())) {
-        seen.add(a.toLowerCase());
-        presentAreas.push(a);
+      const trimmed = (a || '').trim();
+      const lower = trimmed.toLowerCase();
+      if (trimmed && !seen.has(lower)) {
+        seen.add(lower);
+        presentAreas.push(trimmed);
       }
     });
 
@@ -632,31 +748,37 @@ export const UgrahiView = () => {
     });
   };
 
-  // Apply Area Sequence Reordering to Rows
+  // Reset modal sequence to alphabetical order
+  const handleResetModalOrderToAZ = () => {
+    setModalAreaOrder(prev => [...prev].sort((a, b) => a.localeCompare(b)));
+    showToast('Reset to alphabetical order (click Save to permanently save)', 'info');
+  };
+
+  // Apply Area Sequence Reordering to Rows & Save Permanently in LocalStorage
   const handleApplyAreaSequence = () => {
+    const currentKey = selectedCity || 'ALL';
+
+    // 1. Permanently update sequence map & localStorage
+    setAreaSequencesMap(prev => ({
+      ...prev,
+      [currentKey]: modalAreaOrder,
+      ALL: modalAreaOrder // also set as general fallback
+    }));
+    try {
+      localStorage.setItem('kc_preferred_area_sequence', JSON.stringify(modalAreaOrder));
+    } catch (e) {}
+
+    // 2. Sort current active rows immediately using this sequence
     setRows(prevRows => {
-      const areaRank = new Map();
-      modalAreaOrder.forEach((name, index) => {
-        areaRank.set(name.toLowerCase(), index);
-      });
-      const fallbackRank = modalAreaOrder.length + 999;
-
-      const sorted = [...prevRows].sort((a, b) => {
-        const rankA = areaRank.has((a.area || '').toLowerCase())
-          ? areaRank.get((a.area || '').toLowerCase())
-          : fallbackRank;
-        const rankB = areaRank.has((b.area || '').toLowerCase())
-          ? areaRank.get((b.area || '').toLowerCase())
-          : fallbackRank;
-
-        if (rankA !== rankB) return rankA - rankB;
-        return (a.name || '').localeCompare(b.name || '');
-      });
-
-      showToast('Sheet rearranged by your Area Route sequence!', 'success');
+      const sorted = sortRowsByAreaSequence(prevRows, modalAreaOrder);
+      try {
+        localStorage.setItem('kc_active_collection_rows', JSON.stringify(sorted));
+      } catch (e) {}
       return sorted;
     });
+
     setIsArrangeModalOpen(false);
+    showToast('Area route sequence saved permanently! All future sheets & reloads will use this order.', 'success');
   };
 
   // Toggle "Only Baqaya Due" filter
@@ -672,7 +794,8 @@ export const UgrahiView = () => {
     }
 
     const updated = mapCustomersToRows(source, nextDue);
-    setRows(updated);
+    const sorted = sortRowsByAreaSequence(updated, getActiveSequence(selectedCity));
+    setRows(sorted);
   };
 
   // Reset / Load All Collection Customers Button
@@ -682,32 +805,61 @@ export const UgrahiView = () => {
       setRows([]);
       return;
     }
-    const allRows = mapCustomersToRows(ugrahiCustomers, dueOnly);
-    setRows(allRows);
-    setSelectedCity('ALL');
+    const targetCity = selectedCity || 'ALL';
+    let source = ugrahiCustomers;
+    if (targetCity !== 'ALL') {
+      source = ugrahiCustomers.filter(
+        c => (c.ugrahiRoute || c.city || '').toLowerCase() === targetCity.toLowerCase()
+      );
+    }
+    const allRows = mapCustomersToRows(source, dueOnly);
+    const sorted = sortRowsByAreaSequence(allRows, getActiveSequence(targetCity));
+    setRows(sorted);
+    try {
+      localStorage.setItem('kc_active_collection_rows', JSON.stringify(sorted));
+    } catch (e) {}
     setSelectedAreaFilter('ALL');
-    setSheetTitle('All Routes Payment Collection Sheet');
-    setRouteLocation('All Wholesale Routes');
     setTableSearch('');
-    showToast(`Loaded ${allRows.length} collection accounts!`, 'success');
+    showToast(`Loaded ${sorted.length} collection accounts in saved area sequence!`, 'success');
   };
 
-  // Reset to New Fresh Blank Sheet
+  // Start Fresh New Collection Sheet
   const handleNewSheet = async () => {
-    const ok = await confirmDelete({
-      title: 'Create Blank Collection Sheet?',
-      text: 'This will clear the table for custom manual entry. (Click "Reset" anytime to reload database customers).',
-      confirmButtonText: 'Yes, New Blank Sheet'
+    const isDark = document.documentElement.classList.contains('dark');
+    const result = await Swal.fire({
+      title: 'Start New Collection Sheet?',
+      text: 'This will start a fresh sheet with all collection accounts arranged in your saved area sequence (clearing collected wasooli entries).',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Start New Sheet',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#2563eb',
+      background: isDark ? '#0f172a' : '#ffffff',
+      color: isDark ? '#f8fafc' : '#0f172a'
     });
-    if (ok) {
-      setRows([
-        { id: `row-${Date.now()}-1`, name: '', address: '', city: '', totalDue: '', wasool: '' }
-      ]);
-      setSheetTitle('Daily Collection Sheet');
-      setRouteLocation('City Market');
-      setSelectedCity('ALL');
+
+    if (result.isConfirmed) {
+      const targetCity = selectedCity || 'ALL';
+      let source = ugrahiCustomers;
+      if (targetCity !== 'ALL') {
+        source = ugrahiCustomers.filter(
+          c => (c.ugrahiRoute || c.city || '').toLowerCase() === targetCity.toLowerCase()
+        );
+      }
+      const freshRows = mapCustomersToRows(source, dueOnly);
+      const sorted = sortRowsByAreaSequence(freshRows, getActiveSequence(targetCity));
+      setRows(sorted);
+      try {
+        localStorage.setItem('kc_active_collection_rows', JSON.stringify(sorted));
+      } catch (e) {}
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      setSheetDate(todayStr);
+      setSheetTitle(`${targetCity === 'ALL' ? 'All Routes' : targetCity} Payment Collection Sheet`);
+      setRouteLocation(targetCity === 'ALL' ? 'All Wholesale Routes' : `${targetCity} Wholesale Route`);
       setTableSearch('');
-      showToast('Blank sheet ready', 'info');
+      setSelectedAreaFilter('ALL');
+      showToast(`Fresh collection sheet started with ${sorted.length} accounts in saved area sequence!`, 'success');
     }
   };
 
@@ -1719,12 +1871,17 @@ export const UgrahiView = () => {
             {/* Header */}
             <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span>Route Sequence by Area</span>
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Arrange your recovery route order. All shops in this sheet will be organized in this area order.
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>Route Sequence by Area</span>
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    Auto-Saved Permanent
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Set area recovery order. Once saved, this sequence is permanently remembered for all sheets and reloads.
                 </p>
               </div>
               <button
@@ -1740,7 +1897,17 @@ export const UgrahiView = () => {
             <div className="p-4 overflow-y-auto space-y-2 flex-1">
               <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
                 <span>Recovery Sequence Order</span>
-                <span>Use arrows to move up/down</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResetModalOrderToAZ}
+                    className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer lowercase"
+                  >
+                    reset to a-z
+                  </button>
+                  <span>•</span>
+                  <span>Use arrows to move</span>
+                </div>
               </div>
 
               {modalAreaOrder.map((areaName, idx) => {
@@ -1817,7 +1984,7 @@ export const UgrahiView = () => {
                   className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Apply Route Sequence</span>
+                  <span>Save & Apply Sequence</span>
                 </button>
               </div>
             </div>
