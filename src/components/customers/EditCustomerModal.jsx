@@ -90,7 +90,7 @@ export const EditCustomerModal = () => {
       const numOpening = Number(openingBalance) || 0;
       const res = await updateCustomer(editingCustomer.id, {
         shopName: shopName.trim(),
-        shopkeeperName: (shopkeeperName.trim() || shopName.trim()),
+        shopkeeperName: shopkeeperName.trim() || '',
         city,
         area: area.trim(),
         phone: phone.trim(),

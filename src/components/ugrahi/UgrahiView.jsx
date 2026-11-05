@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import Swal, { showToast, confirmDelete, showError } from '../../utils/sweetalert';
 import { downloadUgrahiSheetPDF } from '../../utils/pdfGenerator';
+import { formatCustomerDisplayName } from '../../utils/formatters';
 import { Pagination } from '../common/Pagination';
 import { UGRAHI_ROUTES } from '../../constants/ugrahiRoutes';
 import logoImg from '../../images/khan jacket logo.png';
@@ -227,7 +228,7 @@ export const UgrahiView = () => {
     return list.map((c) => ({
       id: `cust-${c.id}`,
       customerId: c.id,
-      name: `${c.shopName} ${c.shopkeeperName ? `(${c.shopkeeperName})` : ''}`,
+      name: formatCustomerDisplayName(c.shopName, c.shopkeeperName),
       address: c.marketAddress ? `${c.marketAddress}, ${c.city}` : c.city || '',
       city: c.ugrahiRoute || c.city || '',
       area: c.area || '',
@@ -306,7 +307,10 @@ export const UgrahiView = () => {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map(r => ({
+            ...r,
+            name: formatCustomerDisplayName(r.name)
+          }));
         }
       } catch (e) {
         // fallback
@@ -365,7 +369,7 @@ export const UgrahiView = () => {
           if (!cust) return r;
 
           const freshDue = Number(cust.remainingBalance) || 0;
-          const freshName = `${cust.shopName} ${cust.shopkeeperName ? `(${cust.shopkeeperName})` : ''}`.trim();
+          const freshName = formatCustomerDisplayName(cust.shopName, cust.shopkeeperName);
           const freshAddress = cust.marketAddress ? `${cust.marketAddress}, ${cust.city}` : cust.city || '';
           const freshCity = cust.ugrahiRoute || cust.city || '';
           const freshArea = cust.area || '';
@@ -508,10 +512,11 @@ export const UgrahiView = () => {
   // Handle typing or choosing customer from datalist
   const handleCustomerNameChange = (rowId, val) => {
     const matched = customers.find(c => {
-      const fullLabel = `${c.shopName} ${c.shopkeeperName ? `(${c.shopkeeperName})` : ''}`.trim();
+      const fullLabel = formatCustomerDisplayName(c.shopName, c.shopkeeperName);
       return (
         fullLabel.toLowerCase() === val.trim().toLowerCase() ||
-        c.shopName.toLowerCase() === val.trim().toLowerCase()
+        (c.shopName && c.shopName.toLowerCase() === val.trim().toLowerCase()) ||
+        (c.shopkeeperName && c.shopkeeperName.toLowerCase() === val.trim().toLowerCase())
       );
     });
 
@@ -521,7 +526,7 @@ export const UgrahiView = () => {
           if (r.id !== rowId) return r;
           return {
             ...r,
-            name: `${matched.shopName} ${matched.shopkeeperName ? `(${matched.shopkeeperName})` : ''}`,
+            name: formatCustomerDisplayName(matched.shopName, matched.shopkeeperName),
             address: matched.marketAddress ? `${matched.marketAddress}, ${matched.city}` : matched.city || '',
             city: matched.city || '',
             area: matched.area || '',
@@ -1504,7 +1509,7 @@ export const UgrahiView = () => {
             {customers.map(c => (
               <option 
                 key={c.id} 
-                value={`${c.shopName} ${c.shopkeeperName ? `(${c.shopkeeperName})` : ''}`}
+                value={formatCustomerDisplayName(c.shopName, c.shopkeeperName)}
               />
             ))}
           </datalist>

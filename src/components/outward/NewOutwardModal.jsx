@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { X, Truck, AlertCircle, CheckCircle2, Search, User, Package, CreditCard, FileText } from 'lucide-react';
 import { showToast, showError, showWarning } from '../../utils/sweetalert';
-import { formatLakhCrore } from '../../utils/formatters';
+import { formatLakhCrore, formatCustomerDisplayName } from '../../utils/formatters';
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 const generateBillNo = () => `${Date.now().toString().slice(-4)}`;
@@ -64,7 +64,7 @@ export const NewOutwardModal = () => {
       if (selectedCustomerForBill) {
         if (selectedCustomerForBill.city) setSelectedCity(selectedCustomerForBill.city);
         setSelectedCustomerId(selectedCustomerForBill.id || '');
-        setCustomerName(`${selectedCustomerForBill.shopName} (${selectedCustomerForBill.shopkeeperName || ''})`);
+        setCustomerName(formatCustomerDisplayName(selectedCustomerForBill.shopName, selectedCustomerForBill.shopkeeperName));
         setCustomerPhone(selectedCustomerForBill.phone || '');
         setDestination(selectedCustomerForBill.marketAddress || selectedCustomerForBill.city || '');
       } else if (cities.length > 0) {
@@ -105,7 +105,8 @@ export const NewOutwardModal = () => {
   useEffect(() => {
     if (isNewOutwardOpen) {
       if (selectedCustomerForBill) {
-        setCustomerSearchQuery(`${selectedCustomerForBill.shopName} (${selectedCustomerForBill.shopkeeperName || ''}) - ${selectedCustomerForBill.city || ''}`);
+        const cName = formatCustomerDisplayName(selectedCustomerForBill.shopName, selectedCustomerForBill.shopkeeperName);
+        setCustomerSearchQuery(`${cName} - ${selectedCustomerForBill.city || ''}`);
       } else {
         setCustomerSearchQuery('');
       }
@@ -140,10 +141,11 @@ export const NewOutwardModal = () => {
       const matchCity = cities.find(ct => ct.name.toLowerCase() === c.city.toLowerCase());
       setSelectedCity(matchCity ? matchCity.name : c.city);
     }
-    setCustomerName(`${c.shopName} (${c.shopkeeperName || ''})`);
+    const cName = formatCustomerDisplayName(c.shopName, c.shopkeeperName);
+    setCustomerName(cName);
     setCustomerPhone(c.phone || '');
     setDestination(c.marketAddress || c.city || '');
-    setCustomerSearchQuery(`${c.shopName} (${c.shopkeeperName || ''}) - ${c.city}`);
+    setCustomerSearchQuery(`${cName} - ${c.city}`);
     setIsSearchDropdownOpen(false);
   };
 
@@ -158,10 +160,11 @@ export const NewOutwardModal = () => {
     const found = opt || customers.find(c => c.id === custId);
     if (found) {
       if (found.city) setSelectedCity(found.city);
-      setCustomerName(`${found.shopName} (${found.shopkeeperName || ''})`);
+      const cName = formatCustomerDisplayName(found.shopName, found.shopkeeperName);
+      setCustomerName(cName);
       setCustomerPhone(found.phone || '');
       setDestination(found.marketAddress || found.city);
-      setCustomerSearchQuery(`${found.shopName} (${found.shopkeeperName || ''}) - ${found.city}`);
+      setCustomerSearchQuery(`${cName} - ${found.city}`);
     } else {
       setCustomerSearchQuery('');
     }
@@ -461,7 +464,7 @@ export const NewOutwardModal = () => {
                     <option value="">-- Choose or Type Below --</option>
                     {cityCustomers.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.shopName} ({c.shopkeeperName})
+                        {formatCustomerDisplayName(c.shopName, c.shopkeeperName)}
                       </option>
                     ))}
                   </select>

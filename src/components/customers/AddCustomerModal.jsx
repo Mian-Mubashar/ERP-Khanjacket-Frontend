@@ -45,7 +45,7 @@ export const AddCustomerModal = () => {
 
     const res = await addCustomer({
       shopName: shopName.trim(),
-      shopkeeperName: (shopkeeperName.trim() || shopName.trim()),
+      shopkeeperName: shopkeeperName.trim() || '',
       city,
       area: area.trim(),
       phone: phone.trim(),
