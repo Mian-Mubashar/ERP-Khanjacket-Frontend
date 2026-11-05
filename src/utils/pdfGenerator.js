@@ -1470,12 +1470,16 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
 
     const isLastChunk = chunkIdx === chunks.length - 1;
 
-    const chunkTableRows = chunk.map((r, rIdx) => [
-      chunkIdx * CHUNK_SIZE + rIdx + 1,
-      r.area ? `${r.name || '—'} [${r.area}]` : (r.name || '—'),
-      formatPKR(r.totalDue),
-      r.wasool ? formatPKR(r.wasool) : ''
-    ]);
+    const chunkTableRows = chunk.map((r, rIdx) => {
+      let displayName = (r.name || '—').trim();
+      displayName = displayName.replace(/\s*\[[^\]]+\]\s*$/, '').trim() || '—';
+      return [
+        chunkIdx * CHUNK_SIZE + rIdx + 1,
+        displayName,
+        formatPKR(r.totalDue),
+        r.wasool ? formatPKR(r.wasool) : ''
+      ];
+    });
 
     autoTable(doc, {
       startY,
