@@ -1385,58 +1385,58 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Total Customers:', 18, 53.5);
+  doc.text('Customers:', 17, 53.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(8.5);
-  doc.text(`${rows.length} Registered Shops`, 48, 53.5);
+  doc.text(`${rows.length} Shops`, 37, 53.5);
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Collection Date:', 18, 60);
+  doc.text('Date:', 17, 60);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(8.5);
-  doc.text(formattedDate, 48, 60);
+  doc.text(formattedDate, 37, 60);
 
   // Col 2: Collector & Route
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Recovery Officer:', 86, 53.5);
+  doc.text('Officer:', 74, 53.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(8.5);
-  doc.text(agentName, 114, 53.5);
+  doc.text(agentName, 90, 53.5);
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Target Route:', 86, 60);
+  doc.text('Route:', 74, 60);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(8.5);
-  doc.text(routeName, 114, 60);
+  doc.text(routeName, 90, 60);
 
   // Col 3: Financial Totals (Prominent & High Contrast)
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Total Outstanding:', 140, 53.5);
+  doc.text('Total Outstanding:', 135, 53.5);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(225, 29, 72); // rose-600
-  doc.text(formatPKR(totalDues), 190, 53.5, { align: 'right' });
+  doc.text(formatPKR(totalDues), 193, 53.5, { align: 'right' });
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Total Wasooli:', 140, 60);
+  doc.text('Total Wasooli:', 135, 60);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(16, 185, 129); // emerald-600
-  doc.text(formatPKR(totalWasool), 190, 60, { align: 'right' });
+  doc.text(formatPKR(totalWasool), 193, 60, { align: 'right' });
 
   // Map all rows cleanly (stripping any stray [area] brackets)
   const tableRows = rows.map((r, rIdx) => {
@@ -1474,10 +1474,10 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
       lineWidth: 0.15
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 12, fontStyle: 'bold' },
-      1: { fontStyle: 'bold', cellWidth: 108 },
-      2: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 32 },
-      3: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 30 }
+      0: { halign: 'center', cellWidth: 10, fontStyle: 'bold' },
+      1: { fontStyle: 'bold' },
+      2: { halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 35 },
+      3: { halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 32 }
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252]
@@ -1490,11 +1490,11 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
       },
       {
         content: formatPKR(totalDues),
-        styles: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], fontSize: 10 }
+        styles: { halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72], fontSize: 10 }
       },
       {
         content: formatPKR(totalWasool),
-        styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 10 }
+        styles: { halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 10 }
       }
     ]],
     footStyles: { 
