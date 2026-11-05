@@ -3,6 +3,7 @@
  */
 export const UGRAHI_ROUTES = [
   'Lahore',
+  'Androon Lahore',
   'Raiwind',
   'Sheikhupura',
   'Multan',
