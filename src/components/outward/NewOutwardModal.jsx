@@ -41,6 +41,8 @@ export const NewOutwardModal = () => {
   const [customArticleNo, setCustomArticleNo] = useState('');
   const [itemDescription, setItemDescription] = useState('');
   const [isWithoutStock, setIsWithoutStock] = useState(false);
+  const [directBillAmount, setDirectBillAmount] = useState('');
+  const [maalSource, setMaalSource] = useState('MK Collection');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -57,6 +59,8 @@ export const NewOutwardModal = () => {
       setGatePassNo(generateGatePass());
       setDate(getTodayDate());
       setIsWithoutStock(false);
+      setDirectBillAmount('');
+      setMaalSource('MK Collection');
       setItemDescription('');
       setError('');
       setSuccess('');
@@ -192,23 +196,70 @@ export const NewOutwardModal = () => {
   };
 
   const activeArticleCode = isCustomArticle ? customArticleNo.trim().toUpperCase() : selectedArticleNo;
-  const totalBillAmount = (Number(quantity) || 0) * (Number(unitSalePrice) || 0);
+  const totalBillAmount = isWithoutStock 
+    ? (Number(directBillAmount) || 0)
+    : ((Number(quantity) || 0) * (Number(unitSalePrice) || 0));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    if (!isWithoutStock && !activeArticleCode) {
-      showError('Article Required', 'Please select or enter an Article Code to dispatch.');
-      setError('Please select or enter an Article Code to dispatch.');
-      return;
-    }
-
     const finalCustomerName = customerName.trim();
     if (!finalCustomerName) {
       showError('Customer Required', 'Customer / Shop Name is required.');
       setError('Customer / Shop Name is required.');
+      return;
+    }
+
+    // DIRECT BILL (WITHOUT STOCK) FLOW
+    if (isWithoutStock) {
+      const amount = Number(directBillAmount);
+      if (!amount || amount <= 0) {
+        showError('Total Bill Amount Required', 'Please enter a valid Total Bill Amount.');
+        setError('Please enter a valid Total Bill Amount.');
+        return;
+      }
+      if (!challanNo.trim()) {
+        showError('Bill # Required', 'Please enter Bill # (Parcha / Invoice #).');
+        setError('Please enter Bill # (Parcha / Invoice #).');
+        return;
+      }
+
+      const res = await addOutward({
+        articleNo: 'DIRECT-SALE',
+        articleName: maalSource,
+        quantity: 1,
+        unitSalePrice: amount,
+        challanNo: challanNo.trim(),
+        date,
+        city: selectedCity,
+        customerId: selectedCustomerId || null,
+        customerName: finalCustomerName,
+        customerPhone: customerPhone.trim(),
+        destination: destination.trim() || selectedCity,
+        paidAmount: 0,
+        paymentMethod: 'CASH',
+        gatePassNo: 'DIRECT',
+        notes: `Maal Source: ${maalSource}`,
+        isWithoutStock: true
+      });
+
+      if (!res || !res.success) {
+        showError('Dispatch Failed', res?.message || 'Error recording outward dispatch');
+        setError(res?.message || 'Error recording outward dispatch');
+        return;
+      }
+
+      showToast(`Bill #${challanNo}: Rs. ${amount.toLocaleString()} (${maalSource}) billed to ${finalCustomerName}!`, 'success');
+      handleClose();
+      return;
+    }
+
+    // STANDARD INVENTORY WITH-STOCK FLOW
+    if (!activeArticleCode) {
+      showError('Article Required', 'Please select or enter an Article Code to dispatch.');
+      setError('Please select or enter an Article Code to dispatch.');
       return;
     }
 
@@ -219,13 +270,13 @@ export const NewOutwardModal = () => {
       return;
     }
 
-    if (!isWithoutStock && !isCustomArticle && numQty > availableStock) {
+    if (!isCustomArticle && numQty > availableStock) {
       showWarning('Stock Alert', `Dispatching ${numQty} pcs. Warehouse recorded stock is ${availableStock} pcs.`);
     }
 
     const res = await addOutward({
-      articleNo: isWithoutStock ? 'DIRECT-SALE' : activeArticleCode,
-      articleName: isWithoutStock ? (itemDescription.trim() || 'Direct Bill (Bina Stock)') : undefined,
+      articleNo: activeArticleCode,
+      articleName: undefined,
       quantity: numQty,
       challanNo: challanNo.trim(),
       date,
@@ -239,7 +290,7 @@ export const NewOutwardModal = () => {
       paymentMethod,
       gatePassNo: gatePassNo.trim(),
       notes: notes.trim(),
-      isWithoutStock: Boolean(isWithoutStock)
+      isWithoutStock: false
     });
 
     if (!res || !res.success) {
@@ -500,326 +551,427 @@ export const NewOutwardModal = () => {
             )}
           </div>
 
-          {/* Section 2: Items & Financials (2 Roomy Cards) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-            
-            {/* Card 2A: Garment & Stock / Bill Items */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4 flex flex-col justify-between">
+          {/* Mode Switcher Banner: With Stock vs Without Stock */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
+                isWithoutStock
+                  ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300'
+                  : 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300'
+              }`}>
+                {isWithoutStock ? '⚡' : '📦'}
+              </div>
               <div>
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-3.5">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
-                      isWithoutStock
-                        ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400'
-                        : 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400'
-                    }`}>
-                      <Package className="w-3.5 h-3.5" />
-                    </div>
-                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                      {isWithoutStock ? 'Items & Quantity' : 'Garment & Stock'}
-                    </h3>
-                  </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  Billing Mode: {isWithoutStock ? 'Without Stock (Direct Bill)' : 'With Stock (Inventory Dispatch)'}
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  {isWithoutStock 
+                    ? 'Sirf Bill #, Bill Raqam, Date aur Maal Source — Stock deduct nahi hoga'
+                    : 'Godam inventory se stock pieces minus honge aur customer khata update hoga'}
+                </div>
+              </div>
+            </div>
 
-                  {/* Two-Way Toggle: With Stock vs Without Stock */}
-                  <div className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs shadow-2xs">
-                    <button
-                      type="button"
-                      onClick={() => setIsWithoutStock(false)}
-                      className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                        !isWithoutStock
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      With Stock
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsWithoutStock(true)}
-                      className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                        isWithoutStock
-                          ? 'bg-amber-600 text-white shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      Without Stock
-                    </button>
+            <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setIsWithoutStock(false)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  !isWithoutStock
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                With Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsWithoutStock(true)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  isWithoutStock
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Without Stock
+              </button>
+            </div>
+          </div>
+
+          {isWithoutStock ? (
+            /* WITHOUT STOCK MODE: Strictly 4 fields (Bill #, Total Bill Amount, Date, Kis Jaga Se Maal Aya) */
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border-2 border-amber-500/40 dark:border-amber-500/30 p-5 sm:p-6 shadow-sm space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      Direct Bill Details (Without Stock)
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Total Bill Amount seedha customer khata ma add hogi
+                    </p>
                   </div>
                 </div>
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800">
+                  4 Fields Only
+                </span>
+              </div>
 
-                {!isWithoutStock ? (
-                  /* WITH STOCK: Full Article Code Selector */
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                        Article / Garment Code <span className="text-rose-500">*</span>
-                      </label>
-                      {!isCustomArticle && (
-                        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                          Godam Stock: <strong className="text-slate-800 dark:text-slate-200">{availableStock.toLocaleString()}</strong> pcs
-                        </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                {/* 1. Bill # (Parcha / Invoice) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Bill # (Parcha / Invoice) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={challanNo}
+                    onChange={e => setChallanNo(e.target.value)}
+                    placeholder="e.g. 5318"
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">Bill / Challan number</span>
+                </div>
+
+                {/* 2. Total Bill Amount (PKR) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Total Bill Amount (PKR) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                      Rs.
+                    </span>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={directBillAmount}
+                      onChange={e => setDirectBillAmount(e.target.value)}
+                      placeholder="e.g. 50000"
+                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-1 block">Kul bill ki direct raqam</span>
+                </div>
+
+                {/* 3. Date */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all cursor-pointer"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">Bill dispatch tareekh</span>
+                </div>
+
+                {/* 4. Kis Jaga Se Maal Aya? */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Kis Jaga Se Maal Aya? <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={maalSource}
+                    onChange={e => setMaalSource(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-amber-50/60 hover:bg-amber-50 dark:bg-slate-800 dark:hover:bg-slate-750 border-2 border-amber-400/80 dark:border-amber-600/80 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-hidden focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all cursor-pointer"
+                  >
+                    <option value="MK Collection">MK Collection</option>
+                    <option value="Khan Jacket House">Khan Jacket House</option>
+                  </select>
+                  <span className="text-[10px] text-slate-400 mt-1 block">Maal source option</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* WITH STOCK MODE: Full Inventory Garments, Pricing & Logistics */
+            <>
+              {/* Section 2: Items & Financials (2 Roomy Cards) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+                
+                {/* Card 2A: Garment & Stock */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-3.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                          <Package className="w-3.5 h-3.5" />
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                          Garment & Stock
+                        </h3>
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-medium">Article & Pieces</span>
+                    </div>
+
+                    {/* WITH STOCK: Full Article Code Selector */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                          Article / Garment Code <span className="text-rose-500">*</span>
+                        </label>
+                        {!isCustomArticle && (
+                          <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                            Godam Stock: <strong className="text-slate-800 dark:text-slate-200">{availableStock.toLocaleString()}</strong> pcs
+                          </span>
+                        )}
+                      </div>
+
+                      {!isCustomArticle ? (
+                        <select
+                          value={selectedArticleNo}
+                          onChange={e => handleArticleSelect(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all cursor-pointer"
+                        >
+                          {articles.filter(a => a.articleNo !== 'DIRECT-SALE').map(a => (
+                            <option key={a.articleNo} value={a.articleNo}>
+                              {a.articleNo} — {a.name} ({a.currentStock} pcs stock)
+                            </option>
+                          ))}
+                          <option value="__NEW__">+ Custom Article Code...</option>
+                        </select>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. JK-2026"
+                            value={customArticleNo}
+                            onChange={e => setCustomArticleNo(e.target.value)}
+                            className="flex-1 px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomArticle(false)}
+                            className="px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                          >
+                            List
+                          </button>
+                        </div>
                       )}
                     </div>
 
-                    {!isCustomArticle ? (
-                      <select
-                        value={selectedArticleNo}
-                        onChange={e => handleArticleSelect(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all cursor-pointer"
-                      >
-                        {articles.filter(a => a.articleNo !== 'DIRECT-SALE').map(a => (
-                          <option key={a.articleNo} value={a.articleNo}>
-                            {a.articleNo} — {a.name} ({a.currentStock} pcs stock)
-                          </option>
-                        ))}
-                        <option value="__NEW__">+ Custom Article Code...</option>
-                      </select>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. JK-2026"
-                          value={customArticleNo}
-                          onChange={e => setCustomArticleNo(e.target.value)}
-                          className="flex-1 px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
-                        />
+                    {/* Quantity Input */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                        Quantity (Pieces) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={quantity}
+                        onChange={e => setQuantity(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick Fill Pills & Stock Preview */}
+                  <div className="flex items-center justify-between text-xs pt-3 flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800/60">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-medium text-slate-400">Quick:</span>
+                      {[50, 100, 200, 500].map(q => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => setQuantity(q)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                            Number(quantity) === q
+                              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold'
+                              : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          }`}
+                        >
+                          {q}
+                        </button>
+                      ))}
+                      {availableStock > 0 && (
                         <button
                           type="button"
-                          onClick={() => setIsCustomArticle(false)}
-                          className="px-3.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                          onClick={() => setQuantity(availableStock)}
+                          className="px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                         >
-                          List
+                          All ({availableStock})
                         </button>
-                      </div>
+                      )}
+                    </div>
+
+                    {!isCustomArticle && (
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Remaining: <strong className="font-mono text-slate-700 dark:text-slate-200">{Math.max(0, availableStock - Number(quantity || 0)).toLocaleString()} pcs</strong>
+                      </span>
                     )}
                   </div>
-                ) : (
-                  /* WITHOUT STOCK: Simple Optional Description (No Article required) */
-                  <div className="mb-4">
-                    <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                      Item / Mal Description <span className="text-slate-400 font-normal">(Optional)</span>
+                </div>
+
+                {/* Card 2B: Pricing & Khata */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-3.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                          <CreditCard className="w-3.5 h-3.5" />
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                          Pricing & Khata
+                        </h3>
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-medium">Sale rate & payment</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Rate per Piece (PKR)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="e.g. 3400"
+                          value={unitSalePrice}
+                          onChange={e => setUnitSalePrice(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-semibold text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Total Bill Amount
+                        </label>
+                        <div className="w-full px-3.5 py-2.5 bg-slate-100/80 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                          <span className="text-xs text-slate-400 font-sans font-medium">PKR</span>
+                          <span>Rs. {totalBillAmount.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Upfront Payment Fields */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Payment Received (Optional)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0 (if unpaid)"
+                          value={paidAmount}
+                          onChange={e => setPaidAmount(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Payment Method
+                        </label>
+                        <select
+                          value={paymentMethod}
+                          onChange={e => setPaymentMethod(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden cursor-pointer transition-all"
+                        >
+                          <option value="CASH">Cash</option>
+                          <option value="BANK_TRANSFER">Bank Transfer</option>
+                          <option value="CHEQUE">Cheque</option>
+                          <option value="ONLINE">Online / Easypaisa</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live Khata Balance Strip */}
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs font-mono">
+                    <span className="text-slate-500 dark:text-slate-400 font-sans text-xs">
+                      Bill: <strong className="font-mono text-slate-800 dark:text-slate-200">Rs. {totalBillAmount.toLocaleString()}</strong>
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400 font-sans text-xs">
+                      Received: <strong className="font-mono text-emerald-600 dark:text-emerald-400">Rs. {(Number(paidAmount) || 0).toLocaleString()}</strong>
+                    </span>
+                    <span className="text-slate-700 dark:text-slate-200 font-sans text-xs">
+                      Net Baqaya: <strong className="font-mono text-rose-600 dark:text-rose-400 font-bold">Rs. {Math.max(0, totalBillAmount - (Number(paidAmount) || 0)).toLocaleString()}</strong>
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Section 3: Logistics & Documentation Card */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center">
+                      <FileText className="w-3.5 h-3.5" />
+                    </div>
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      Logistics & Documentation
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">Challan & Gate Pass Details</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Bill # (Parcha / Invoice)
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Mixed Jackets / Garments (or leave blank)"
-                      value={itemDescription}
-                      onChange={e => setItemDescription(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                      value={challanNo}
+                      onChange={e => setChallanNo(e.target.value)}
+                      placeholder="e.g. 5318"
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
                     />
                   </div>
-                )}
 
-                {/* Quantity Input */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                    Quantity (Pieces) <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={quantity}
-                    onChange={e => setQuantity(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base font-mono font-bold text-slate-900 dark:text-white focus:border-blue-500 outline-hidden transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Quick Fill Pills & Stock Preview */}
-              <div className="flex items-center justify-between text-xs pt-3 flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800/60">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-medium text-slate-400">Quick:</span>
-                  {[50, 100, 200, 500].map(q => (
-                    <button
-                      key={q}
-                      type="button"
-                      onClick={() => setQuantity(q)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
-                        Number(quantity) === q
-                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold'
-                          : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      {q}
-                    </button>
-                  ))}
-                  {!isWithoutStock && availableStock > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(availableStock)}
-                      className="px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                    >
-                      All ({availableStock})
-                    </button>
-                  )}
-                </div>
-
-                {!isWithoutStock && !isCustomArticle && (
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    Remaining: <strong className="font-mono text-slate-700 dark:text-slate-200">{Math.max(0, availableStock - Number(quantity || 0)).toLocaleString()} pcs</strong>
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Card 2B: Pricing & Khata */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-3.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                      <CreditCard className="w-3.5 h-3.5" />
-                    </div>
-                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                      Pricing & Khata
-                    </h3>
-                  </div>
-                  <span className="text-[11px] text-slate-400 font-medium">Sale rate & payment</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Rate per Piece (PKR)
+                      Dispatch Date
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g. 3400"
-                      value={unitSalePrice}
-                      onChange={e => setUnitSalePrice(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-semibold text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                      type="date"
+                      value={date}
+                      onChange={e => setDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Total Bill Amount
-                    </label>
-                    <div className="w-full px-3.5 py-2.5 bg-slate-100/80 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                      <span className="text-xs text-slate-400 font-sans font-medium">PKR</span>
-                      <span>Rs. {totalBillAmount.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Upfront Payment Fields */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Payment Received (Optional)
+                      Gate Pass # <span className="text-slate-400 font-normal">(Optional)</span>
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      placeholder="0 (if unpaid)"
-                      value={paidAmount}
-                      onChange={e => setPaidAmount(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500 transition-all"
+                      type="text"
+                      value={gatePassNo}
+                      onChange={e => setGatePassNo(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Payment Method
+                      Transport / Remarks <span className="text-slate-400 font-normal">(Optional)</span>
                     </label>
-                    <select
-                      value={paymentMethod}
-                      onChange={e => setPaymentMethod(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden cursor-pointer transition-all"
-                    >
-                      <option value="CASH">Cash</option>
-                      <option value="BANK_TRANSFER">Bank Transfer</option>
-                      <option value="CHEQUE">Cheque</option>
-                      <option value="ONLINE">Online / Easypaisa</option>
-                    </select>
+                    <input
+                      type="text"
+                      placeholder="e.g. Goods Transport"
+                      value={notes}
+                      onChange={e => setNotes(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
+                    />
                   </div>
                 </div>
               </div>
-
-              {/* Live Khata Balance Strip */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs font-mono">
-                <span className="text-slate-500 dark:text-slate-400 font-sans text-xs">
-                  Bill: <strong className="font-mono text-slate-800 dark:text-slate-200">Rs. {totalBillAmount.toLocaleString()}</strong>
-                </span>
-                <span className="text-slate-500 dark:text-slate-400 font-sans text-xs">
-                  Received: <strong className="font-mono text-emerald-600 dark:text-emerald-400">Rs. {(Number(paidAmount) || 0).toLocaleString()}</strong>
-                </span>
-                <span className="text-slate-700 dark:text-slate-200 font-sans text-xs">
-                  Net Baqaya: <strong className="font-mono text-rose-600 dark:text-rose-400 font-bold">Rs. {Math.max(0, totalBillAmount - (Number(paidAmount) || 0)).toLocaleString()}</strong>
-                </span>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Section 3: Logistics & Documentation Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center">
-                  <FileText className="w-3.5 h-3.5" />
-                </div>
-                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                  Logistics & Documentation
-                </h3>
-              </div>
-              <span className="text-[11px] text-slate-400 font-medium">Challan & Gate Pass Details</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Bill # (Parcha / Invoice)
-                </label>
-                <input
-                  type="text"
-                  value={challanNo}
-                  onChange={e => setChallanNo(e.target.value)}
-                  placeholder="e.g. 5318"
-                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Dispatch Date
-                </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Gate Pass # <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={gatePassNo}
-                  onChange={e => setGatePassNo(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Transport / Remarks <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Goods Transport"
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
-                />
-              </div>
-            </div>
-          </div>
+            </>
+          )}
 
         </form>
 

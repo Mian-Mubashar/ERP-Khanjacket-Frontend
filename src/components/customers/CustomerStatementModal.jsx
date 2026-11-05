@@ -143,7 +143,9 @@ export const CustomerStatementModal = () => {
       type: 'DISPATCH',
       ref: cleanBillNo ? `BILL-${cleanBillNo}` : d.challanNo,
       desc: `Bill #${cleanBillNo} — ${articleLabel}`,
-      subDesc: `${(d.quantity || 0).toLocaleString()} pcs @ Rs. ${(d.unitSalePrice || 0).toLocaleString()} ${d.destination ? `| Muqam: ${d.destination}` : ''}`,
+      subDesc: isDirect
+        ? `Maal Source: ${d.articleName || 'Direct Bill'} ${d.destination ? `| Muqam: ${d.destination}` : ''}`
+        : `${(d.quantity || 0).toLocaleString()} pcs @ Rs. ${(d.unitSalePrice || 0).toLocaleString()} ${d.destination ? `| Muqam: ${d.destination}` : ''}`,
       debit: Number(d.totalSaleAmount) || 0,
       credit: 0
     });

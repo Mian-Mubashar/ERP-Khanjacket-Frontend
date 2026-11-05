@@ -113,7 +113,8 @@ const BillDetailModalContent = () => {
   }, [customers, selectedDispatchForBill, selectedCustomerKhata]);
 
   // Financial calculations
-  const totalPieces = billItems.reduce((s, i) => s + (Number(i?.quantity) || 0), 0);
+  const isDirectBill = billItems.length > 0 && billItems.every(i => Boolean(i?.isWithoutStock) || i?.articleNo === 'DIRECT-SALE');
+  const totalPieces = isDirectBill ? 0 : billItems.reduce((s, i) => s + (Number(i?.quantity) || 0), 0);
   const totalBillAmount = billItems.reduce((s, i) => {
     const saleAmt = Number(i?.totalSaleAmount);
     if (!isNaN(saleAmt) && saleAmt > 0) return s + saleAmt;
@@ -345,10 +346,10 @@ const BillDetailModalContent = () => {
                           {desc}
                         </td>
                         <td className="py-2 px-3.5 text-right font-bold text-slate-900 dark:text-white">
-                          {qty.toLocaleString()} pcs
+                          {isDirect ? '—' : `${qty.toLocaleString()} pcs`}
                         </td>
                         <td className="py-2 px-3.5 text-right text-slate-700 dark:text-slate-300">
-                          Rs. {rate.toLocaleString()}
+                          {isDirect ? '—' : `Rs. ${rate.toLocaleString()}`}
                         </td>
                         <td className="py-2 px-3.5 text-right font-bold text-slate-900 dark:text-white">
                           Rs. {total.toLocaleString()}
@@ -363,7 +364,7 @@ const BillDetailModalContent = () => {
                       Bill Total:
                     </td>
                     <td className="py-2.5 px-3.5 text-right font-mono text-slate-900 dark:text-white">
-                      {totalPieces.toLocaleString()} pcs
+                      {isDirectBill ? 'Direct Bill' : `${totalPieces.toLocaleString()} pcs`}
                     </td>
                     <td></td>
                     <td className="py-2.5 px-3.5 text-right font-mono text-slate-900 dark:text-white text-sm">
