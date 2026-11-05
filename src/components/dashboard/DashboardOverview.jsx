@@ -547,7 +547,7 @@ export const DashboardOverview = ({ setActiveTab }) => {
                   TOTAL EXPENSE
                 </span>
                 <span className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-0.5 block tracking-tight">
-                  Rs. {formatNumber(periodTotalExpenses)}
+                  RMB. {formatNumber(periodTotalExpenses)}
                 </span>
                 <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
                   Factory & Freight Paid
