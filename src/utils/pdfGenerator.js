@@ -1769,6 +1769,251 @@ export const downloadSuppliersListPDF = (suppliersList = []) => {
   doc.save(`China_Suppliers_Register_${fileDate}.pdf`);
 };
 
+/**
+ * Professional Wholesale Customers & Shopkeepers Register PDF
+ * Lists all shops, shopkeepers, contact, city/route, pieces dispatched, total bill, payments received & outstanding balance
+ */
+export const downloadCustomersListPDF = (customersList = [], filterInfo = {}) => {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const totalCustomers = customersList.length;
+  const totalPieces = customersList.reduce((sum, c) => sum + (Number(c.totalPiecesReceived) || 0), 0);
+  const totalBilled = customersList.reduce((sum, c) => sum + (Number(c.totalBill) || 0), 0);
+  const totalPaid = customersList.reduce((sum, c) => sum + (Number(c.totalPaid) || 0), 0);
+  const totalDue = customersList.reduce((sum, c) => sum + (Number(c.remainingBalance) || 0), 0);
+  const dueCount = customersList.filter(c => (Number(c.remainingBalance) || 0) > 0).length;
+  const settledCount = customersList.filter(c => (Number(c.remainingBalance) || 0) <= 0).length;
+
+  // Header Subtitle info
+  let subtitle = `Wholesale Buyers Directory & Khata Register | Audit Date: ${printDate}`;
+  if (filterInfo?.label) {
+    subtitle = `${filterInfo.label} | Audit Date: ${printDate}`;
+  } else if (filterInfo?.city && filterInfo.city !== 'ALL') {
+    subtitle = `City: ${filterInfo.city} | ${subtitle}`;
+  }
+
+  // Draw Page 1 Brand Header
+  drawHeader(
+    doc,
+    'CUSTOMERS & SHOPKEEPERS REGISTER',
+    subtitle,
+    'Customers Ledger'
+  );
+
+  // Executive KPI Summary Box (2x3 grid, clean, crisp)
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(12, 47, 186, 18, 2, 2, 'FD');
+
+  // Col 1: Customer Counts & Status
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Total Customers:', 16, 53.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(8.5);
+  doc.text(`${totalCustomers} Registered Shops`, 43, 53.5);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Active Balances:', 16, 60);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(225, 29, 72);
+  doc.text(`${dueCount} Due`, 43, 60);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`(${settledCount} Settled)`, 57, 60);
+
+  // Col 2: Mal Sent & Total Billed
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Total Mal Sent:', 88, 53.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(8.5);
+  doc.text(`${totalPieces.toLocaleString()} Pcs`, 114, 53.5);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Total Billed:', 88, 60);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(formatPKR(totalBilled), 114, 60);
+
+  // Col 3: Wasooli & Net Baqaya
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Total Wasooli:', 148, 53.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(16, 185, 129);
+  doc.text(formatPKR(totalPaid), 170, 53.5);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Net Baqaya Due:', 148, 60);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(225, 29, 72);
+  doc.text(formatPKR(totalDue), 170, 60);
+
+  // Format table rows
+  const tableRows = customersList.map((c, idx) => {
+    const shopName = (c.shopName || 'Unknown Shop').trim();
+    const owner = c.shopkeeperName ? `(${c.shopkeeperName.trim()})` : '';
+    const nameCell = owner ? `${shopName}\n${owner}` : shopName;
+
+    const phone = c.phone ? c.phone.trim() : '—';
+    const address = c.marketAddress ? c.marketAddress.trim() : '';
+    const contactCell = address ? `${phone}\n${address}` : phone;
+
+    const city = c.city || '—';
+    const route = c.inUgrahi ? (c.ugrahiRoute ? `Route: ${c.ugrahiRoute}` : 'In Collection') : 'Excluded';
+    const cityCell = `${city}\n${route}`;
+
+    const pcs = `${(Number(c.totalPiecesReceived) || 0).toLocaleString()} pcs`;
+    const billed = formatPKR(c.totalBill || 0);
+    const wasooli = formatPKR(c.totalPaid || 0);
+    const balance = formatPKR(c.remainingBalance || 0);
+    const isDue = (Number(c.remainingBalance) || 0) > 0;
+    const status = isDue ? 'Due' : 'Clear';
+
+    return [
+      idx + 1,
+      nameCell,
+      contactCell,
+      cityCell,
+      pcs,
+      billed,
+      wasooli,
+      balance,
+      status
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 69,
+    margin: { top: 46, bottom: 20, left: 12, right: 12 },
+    head: [['#', 'Shop / Shopkeeper', 'Phone & Address', 'City / Route', 'Mal Sent', 'Total Bill', 'Wasooli', 'Baqaya Due', 'Status']],
+    body: tableRows.length ? tableRows : [['-', 'No customer records available', '-', '-', '0 pcs', 'Rs. 0', 'Rs. 0', 'Rs. 0', 'Clear']],
+    theme: 'grid',
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: 8.5,
+      fontStyle: 'bold',
+      halign: 'left',
+      minCellHeight: 8,
+      lineColor: [30, 41, 59],
+      lineWidth: 0.2
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+      textColor: [30, 41, 59],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.15,
+      valign: 'middle'
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252]
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 8, fontStyle: 'bold' },
+      1: { cellWidth: 38, fontStyle: 'bold' },
+      2: { cellWidth: 32, textColor: [71, 85, 105] },
+      3: { halign: 'center', cellWidth: 20 },
+      4: { halign: 'right', cellWidth: 16 },
+      5: { halign: 'right', cellWidth: 20 },
+      6: { halign: 'right', cellWidth: 20, fontStyle: 'bold', textColor: [16, 185, 129] },
+      7: { halign: 'right', cellWidth: 20, fontStyle: 'bold', textColor: [225, 29, 72] },
+      8: { halign: 'center', cellWidth: 12, fontStyle: 'bold' }
+    },
+    foot: [[
+      {
+        content: `TOTAL (${customersList.length} SHOPS):`,
+        colSpan: 4,
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 8.5 }
+      },
+      {
+        content: `${totalPieces.toLocaleString()} pcs`,
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 8 }
+      },
+      {
+        content: formatPKR(totalBilled),
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 8 }
+      },
+      {
+        content: formatPKR(totalPaid),
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], fontSize: 8 }
+      },
+      {
+        content: formatPKR(totalDue),
+        styles: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], fontSize: 8 }
+      },
+      {
+        content: dueCount > 0 ? `${dueCount} Due` : 'Clear',
+        styles: { halign: 'center', fontStyle: 'bold', textColor: dueCount > 0 ? [225, 29, 72] : [16, 185, 129], fontSize: 7.5 }
+      }
+    ]],
+    footStyles: {
+      fillColor: [241, 245, 249],
+      minCellHeight: 8,
+      lineColor: [203, 213, 225],
+      lineWidth: 0.2
+    },
+    showFoot: 'lastPage',
+    didDrawPage: (data) => {
+      if (data.pageNumber > 1) {
+        drawHeader(
+          doc,
+          'CUSTOMERS & SHOPKEEPERS REGISTER',
+          `${subtitle} (Page ${data.pageNumber})`,
+          'Customers Ledger'
+        );
+      }
+    }
+  });
+
+  // Footer / Signatures Block on last page
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const finalY = doc.lastAutoTable?.finalY || 100;
+  if (finalY > pageHeight - 36) {
+    doc.addPage();
+    drawHeader(
+      doc,
+      'CUSTOMERS & SHOPKEEPERS REGISTER',
+      'Verification & Audit Signatures',
+      'Customers Ledger'
+    );
+    drawFooter(doc, 48);
+  } else {
+    drawFooter(doc, finalY);
+  }
+
+  // Page numbering stamp on all pages
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Page ${p} of ${totalPages}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 4, { align: 'right' });
+  }
+
+  const fileCity = (filterInfo?.city && filterInfo.city !== 'ALL' ? filterInfo.city : 'All_Cities').replace(/[^a-zA-Z0-9]/g, '_');
+  const fileDate = new Date().toISOString().split('T')[0];
+  doc.save(`Customers_Register_${fileCity}_${fileDate}.pdf`);
+};
+
 // -------------------------------------------------------------
 // 10. WHOLESALE OUTWARD DISPATCH BILL (MAAL PARCHA) PDF
 // -------------------------------------------------------------

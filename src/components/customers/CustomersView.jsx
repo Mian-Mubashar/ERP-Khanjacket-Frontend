@@ -16,11 +16,13 @@ import {
   X,
   RotateCcw,
   MoreVertical,
-  ReceiptText
+  ReceiptText,
+  Download
 } from 'lucide-react';
 import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
 import { Pagination } from '../common/Pagination';
 import { UGRAHI_ROUTES } from '../../constants/ugrahiRoutes';
+import { downloadCustomersListPDF } from '../../utils/pdfGenerator';
 
 export const CustomersView = () => {
   const { 
@@ -160,6 +162,32 @@ export const CustomersView = () => {
     setIsEditCustomerOpen(true);
   };
 
+  const handleExportPDF = () => {
+    const targetList = filteredCustomers.length > 0 ? filteredCustomers : customers;
+    if (targetList.length === 0) {
+      showToast('No customers found to export', 'info');
+      return;
+    }
+
+    let filterLabel = '';
+    if (isFiltered) {
+      const parts = [];
+      if (selectedCity !== 'ALL') parts.push(`City: ${selectedCity}`);
+      if (balanceFilter === 'DUE') parts.push('Due Accounts');
+      if (balanceFilter === 'CLEAR') parts.push('Settled Accounts');
+      if (ugrahiFilter === 'IN_UGRAHI') parts.push('In Collection Route');
+      if (ugrahiFilter === 'NOT_UGRAHI') parts.push('Excluded from Route');
+      if (searchTerm.trim()) parts.push(`Search: "${searchTerm.trim()}"`);
+      filterLabel = parts.join(', ');
+    }
+
+    downloadCustomersListPDF(targetList, {
+      city: selectedCity,
+      label: filterLabel
+    });
+    showToast(`Customers Register PDF (${targetList.length} shops) downloaded!`, 'success');
+  };
+
   return (
     <div className="space-y-6">
       
@@ -175,6 +203,17 @@ export const CustomersView = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Download Customers List PDF Button */}
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-xs font-semibold rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            title="Download Customers Register PDF"
+          >
+            <Download className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span>Download PDF</span>
+          </button>
+
           {/* New Customer Bill / Outward Dispatch Button */}
           <button
             type="button"
@@ -425,6 +464,17 @@ export const CustomersView = () => {
             <span>Reset</span>
           </button>
         )}
+
+        {/* PDF Export in Filter Bar */}
+        <button
+          type="button"
+          onClick={handleExportPDF}
+          className="px-3.5 py-2 text-xs rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 font-medium ml-auto"
+          title="Print or download PDF of visible customers"
+        >
+          <FileText className="w-3.5 h-3.5 text-rose-500" />
+          <span>Export PDF ({filteredCustomers.length})</span>
+        </button>
       </div>
 
       {/* Main Customers Table */}
