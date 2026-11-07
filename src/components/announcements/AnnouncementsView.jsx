@@ -33,6 +33,7 @@ import {
 import { formatCustomerDisplayName } from '../../utils/formatters';
 import { showToast } from '../../utils/sweetalert';
 import { Pagination } from '../common/Pagination';
+import { calculateCustomerPaymentPendingDays, getOverdueCustomerReminders } from '../../utils/paymentReminders';
 
 export const AnnouncementsView = () => {
   const {
@@ -229,11 +230,12 @@ export const AnnouncementsView = () => {
     }).sort((a, b) => b.rawDate - a.rawDate);
   }, [outward]);
 
-  // 4. Process Customer Ledger Balance Alerts
+  // 4. Process Customer Ledger Balance Alerts (with 10+ Days Overdue Wasooli Tracking)
   const customerAlerts = useMemo(() => {
     return (customers || []).map(c => {
       const bal = Number(c.remainingBalance) || 0;
       const isDue = bal > 0;
+      const pendingStats = calculateCustomerPaymentPendingDays(c, customerPayments, outward);
       return {
         id: `cust-${c.id}`,
         type: 'CUSTOMER',
@@ -248,15 +250,54 @@ export const AnnouncementsView = () => {
         totalPaid: Number(c.totalPaid) || 0,
         totalPiecesReceived: Number(c.totalPiecesReceived) || 0,
         isDue,
+        isOverdue: pendingStats.isOverdue,
+        daysPending: pendingStats.daysPending,
+        unpaidSinceDateStr: pendingStats.unpaidSinceDateStr,
+        unpaidSinceReason: pendingStats.reason,
         inUgrahi: Boolean(c.inUgrahi),
         ugrahiRoute: c.ugrahiRoute
       };
-    }).sort((a, b) => b.remainingBalance - a.remainingBalance);
-  }, [customers]);
+    }).sort((a, b) => {
+      if (b.isOverdue !== a.isOverdue) return b.isOverdue ? 1 : -1;
+      if (b.daysPending !== a.daysPending) return b.daysPending - a.daysPending;
+      return b.remainingBalance - a.remainingBalance;
+    });
+  }, [customers, customerPayments, outward]);
+
+  const overdueReminders = useMemo(() => {
+    return getOverdueCustomerReminders(customers, customerPayments, outward);
+  }, [customers, customerPayments, outward]);
 
   // 5. Combined Timeline Feed (All Events sorted chronologically / priority)
   const unifiedTimeline = useMemo(() => {
     const combined = [];
+
+    // Add Overdue Wasooli Reminders (10+ Days without payment)
+    overdueReminders.forEach(rem => {
+      combined.push({
+        id: rem.id,
+        eventCategory: 'OVERDUE_PAYMENT',
+        customer: rem.customer,
+        customerId: rem.customerId,
+        customerName: rem.customerName,
+        shopkeeperName: rem.shopkeeperName,
+        city: rem.city || '',
+        location: rem.city || 'Shop',
+        articleNo: 'Khata Reminder',
+        articleName: `Payment not received for ${rem.daysPending} days`,
+        category: 'Customer Khata',
+        stuff: `${rem.daysPending} Days Overdue`,
+        badgeBg: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-800',
+        tierLabel: `${rem.daysPending}d Overdue`,
+        urgency: `${rem.daysPending} Days Overdue`,
+        severity: `Payment Pending ${rem.daysPending} Days`,
+        notes: `No wasooli received for ${rem.daysPending} days (Since ${rem.unpaidSinceDateStr})`,
+        amount: rem.balance,
+        remainingBalance: rem.balance,
+        daysPending: rem.daysPending,
+        sortTimestamp: Date.now() + 5000000
+      });
+    });
 
     // Add stock alerts
     stockAlerts.slice(0, 20).forEach(s => {
@@ -286,7 +327,7 @@ export const AnnouncementsView = () => {
     });
 
     return combined.sort((a, b) => b.sortTimestamp - a.sortTimestamp);
-  }, [stockAlerts, wasooliList, billsList]);
+  }, [overdueReminders, stockAlerts, wasooliList, billsList]);
 
   // Filtered Stock Alerts
   const filteredStockAlerts = useMemo(() => {
@@ -337,6 +378,7 @@ export const AnnouncementsView = () => {
   // Filtered Customers
   const filteredCustomerAlerts = useMemo(() => {
     return customerAlerts.filter(c => {
+      if (customersSubFilter === 'OVERDUE' && !c.isOverdue) return false;
       if (customersSubFilter === 'DUE' && !c.isDue) return false;
       if (customersSubFilter === 'SETTLED' && c.isDue) return false;
       if (selectedCity !== 'ALL' && c.city && c.city.toLowerCase() !== selectedCity.toLowerCase()) {
@@ -380,6 +422,7 @@ export const AnnouncementsView = () => {
   const totalCustomerDueSum = customers.reduce((s, c) => s + (Number(c.remainingBalance) || 0), 0);
   const pendingCustomersCount = customers.filter(c => (Number(c.remainingBalance) || 0) > 0).length;
   const settledCustomersCount = customers.filter(c => (Number(c.remainingBalance) || 0) <= 0).length;
+  const overdueCustomersCount = customerAlerts.filter(c => c.isOverdue).length;
 
   const handleRefresh = async () => {
     try {
@@ -581,7 +624,11 @@ export const AnnouncementsView = () => {
                 Rs. {Math.round(totalCustomerDueSum).toLocaleString()}
               </div>
               <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                {pendingCustomersCount} Shops with balance due • Click to view
+                {pendingCustomersCount} Shops with balance due
+                {overdueCustomersCount > 0 && (
+                  <span className="text-rose-600 dark:text-rose-400 font-bold"> • {overdueCustomersCount} Overdue (10+ days)</span>
+                )}
+                {' • '}Click to view
               </div>
             </div>
           </div>
@@ -1173,14 +1220,27 @@ export const AnnouncementsView = () => {
 
               <button
                 type="button"
+                onClick={() => handleCustomersSubFilterChange('OVERDUE')}
+                className={`px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  customersSubFilter === 'OVERDUE'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-rose-500" />
+                <span>Overdue Wasooli (10+ Days)</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => handleCustomersSubFilterChange('DUE')}
                 className={`px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                   customersSubFilter === 'DUE'
-                    ? 'bg-rose-600 text-white shadow-xs'
+                    ? 'bg-amber-600 text-white shadow-xs'
                     : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
               >
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                 <span>Pending Baqaya Due</span>
               </button>
 
@@ -1200,7 +1260,7 @@ export const AnnouncementsView = () => {
 
             {/* Context Info Pill */}
             <div className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1 rounded-xl">
-              Kul <strong>{filteredCustomerAlerts.length}</strong> dukaanein ({pendingCustomersCount} par baqaya hai)
+              Kul <strong>{filteredCustomerAlerts.length}</strong> dukaanein ({pendingCustomersCount} par baqaya hai{overdueCustomersCount > 0 ? `, ${overdueCustomersCount} overdue 10+ days` : ''})
             </div>
           </div>
 
@@ -1306,9 +1366,19 @@ export const AnnouncementsView = () => {
 
                             {/* Status */}
                             <td className="py-4 px-4 text-center whitespace-nowrap">
-                              {c.isDue ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300/60 dark:border-rose-800">
-                                  <AlertTriangle className="w-3 h-3 text-rose-600" />
+                              {c.isOverdue ? (
+                                <div className="inline-flex flex-col items-center">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300/80 dark:border-rose-800 animate-pulse">
+                                    <Clock className="w-3 h-3 text-rose-600" />
+                                    <span>{c.daysPending}d Overdue</span>
+                                  </span>
+                                  <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold mt-0.5">
+                                    10+ Days No Payment
+                                  </span>
+                                </div>
+                              ) : c.isDue ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800">
+                                  <AlertTriangle className="w-3 h-3 text-amber-600" />
                                   <span>Baqaya Due</span>
                                 </span>
                               ) : (
@@ -1406,6 +1476,64 @@ export const AnnouncementsView = () => {
                       .slice((page - 1) * pageSize, page * pageSize)
                       .map((item, idx) => {
                         const rowNumber = (page - 1) * pageSize + idx + 1;
+
+                        if (item.eventCategory === 'OVERDUE_PAYMENT') {
+                          return (
+                            <tr key={item.id} className="hover:bg-rose-50/40 dark:hover:bg-rose-950/20 bg-rose-50/15 dark:bg-rose-950/10 transition-colors">
+                              <td className="py-4 px-4 text-center text-slate-400 font-mono whitespace-nowrap">{rowNumber}</td>
+                              <td className="py-4 px-4 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800 animate-pulse">
+                                  <Clock className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                                  <span>{item.daysPending}d Overdue</span>
+                                </span>
+                              </td>
+                              <td className="py-4 px-4 font-mono font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                                Khata Reminder
+                              </td>
+                              <td className="py-4 px-4 font-bold text-slate-900 dark:text-white">
+                                {item.customerName}
+                                <span className="text-rose-600 dark:text-rose-400 font-medium block text-xs">
+                                  Payment Reminder: No wasooli received for {item.daysPending} days
+                                </span>
+                              </td>
+                              <td className="py-4 px-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                {item.city || '—'}
+                              </td>
+                              <td className="py-4 px-4 font-semibold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                                {item.daysPending} Days Overdue
+                              </td>
+                              <td className="py-4 px-4 text-right whitespace-nowrap">
+                                <span className="font-mono font-bold text-sm text-rose-600 dark:text-rose-400">
+                                  Rs. {Math.round(item.amount).toLocaleString()}
+                                </span>
+                                <span className="text-[10px] text-slate-400 block font-normal">Pending Baqaya</span>
+                              </td>
+                              <td className="py-4 px-4 text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedCustomerKhata(item.customer)}
+                                    className="px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    <span>Khata</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCustomerForPayment(item.customer);
+                                      setIsRecordCustomerPaymentOpen(true);
+                                    }}
+                                    className="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs flex items-center gap-1"
+                                  >
+                                    <Wallet className="w-3.5 h-3.5" />
+                                    <span>+ Wasooli</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
 
                         if (item.eventCategory === 'STOCK') {
                           return (

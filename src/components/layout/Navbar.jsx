@@ -22,9 +22,11 @@ import {
   Bell,
   AlertTriangle,
   ArrowDownLeft,
-  Wallet
+  Wallet,
+  Clock
 } from 'lucide-react';
 import { showToast } from '../../utils/sweetalert';
+import { getOverdueCustomerReminders } from '../../utils/paymentReminders';
 
 export const Navbar = () => {
   const { 
@@ -45,7 +47,9 @@ export const Navbar = () => {
     setSelectedDispatchForBill,
     setIsQuickSearchOpen,
     setActiveTab,
-    setSecuritySubTab
+    setSecuritySubTab,
+    setIsRecordCustomerPaymentOpen,
+    setSelectedCustomerForPayment
   } = useApp();
 
   const navigate = useNavigate();
@@ -113,7 +117,19 @@ export const Navbar = () => {
   const notifications = useMemo(() => {
     const list = [];
 
-    // 1. Stock warnings (Articles with 50% or less stock)
+    // 1. Overdue Wasooli Reminders (10+ Days without customer payment)
+    const overdueReminders = getOverdueCustomerReminders(customers, customerPayments, outward);
+    overdueReminders.forEach(rem => {
+      list.push({
+        ...rem,
+        action: () => {
+          setSelectedCustomerKhata(rem.customer);
+          setIsNotificationOpen(false);
+        }
+      });
+    });
+
+    // 2. Stock warnings (Articles with 50% or less stock)
     (articles || []).forEach(art => {
       const current = Number(art.currentStock) || 0;
       const initial = Number(art.totalPurchased) > 0 
@@ -167,7 +183,7 @@ export const Navbar = () => {
       }
     });
 
-    // 2. Recent Wasooli (Payments received)
+    // 3. Recent Wasooli (Payments received)
     (customerPayments || []).slice(0, 10).forEach(p => {
       const amt = Number(p.amount) || 0;
       list.push({
@@ -193,7 +209,7 @@ export const Navbar = () => {
       });
     });
 
-    // 3. Recent Bills (Dispatches)
+    // 4. Recent Bills (Dispatches)
     (outward || []).slice(0, 10).forEach(o => {
       const amt = Number(o.totalSaleAmount) || ((Number(o.quantity) || 0) * (Number(o.unitSalePrice) || 0));
       list.push({
@@ -258,11 +274,16 @@ export const Navbar = () => {
     return notifications.filter(n => !dismissedNotifIds.includes(n.id));
   }, [notifications, dismissedNotifIds]);
 
+  const overduePaymentsCount = useMemo(() => {
+    return activeNotifications.filter(n => n.category === 'OVERDUE_PAYMENT').length;
+  }, [activeNotifications]);
+
   const lowStockCount = useMemo(() => {
     return activeNotifications.filter(n => n.category === 'STOCK').length;
   }, [activeNotifications]);
 
   const filteredNotifs = useMemo(() => {
+    if (notifTab === 'OVERDUE') return activeNotifications.filter(n => n.category === 'OVERDUE_PAYMENT');
     if (notifTab === 'STOCK') return activeNotifications.filter(n => n.category === 'STOCK');
     if (notifTab === 'TRANSACTIONS') return activeNotifications.filter(n => n.category === 'WASOOLI' || n.category === 'BILL');
     return activeNotifications;
@@ -658,6 +679,9 @@ export const Navbar = () => {
                         Notifications & Alerts
                       </h4>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {overduePaymentsCount > 0 && (
+                          <span className="text-rose-600 dark:text-rose-400 font-bold">{overduePaymentsCount} Overdue Wasooli • </span>
+                        )}
                         {lowStockCount} Low Stock • {activeNotifications.length} Active
                       </p>
                     </div>
@@ -689,12 +713,12 @@ export const Navbar = () => {
                   </div>
                 </div>
 
-                {/* Sub-Tabs: All | Stock Warnings | Wasooli & Bills */}
-                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5 bg-white dark:bg-slate-900">
+                {/* Sub-Tabs: All | Overdue Wasooli | Stock Warnings | Wasooli & Bills */}
+                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5 bg-white dark:bg-slate-900 overflow-x-auto">
                   <button
                     type="button"
                     onClick={() => setNotifTab('ALL')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer shrink-0 ${
                       notifTab === 'ALL'
                         ? 'bg-blue-600 text-white shadow-2xs'
                         : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -704,8 +728,20 @@ export const Navbar = () => {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setNotifTab('OVERDUE')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
+                      notifTab === 'OVERDUE'
+                        ? 'bg-rose-600 text-white shadow-2xs'
+                        : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+                    }`}
+                  >
+                    <Clock className="w-3 h-3 text-rose-500" />
+                    <span>Overdue Wasooli ({overduePaymentsCount})</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setNotifTab('STOCK')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
                       notifTab === 'STOCK'
                         ? 'bg-amber-600 text-white shadow-2xs'
                         : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -716,7 +752,7 @@ export const Navbar = () => {
                   <button
                     type="button"
                     onClick={() => setNotifTab('TRANSACTIONS')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer shrink-0 ${
                       notifTab === 'TRANSACTIONS'
                         ? 'bg-emerald-600 text-white shadow-2xs'
                         : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -748,6 +784,11 @@ export const Navbar = () => {
                         className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer flex items-start gap-3 group relative"
                       >
                         <div className="mt-0.5 shrink-0">
+                          {n.category === 'OVERDUE_PAYMENT' && (
+                            <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 flex items-center justify-center animate-pulse">
+                              <Clock className="w-3.5 h-3.5 text-rose-600" />
+                            </div>
+                          )}
                           {n.category === 'STOCK' && (
                             <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 flex items-center justify-center">
                               <AlertTriangle className="w-3.5 h-3.5" />
@@ -774,12 +815,31 @@ export const Navbar = () => {
                               {n.badge}
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 mt-0.5">
                             {n.desc}
                           </p>
-                          <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
-                            {n.time}
-                          </span>
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {n.time}
+                            </span>
+                            {n.category === 'OVERDUE_PAYMENT' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  dismissNotification(null, n.id);
+                                  if (setSelectedCustomerForPayment) setSelectedCustomerForPayment(n.customer);
+                                  if (setIsRecordCustomerPaymentOpen) setIsRecordCustomerPaymentOpen(true);
+                                  setIsNotificationOpen(false);
+                                }}
+                                className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-2xs transition-colors shrink-0 flex items-center gap-1"
+                                title="Record payment from this customer"
+                              >
+                                <Wallet className="w-3 h-3" />
+                                <span>+ Wasooli</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Dismiss single notification button on hover */}

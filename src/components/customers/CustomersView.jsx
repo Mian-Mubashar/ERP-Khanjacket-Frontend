@@ -17,17 +17,21 @@ import {
   RotateCcw,
   MoreVertical,
   ReceiptText,
-  Download
+  Download,
+  Clock
 } from 'lucide-react';
 import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
 import { Pagination } from '../common/Pagination';
 import { UGRAHI_ROUTES } from '../../constants/ugrahiRoutes';
 import { downloadCustomersListPDF } from '../../utils/pdfGenerator';
+import { calculateCustomerPaymentPendingDays } from '../../utils/paymentReminders';
 
 export const CustomersView = () => {
   const { 
     customers, 
     cities, 
+    customerPayments,
+    outward,
     deleteCustomer, 
     updateCustomer,
     setIsAddCustomerOpen,
@@ -132,8 +136,14 @@ export const CustomersView = () => {
     
     let matchesBalance = true;
     const bal = Number(cust.remainingBalance) || 0;
-    if (balanceFilter === 'DUE') matchesBalance = bal > 0;
-    if (balanceFilter === 'CLEAR') matchesBalance = bal <= 0;
+    if (balanceFilter === 'OVERDUE_10D') {
+      const pendingStats = calculateCustomerPaymentPendingDays(cust, customerPayments, outward);
+      matchesBalance = pendingStats.isOverdue;
+    } else if (balanceFilter === 'DUE') {
+      matchesBalance = bal > 0;
+    } else if (balanceFilter === 'CLEAR') {
+      matchesBalance = bal <= 0;
+    }
 
     let matchesUgrahi = true;
     if (ugrahiFilter === 'IN_UGRAHI') matchesUgrahi = Boolean(cust.inUgrahi);
@@ -173,6 +183,7 @@ export const CustomersView = () => {
     if (isFiltered) {
       const parts = [];
       if (selectedCity !== 'ALL') parts.push(`City: ${selectedCity}`);
+      if (balanceFilter === 'OVERDUE_10D') parts.push('Overdue Wasooli (10+ Days)');
       if (balanceFilter === 'DUE') parts.push('Due Accounts');
       if (balanceFilter === 'CLEAR') parts.push('Settled Accounts');
       if (ugrahiFilter === 'IN_UGRAHI') parts.push('In Collection Route');
@@ -430,6 +441,7 @@ export const CustomersView = () => {
             className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 focus:outline-hidden"
           >
             <option value="ALL">All Accounts</option>
+            <option value="OVERDUE_10D">Overdue Wasooli (10+ Days)</option>
             <option value="DUE">Outstanding Due (&gt; 0)</option>
             <option value="CLEAR">Nil / Settled</option>
           </select>
@@ -583,9 +595,21 @@ export const CustomersView = () => {
                       {/* Remaining Khata Due */}
                       <td className="py-4 px-5 text-right font-mono whitespace-nowrap">
                         {isPending ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 font-semibold whitespace-nowrap">
-                            Rs. {Math.round(Number(cust.remainingBalance) || 0).toLocaleString()}
-                          </span>
+                          <div className="inline-flex flex-col items-end">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 font-semibold whitespace-nowrap">
+                              Rs. {Math.round(Number(cust.remainingBalance) || 0).toLocaleString()}
+                            </span>
+                            {(() => {
+                              const pendingStats = calculateCustomerPaymentPendingDays(cust, customerPayments, outward);
+                              if (!pendingStats.isOverdue) return null;
+                              return (
+                                <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold flex items-center gap-0.5 mt-0.5 animate-pulse">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  <span>{pendingStats.daysPending}d Overdue</span>
+                                </span>
+                              );
+                            })()}
+                          </div>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 whitespace-nowrap">
                             Settled (Rs. 0)
