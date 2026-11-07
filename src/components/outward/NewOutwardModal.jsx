@@ -687,6 +687,7 @@ export const NewOutwardModal = () => {
                   >
                     <option value="MK Collection">MK Collection</option>
                     <option value="Khan Jacket House">Khan Jacket House</option>
+                    <option value="Warehouse">Warehouse</option>
                   </select>
                   <span className="text-[10px] text-slate-400 mt-1 block">Maal source option</span>
                 </div>

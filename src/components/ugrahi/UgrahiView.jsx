@@ -1908,7 +1908,7 @@ export const UgrahiView = () => {
                     onClick={handleResetModalOrderToAZ}
                     className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer lowercase"
                   >
-                    reset to a-z
+                    Reset to A-Z
                   </button>
                   <span>•</span>
                   <span>Use arrows to move</span>

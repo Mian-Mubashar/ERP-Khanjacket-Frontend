@@ -13,6 +13,7 @@ import { SuppliersList } from './components/suppliers/SuppliersList';
 import { ReportsView } from './components/reports/ReportsView';
 import { SecurityView } from './components/security/SecurityView';
 import { UgrahiView } from './components/ugrahi/UgrahiView';
+import { AnnouncementsView } from './components/announcements/AnnouncementsView';
 import { LoginView } from './components/auth/LoginView';
 
 // Modals
@@ -203,6 +204,7 @@ const AppRoutes = () => {
       >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardOverview setActiveTab={setActiveTab} />} />
+        <Route path="/announcements" element={<AnnouncementsView />} />
         <Route path="/branches" element={<BranchesView />} />
         <Route path="/customers" element={<CustomersView />} />
         <Route path="/articles" element={<ArticlesList />} />

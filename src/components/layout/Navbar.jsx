@@ -18,8 +18,13 @@ import {
   Globe,
   Tag,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Bell,
+  AlertTriangle,
+  ArrowDownLeft,
+  Wallet
 } from 'lucide-react';
+import { showToast } from '../../utils/sweetalert';
 
 export const Navbar = () => {
   const { 
@@ -33,9 +38,11 @@ export const Navbar = () => {
     customers,
     suppliers,
     outward,
+    customerPayments,
     setSelectedArticleDetail,
     setSelectedCustomerKhata,
     setSelectedSupplierDetail,
+    setSelectedDispatchForBill,
     setIsQuickSearchOpen,
     setActiveTab,
     setSecuritySubTab
@@ -44,11 +51,15 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const searchInputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const notifDropdownRef = useRef(null);
+  const notifButtonRef = useRef(null);
 
   const [searchInput, setSearchInput] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL'); // 'ALL' | 'ARTICLES' | 'CUSTOMERS' | 'SUPPLIERS' | 'DISPATCHES'
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifTab, setNotifTab] = useState('ALL'); // 'ALL' | 'STOCK' | 'TRANSACTIONS'
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Global Ctrl+K / Cmd+K listener
@@ -64,7 +75,7 @@ export const Navbar = () => {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
-  // Close dropdown on click outside
+  // Close search dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -79,6 +90,183 @@ export const Navbar = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Close notification dropdown on click outside
+  useEffect(() => {
+    const handleClickOutsideNotif = (e) => {
+      if (
+        notifDropdownRef.current && 
+        !notifDropdownRef.current.contains(e.target) &&
+        notifButtonRef.current && 
+        !notifButtonRef.current.contains(e.target)
+      ) {
+        setIsNotificationOpen(false);
+      }
+    };
+    if (isNotificationOpen) {
+      document.addEventListener('mousedown', handleClickOutsideNotif);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutsideNotif);
+  }, [isNotificationOpen]);
+
+  // Compute live notifications for the Bell icon
+  const notifications = useMemo(() => {
+    const list = [];
+
+    // 1. Stock warnings (Articles with 50% or less stock)
+    (articles || []).forEach(art => {
+      const current = Number(art.currentStock) || 0;
+      const initial = Number(art.totalPurchased) > 0 
+        ? Number(art.totalPurchased) 
+        : (current + (Number(art.totalOut) || 0));
+      const percent = initial > 0 
+        ? Math.min(100, Math.max(0, Math.round((current / initial) * 100))) 
+        : (current === 0 ? 0 : 100);
+
+      if (percent <= 50) {
+        let badge = 'Below 50%';
+        let badgeColor = 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300';
+        let severity = 'warning';
+
+        if (current <= 0 || percent <= 0) {
+          badge = '0% Out of Stock!';
+          badgeColor = 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 animate-pulse';
+          severity = 'critical';
+        } else if (percent <= 10) {
+          badge = 'Below 10% Stock';
+          badgeColor = 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300';
+          severity = 'critical';
+        } else if (percent <= 20) {
+          badge = 'Below 20% Stock';
+          badgeColor = 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300';
+          severity = 'high';
+        } else if (percent <= 30) {
+          badge = 'Below 30% Stock';
+          badgeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300';
+          severity = 'medium';
+        } else if (percent <= 40) {
+          badge = 'Below 40% Stock';
+          badgeColor = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300';
+          severity = 'low';
+        }
+
+        list.push({
+          id: `stock-${art.articleNo}`,
+          category: 'STOCK',
+          severity,
+          title: `${art.articleNo} — ${art.name || 'Garment'}`,
+          badge,
+          badgeColor,
+          desc: `Sirf ${current.toLocaleString()} pcs bache hain (${percent}% stock remaining)`,
+          time: art.warehouseLocation || 'Main Godown',
+          action: () => {
+            setSelectedArticleDetail(art);
+            setIsNotificationOpen(false);
+          }
+        });
+      }
+    });
+
+    // 2. Recent Wasooli (Payments received)
+    (customerPayments || []).slice(0, 10).forEach(p => {
+      const amt = Number(p.amount) || 0;
+      list.push({
+        id: `wasooli-${p.id}`,
+        category: 'WASOOLI',
+        severity: 'success',
+        title: `Wasooli: Rs. ${amt.toLocaleString()}`,
+        badge: 'Wasooli Recv.',
+        badgeColor: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+        desc: `${p.customerName || 'Customer'} se wasooli mil gayi (${p.paymentMethod || 'Cash'})`,
+        time: p.date || (p.createdAt ? p.createdAt.split('T')[0] : 'Recent'),
+        action: () => {
+          if (p.customerId) {
+            const cust = customers.find(c => String(c.id) === String(p.customerId));
+            if (cust) setSelectedCustomerKhata(cust);
+          } else if (p.customerName) {
+            const clean = p.customerName.split('(')[0].trim().toLowerCase();
+            const cust = customers.find(c => c.shopName?.toLowerCase() === clean);
+            if (cust) setSelectedCustomerKhata(cust);
+          }
+          setIsNotificationOpen(false);
+        }
+      });
+    });
+
+    // 3. Recent Bills (Dispatches)
+    (outward || []).slice(0, 10).forEach(o => {
+      const amt = Number(o.totalSaleAmount) || ((Number(o.quantity) || 0) * (Number(o.unitSalePrice) || 0));
+      list.push({
+        id: `bill-${o.id}`,
+        category: 'BILL',
+        severity: 'info',
+        title: `Bill #${o.challanNo || o.id} Dispatched`,
+        badge: 'Bill Dispatch',
+        badgeColor: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+        desc: `${o.customerName || 'Customer'} • Rs. ${amt.toLocaleString()} (${o.isWithoutStock ? 'Direct Sale' : `${o.quantity} pcs`})`,
+        time: o.date || (o.createdAt ? o.createdAt.split('T')[0] : 'Recent'),
+        action: () => {
+          if (setSelectedDispatchForBill) setSelectedDispatchForBill(o);
+          setIsNotificationOpen(false);
+        }
+      });
+    });
+
+    return list;
+  }, [articles, customerPayments, outward, customers, setSelectedArticleDetail, setSelectedCustomerKhata, setSelectedDispatchForBill]);
+
+  // Track dismissed notifications in state and localStorage so clicked items clear
+  const [dismissedNotifIds, setDismissedNotifIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kc_dismissed_notifications');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const dismissNotification = (e, id) => {
+    if (e) e.stopPropagation();
+    setDismissedNotifIds(prev => {
+      const updated = Array.from(new Set([...prev, id]));
+      try {
+        localStorage.setItem('kc_dismissed_notifications', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+  };
+
+  const clearAllNotifications = (e) => {
+    if (e) e.stopPropagation();
+    const allIds = notifications.map(n => n.id);
+    setDismissedNotifIds(prev => {
+      const updated = Array.from(new Set([...prev, ...allIds]));
+      try {
+        localStorage.setItem('kc_dismissed_notifications', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+    showToast('All notifications cleared!', 'success');
+  };
+
+  // Active notifications (excluding ones the user clicked or dismissed)
+  const activeNotifications = useMemo(() => {
+    return notifications.filter(n => !dismissedNotifIds.includes(n.id));
+  }, [notifications, dismissedNotifIds]);
+
+  const lowStockCount = useMemo(() => {
+    return activeNotifications.filter(n => n.category === 'STOCK').length;
+  }, [activeNotifications]);
+
+  const filteredNotifs = useMemo(() => {
+    if (notifTab === 'STOCK') return activeNotifications.filter(n => n.category === 'STOCK');
+    if (notifTab === 'TRANSACTIONS') return activeNotifications.filter(n => n.category === 'WASOOLI' || n.category === 'BILL');
+    return activeNotifications;
+  }, [activeNotifications, notifTab]);
 
   // Universal multi-entity search results
   const searchResults = useMemo(() => {
@@ -149,24 +337,24 @@ export const Navbar = () => {
             type: 'SUPPLIER',
             id: `supp-${supp.id}`,
             title: supp.company,
-            subtitle: `Contact: ${supp.contactPerson || 'Vendor'} • ${supp.country || 'China'}`,
-            extra: `Payable Due: Rs. ${Math.round(bal).toLocaleString()}`,
-            badge: `Vendor Due: Rs. ${Math.round(bal).toLocaleString()}`,
-            badgeColor: 'amber',
+            subtitle: `Contact: ${supp.contactPerson || '—'} (${supp.country || 'China'})`,
+            extra: `Total Purchased: ${supp.totalPiecesSupplied || 0} pcs`,
+            badge: bal > 0 ? `Baqaya: ¥${bal.toLocaleString()}` : 'Clear',
+            badgeColor: bal > 0 ? 'amber' : 'emerald',
             data: supp
           });
         }
       });
     }
 
-    // 4. Outward Dispatches (Challans)
+    // 4. Outward Dispatches
     if (selectedCategory === 'ALL' || selectedCategory === 'DISPATCHES') {
       outward.forEach(disp => {
         if (
           disp.challanNo?.toLowerCase().includes(q) ||
           disp.customerName?.toLowerCase().includes(q) ||
           disp.articleNo?.toLowerCase().includes(q) ||
-          disp.destination?.toLowerCase().includes(q)
+          disp.city?.toLowerCase().includes(q)
         ) {
           results.push({
             type: 'DISPATCH',
@@ -229,74 +417,74 @@ export const Navbar = () => {
         <div className="flex items-center gap-3.5">
           <button
             onClick={toggleSidebar}
-            className="w-9 h-9 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+            className="w-9 h-9 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all cursor-pointer"
             title="Toggle Menu Sidebar"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center cursor-pointer hover:opacity-90 transition-opacity py-0.5"
-            title="Khan Jacket House - Dashboard"
-          >
-            <img
-              src={logoImg}
-              alt="Khan Jacket House"
-              className="h-12 sm:h-14 w-auto object-contain drop-shadow-xs"
+          <div className="flex items-center gap-2.5">
+            <img 
+              src={logoImg} 
+              alt="Khan Jacket House" 
+              className="h-9 w-auto object-contain drop-shadow-2xs" 
             />
-          </button>
+            <div className="hidden sm:block">
+              <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white block uppercase leading-tight font-serif">
+                Khan Jacket House
+              </span>
+              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 tracking-wider uppercase block">
+                China Import & Wholesale Portal
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Center: Universal Omnibox Search Across Everything */}
-        <div className="hidden md:flex flex-1 max-w-2xl mx-6 relative" ref={dropdownRef}>
-          <div className="relative w-full">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-              <div className="w-6 h-6 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <Search className="w-3.5 h-3.5" />
-              </div>
-            </div>
-
+        {/* Center: Universal Fast Search Bar */}
+        <div className="relative flex-1 max-w-lg mx-4 hidden md:block">
+          <div className="relative flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search Article, Shopkeeper / Khata, Vendor, Challan # (Ctrl+K)..."
               value={searchInput}
-              onChange={e => {
+              onChange={(e) => {
                 setSearchInput(e.target.value);
+                setIsDropdownOpen(true);
                 setSelectedIndex(0);
-                if (e.target.value.trim()) setIsDropdownOpen(true);
+              }}
+              onFocus={() => {
+                if (searchInput.trim()) setIsDropdownOpen(true);
               }}
               onKeyDown={handleKeyDown}
-              onFocus={() => { if (searchResults.length > 0 || searchInput.trim()) setIsDropdownOpen(true); }}
-              className="w-full pl-11 pr-24 py-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-800 text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-xl border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all outline-hidden shadow-2xs"
+              placeholder="Search Article, Shopkeeper / Khata, Vendor, Challan # (Ctrl+K)..."
+              className="w-full pl-10 pr-12 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 transition-all shadow-2xs"
             />
-
-            <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1.5">
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchInput('');
-                    setIsDropdownOpen(false);
-                    searchInputRef.current?.focus();
-                  }}
-                  className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                  title="Clear Search"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded shadow-2xs">
+            
+            {/* Quick Clear or Keyboard Shortcut Pill */}
+            {searchInput ? (
+              <button
+                onClick={() => {
+                  setSearchInput('');
+                  setIsDropdownOpen(false);
+                }}
+                className="absolute right-3 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <span className="absolute right-3 text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700 text-slate-500 dark:text-slate-400 pointer-events-none border border-slate-300/60 dark:border-slate-600/60">
                 ⌘K
-              </kbd>
-            </div>
+              </span>
+            )}
           </div>
 
-          {/* Instant Search Results Dropdown */}
+          {/* Search Dropdown Results Panel */}
           {isDropdownOpen && searchInput.trim() && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
-              
+            <div 
+              ref={dropdownRef}
+              className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 p-2 z-50 animate-in fade-in zoom-in-95 duration-100"
+            >
               {/* Category Filter Chips Header */}
               <div className="px-2 py-1.5 flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 mb-1 flex-wrap">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -411,13 +599,13 @@ export const Navbar = () => {
           )}
         </div>
 
-        {/* Right: Theme Toggle & Profile Avatar */}
+        {/* Right: Theme Toggle, Notifications Bell, Audit History & Profile Avatar */}
         <div className="flex items-center gap-2.5">
           
-          {/* Theme Toggle Button with clean subtle icon */}
+          {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-800 transition-all flex items-center gap-2 shadow-2xs"
+            className="px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-800 transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {theme === 'dark' ? (
@@ -433,6 +621,198 @@ export const Navbar = () => {
             )}
           </button>
 
+          {/* Notifications Bell with Interactive Dropdown (User's Marked Red Line) */}
+          <div className="relative">
+            <button
+              ref={notifButtonRef}
+              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shadow-2xs relative cursor-pointer ${
+                isNotificationOpen
+                  ? 'bg-blue-50 dark:bg-slate-800 border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800'
+              }`}
+              title="Notifications & Alerts"
+            >
+              <Bell className="w-4 h-4" />
+              {activeNotifications.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 px-1 bg-rose-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-xs animate-pulse">
+                  {activeNotifications.length > 9 ? '9+' : activeNotifications.length}
+                </span>
+              )}
+            </button>
+
+            {/* Notification Dropdown Panel */}
+            {isNotificationOpen && (
+              <div 
+                ref={notifDropdownRef}
+                className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150"
+              >
+                {/* Dropdown Header */}
+                <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/50">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400 flex items-center justify-center">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                        Notifications & Alerts
+                      </h4>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {lowStockCount} Low Stock • {activeNotifications.length} Active
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {activeNotifications.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearAllNotifications}
+                        className="text-[11px] font-bold text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                        title="Clear all active notifications"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                    <span className="text-slate-300 dark:text-slate-700">•</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsNotificationOpen(false);
+                        setActiveTab('announcements');
+                        navigate('/announcements');
+                      }}
+                      className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                    >
+                      View All →
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-Tabs: All | Stock Warnings | Wasooli & Bills */}
+                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5 bg-white dark:bg-slate-900">
+                  <button
+                    type="button"
+                    onClick={() => setNotifTab('ALL')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                      notifTab === 'ALL'
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    All ({activeNotifications.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifTab('STOCK')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                      notifTab === 'STOCK'
+                        ? 'bg-amber-600 text-white shadow-2xs'
+                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    Stock ({lowStockCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifTab('TRANSACTIONS')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                      notifTab === 'TRANSACTIONS'
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    Wasooli & Bills
+                  </button>
+                </div>
+
+                {/* Notifications Feed Items */}
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {filteredNotifs.length === 0 ? (
+                    <div className="py-8 text-center space-y-1">
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                        No notifications in this filter
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        Everything is healthy and up to date!
+                      </p>
+                    </div>
+                  ) : (
+                    filteredNotifs.slice(0, 15).map(n => (
+                      <div
+                        key={n.id}
+                        onClick={() => {
+                          dismissNotification(null, n.id);
+                          n.action();
+                        }}
+                        className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer flex items-start gap-3 group relative"
+                      >
+                        <div className="mt-0.5 shrink-0">
+                          {n.category === 'STOCK' && (
+                            <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 flex items-center justify-center">
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                            </div>
+                          )}
+                          {n.category === 'WASOOLI' && (
+                            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
+                              <ArrowDownLeft className="w-3.5 h-3.5" />
+                            </div>
+                          )}
+                          {n.category === 'BILL' && (
+                            <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 flex items-center justify-center">
+                              <Truck className="w-3.5 h-3.5" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                              {n.title}
+                            </span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded shrink-0 ${n.badgeColor}`}>
+                              {n.badge}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                            {n.desc}
+                          </p>
+                          <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                            {n.time}
+                          </span>
+                        </div>
+
+                        {/* Dismiss single notification button on hover */}
+                        <button
+                          type="button"
+                          onClick={(e) => dismissNotification(e, n.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-all shrink-0 cursor-pointer self-center"
+                          title="Dismiss / remove notification"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer Link to Full Announcements */}
+                <div className="p-2.5 bg-slate-50/80 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNotificationOpen(false);
+                      setActiveTab('announcements');
+                      navigate('/announcements');
+                    }}
+                    className="w-full py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Open Full Announcements & Tables Dashboard →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Audit History Shortcut */}
           <button

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   LayoutDashboard,
+  Bell,
   GitFork,
   Users,
   Shirt,
@@ -26,7 +27,9 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     customers,
     sidebarCollapsed,
     securitySubTab,
-    setSecuritySubTab
+    setSecuritySubTab,
+    announcementsSubTab,
+    setAnnouncementsSubTab
   } = useApp();
 
   // All menu sections are CLOSED by default as requested: "by default ya menu drop down na rhe means band rhe, click per dropdown ho"
@@ -38,6 +41,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     outward: false,
     suppliers: false,
     reports: false,
+    announcements: false,
     security: false,
     ugrahi: false
   });
@@ -50,6 +54,15 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
   };
 
   const totalStock = articles.reduce((sum, a) => sum + (Number(a.currentStock) || 0), 0);
+
+  const lowStockCount = articles.filter(a => {
+    const init = Number(a.totalPurchased) > 0 
+      ? Number(a.totalPurchased) 
+      : ((Number(a.currentStock) || 0) + (Number(a.totalOut) || 0));
+    const curr = Number(a.currentStock) || 0;
+    const pct = init > 0 ? (curr / init) * 100 : 0;
+    return pct <= 50;
+  }).length;
 
   if (sidebarCollapsed) {
     return (
@@ -168,6 +181,21 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           title="Reports & Analytics"
         >
           <BarChart3 className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={() => setActiveTab('announcements')}
+          className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+            activeTab === 'announcements' 
+              ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-medium shadow-xs' 
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+          title="Announcements & Alerts"
+        >
+          <Bell className="w-5 h-5 text-amber-500" />
+          {lowStockCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-900 animate-pulse" />
+          )}
         </button>
 
         <button
@@ -547,7 +575,117 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           )}
         </div>
 
-        {/* 9. Security & Access */}
+        {/* 9B. Announcements & Alerts (2nd Last Menu Item with Submenu) */}
+        <div>
+          <button
+            onClick={() => {
+              toggleSection('announcements');
+              setActiveTab('announcements');
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer group ${
+              activeTab === 'announcements'
+                ? 'text-amber-600 dark:text-amber-400 font-medium bg-amber-50/50 dark:bg-amber-950/30'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Bell className={`w-4.5 h-4.5 ${activeTab === 'announcements' ? 'text-amber-500' : 'text-slate-500 dark:text-slate-400 group-hover:text-amber-500'}`} />
+              <span>Announcements</span>
+            </div>
+            
+            <div className="flex items-center gap-1.5">
+              {lowStockCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-white font-mono">
+                  {lowStockCount}
+                </span>
+              )}
+              {expandedSections.announcements ? (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              )}
+            </div>
+          </button>
+
+          {expandedSections.announcements && (
+            <div className="pl-9 pr-2 py-1 space-y-0.5">
+              <button
+                onClick={() => {
+                  setAnnouncementsSubTab('WASOOLI_BILLS');
+                  setActiveTab('announcements');
+                }}
+                className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                  activeTab === 'announcements' && announcementsSubTab === 'WASOOLI_BILLS'
+                    ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-normal'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'announcements' && announcementsSubTab === 'WASOOLI_BILLS' ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                  <span>Wasooli & Bills</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setAnnouncementsSubTab('STOCK');
+                  setActiveTab('announcements');
+                }}
+                className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                  activeTab === 'announcements' && announcementsSubTab === 'STOCK'
+                    ? 'text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/40'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-normal'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'announcements' && announcementsSubTab === 'STOCK' ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                  <span>Stock Alerts (50% to 0%)</span>
+                </div>
+                {lowStockCount > 0 && (
+                  <span className="text-[10px] font-bold text-amber-600 font-mono">
+                    {lowStockCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  setAnnouncementsSubTab('CUSTOMERS');
+                  setActiveTab('announcements');
+                }}
+                className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                  activeTab === 'announcements' && announcementsSubTab === 'CUSTOMERS'
+                    ? 'text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/40'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-normal'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'announcements' && announcementsSubTab === 'CUSTOMERS' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                  <span>Customers & Khata</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setAnnouncementsSubTab('ALL');
+                  setActiveTab('announcements');
+                }}
+                className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                  activeTab === 'announcements' && announcementsSubTab === 'ALL'
+                    ? 'text-purple-600 dark:text-purple-400 font-medium bg-purple-50 dark:bg-purple-950/40'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-normal'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'announcements' && announcementsSubTab === 'ALL' ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                  <span>All Announcements</span>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 10. Security & Access */}
         <div>
           <button
             onClick={() => {

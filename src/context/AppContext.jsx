@@ -55,7 +55,7 @@ export const AppProvider = ({ children }) => {
   // Derive active tab dynamically from current URL pathname
   const getTabFromPath = useCallback((pathname) => {
     const segment = pathname.replace(/^\//, '').split('/')[0];
-    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'outward', 'suppliers', 'reports', 'security', 'payment-collection'];
+    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'outward', 'suppliers', 'reports', 'security', 'payment-collection', 'announcements'];
     if (segment === 'ugrahi') return 'payment-collection';
     return validTabs.includes(segment) ? segment : 'dashboard';
   }, []);
@@ -164,6 +164,7 @@ export const AppProvider = ({ children }) => {
 
   // SubTab & Modals visibility
   const [securitySubTab, setSecuritySubTab] = useState('devices');
+  const [announcementsSubTab, setAnnouncementsSubTab] = useState('WASOOLI_BILLS');
 
   const [selectedArticleDetail, setSelectedArticleDetail] = useState(null);
   const [selectedArticleForOutward, setSelectedArticleForOutward] = useState(null);
@@ -1049,6 +1050,8 @@ export const AppProvider = ({ children }) => {
         customerFilterKey,
         securitySubTab,
         setSecuritySubTab,
+        announcementsSubTab,
+        setAnnouncementsSubTab,
         activeTab,
         setActiveTab
       }}
