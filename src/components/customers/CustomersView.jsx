@@ -127,6 +127,7 @@ export const CustomersView = () => {
       (cust.shopName || '').toLowerCase().includes(term) ||
       (cust.shopkeeperName || '').toLowerCase().includes(term) ||
       (cust.phone || '').toLowerCase().includes(term) ||
+      (cust.phone2 || '').toLowerCase().includes(term) ||
       (cust.city || '').toLowerCase().includes(term) ||
       (cust.marketAddress || '').toLowerCase().includes(term) ||
       (cust.id || '').toLowerCase().includes(term)
@@ -538,12 +539,18 @@ export const CustomersView = () => {
                         <div className="font-medium text-slate-900 dark:text-white">
                           {cust.shopName}
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span>{cust.shopkeeperName}</span>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2 mt-0.5">
+                          {cust.shopkeeperName && <span>{cust.shopkeeperName}</span>}
                           {cust.phone && (
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <Phone className="w-2.5 h-2.5" />
+                            <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400 font-mono">
+                              <Phone className="w-2.5 h-2.5 text-slate-400" />
                               {cust.phone}
+                            </span>
+                          )}
+                          {cust.phone2 && (
+                            <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400 font-mono">
+                              <Phone className="w-2.5 h-2.5 text-slate-400" />
+                              {cust.phone2}
                             </span>
                           )}
                         </div>

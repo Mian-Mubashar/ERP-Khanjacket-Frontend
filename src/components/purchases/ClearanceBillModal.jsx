@@ -292,3 +292,4 @@ export const ClearanceBillModal = ({ clearance, isOpen, onClose }) => {
     </div>
   );
 };
+

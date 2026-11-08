@@ -322,7 +322,7 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
   doc.text(`Owner / Shopkeeper: ${customer.shopkeeperName}`, 18, currentY + 12);
-  doc.text(`City / Branch: ${customer.city}  |  Phone: ${customer.phone || 'N/A'}`, 18, currentY + 17);
+  doc.text(`City / Branch: ${customer.city}  |  Phone: ${[customer.phone, customer.phone2].filter(Boolean).join(' / ') || 'N/A'}`, 18, currentY + 17);
   doc.text(`Market Address: ${customer.marketAddress || customer.city}`, 18, currentY + 22);
 
   // Net Balance Display Pill (Right inside banner)
@@ -1871,7 +1871,7 @@ export const downloadCustomersListPDF = (customersList = [], filterInfo = {}) =>
     const owner = c.shopkeeperName ? `(${c.shopkeeperName.trim()})` : '';
     const nameCell = owner ? `${shopName}\n${owner}` : shopName;
 
-    const phone = c.phone ? c.phone.trim() : '—';
+    const phone = [c.phone, c.phone2].filter(Boolean).map(p => p.trim()).join(' / ') || '—';
     const address = c.marketAddress ? c.marketAddress.trim() : '';
     const contactCell = address ? `${phone}\n${address}` : phone;
 
