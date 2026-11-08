@@ -254,6 +254,18 @@ export const api = {
     markAllRead: () => request('/notifications/read-all', { method: 'PATCH' })
   },
 
+  // Container Duty & Port Clearance Bills (Barca Traders / Import Clearance)
+  clearances: {
+    list: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return request(`/clearances${query ? `?${query}` : ''}`);
+    },
+    getOne: (id) => request(`/clearances/${id}`),
+    create: (data) => request('/clearances', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => request(`/clearances/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => request(`/clearances/${id}`, { method: 'DELETE' })
+  },
+
   // Database Backup Snapshot
   backup: {
     export: () => request('/backup/export')

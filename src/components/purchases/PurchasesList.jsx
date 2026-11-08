@@ -13,26 +13,47 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Anchor,
+  Truck,
+  FileText,
+  Printer,
+  ExternalLink
 } from 'lucide-react';
 import { downloadInvoicePDF } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
 import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
+import { NewClearanceModal } from './NewClearanceModal';
+import { ClearanceBillModal } from './ClearanceBillModal';
 
 export const PurchasesList = () => {
   const { 
     purchases = [], 
+    clearances = [],
     updatePurchase,
     deletePurchase,
-    setIsNewPurchaseOpen, 
+    deleteClearance,
+    setIsNewPurchaseOpen,
+    isNewClearanceOpen,
+    setIsNewClearanceOpen,
     setSelectedArticleDetail, 
     articles = [] 
   } = useApp();
 
+  // Active Sub-Tab: 'PURCHASES' | 'CLEARANCE'
+  const [activeTab, setActiveTab] = useState('PURCHASES');
+
+  // Search & Pagination for Purchases
   const [search, setSearch] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  // Search & Pagination for Clearances
+  const [clearanceSearch, setClearanceSearch] = useState('');
+  const [clearancePage, setClearancePage] = useState(1);
+  const [selectedClearanceForBill, setSelectedClearanceForBill] = useState(null);
+  const [editingClearance, setEditingClearance] = useState(null);
 
   // 3-Dots Dropdown State
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -162,6 +183,23 @@ export const PurchasesList = () => {
     }
   };
 
+  const handleDeleteClearance = async (c) => {
+    const isConfirmed = await confirmDelete({
+      title: `Delete Clearance Bill #${c.invoiceNo}?`,
+      text: `Are you sure you want to delete clearance bill #${c.invoiceNo} (${c.clearingAgent || 'Clearance Bill'}) for container ${c.containerNumber || 'N/A'}? Grand total Rs. ${Math.round(Number(c.grandTotal || 0)).toLocaleString()} will be removed.`,
+      confirmButtonText: 'Yes, Delete Clearance'
+    });
+
+    if (isConfirmed) {
+      const res = await deleteClearance(c.id);
+      if (res?.success) {
+        showToast(`Clearance bill #${c.invoiceNo} deleted successfully!`, 'success');
+      } else {
+        showError('Cannot Delete Clearance', res?.message || 'Failed to delete clearance bill');
+      }
+    }
+  };
+
   const filteredPurchases = purchases.filter(p => 
     p.invoiceNo.toLowerCase().includes(search.toLowerCase()) ||
     p.supplierName.toLowerCase().includes(search.toLowerCase()) ||
@@ -169,9 +207,28 @@ export const PurchasesList = () => {
     p.items?.some(it => it.articleNo.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const filteredClearances = clearances.filter(c => {
+    const q = clearanceSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      c.invoiceNo?.toLowerCase().includes(q) ||
+      c.clearingAgent?.toLowerCase().includes(q) ||
+      c.gdNo?.toLowerCase().includes(q) ||
+      c.blNumber?.toLowerCase().includes(q) ||
+      c.containerNumber?.toLowerCase().includes(q) ||
+      c.party?.toLowerCase().includes(q) ||
+      c.consignee?.toLowerCase().includes(q) ||
+      c.port?.toLowerCase().includes(q)
+    );
+  });
+
   const totalPurchasesAmount = purchases.reduce((s, p) => s + (Number(p.totalBill) || 0), 0);
   const totalPaidAmount = purchases.reduce((s, p) => s + (Number(p.paidAmount) || 0), 0);
   const totalRemainingAmount = purchases.reduce((s, p) => s + (Number(p.remainingAmount) || 0), 0);
+
+  const totalClearanceDuty = clearances.reduce((s, c) => s + (Number(c.customDuty) || 0), 0);
+  const totalClearanceExpenses = clearances.reduce((s, c) => s + (Number(c.totalExpenses) || 0), 0);
+  const totalClearanceGrand = clearances.reduce((s, c) => s + (Number(c.grandTotal) || 0), 0);
 
   // Live calculation for edit form
   const editItemsSubtotal = Number(editingPurchase?.itemsSubtotal) || 0;
@@ -187,26 +244,91 @@ export const PurchasesList = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">China Purchases & Invoices</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-              {purchases.length} Shipments
+            <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              {activeTab === 'PURCHASES' ? 'China Purchases & Invoices' : 'Container Duty & Clearance Bills'}
+            </h1>
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+              activeTab === 'PURCHASES'
+                ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+            }`}>
+              {activeTab === 'PURCHASES' ? `${purchases.length} Shipments` : `${clearances.length} Duty Invoices`}
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            China import consignments, multi-article container arrivals, and supplier bills
+            {activeTab === 'PURCHASES'
+              ? 'China import consignments, multi-article container arrivals, and supplier bills'
+              : 'Barca Traders / Clearing agents duty breakdown, DryPort, railway, crane, and logistics vouchers'}
           </p>
         </div>
 
+        <div className="flex items-center gap-2.5">
+          {activeTab === 'PURCHASES' ? (
+            <button
+              onClick={() => setIsNewPurchaseOpen(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Purchase Bill</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setEditingClearance(null);
+                setIsNewClearanceOpen(true);
+              }}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Clearance Bill</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Sub-Tab Navigation Bar */}
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
         <button
-          onClick={() => setIsNewPurchaseOpen(true)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-medium rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+          type="button"
+          onClick={() => setActiveTab('PURCHASES')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'PURCHASES'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+          }`}
         >
-          <Plus className="w-4 h-4" />
-          <span>New Purchase Bill</span>
+          <Ship className="w-4 h-4" />
+          <span>China Factory Purchases</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+            activeTab === 'PURCHASES' ? 'bg-blue-700 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+          }`}>
+            {purchases.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('CLEARANCE')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'CLEARANCE'
+              ? 'bg-amber-600 text-white shadow-xs'
+              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+          }`}
+        >
+          <Anchor className="w-4 h-4" />
+          <span>Container Duty & Clearance Bills</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+            activeTab === 'CLEARANCE' ? 'bg-amber-700 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+          }`}>
+            {clearances.length}
+          </span>
         </button>
       </div>
 
-      {/* KPI Cards */}
+      {/* ----------------- SUB-TAB CONTENT ----------------- */}
+      {activeTab === 'PURCHASES' ? (
+        <>
+          {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
@@ -396,6 +518,235 @@ export const PurchasesList = () => {
           itemLabel="invoices"
         />
       </div>
+    </>
+  ) : (
+    /* ----------------- CLEARANCES TAB CONTENT ----------------- */
+    <>
+      {/* KPI Cards for Clearances */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+            <span className="font-bold uppercase tracking-wider">Total Customs GD Duty</span>
+            <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+              <Anchor className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-xs text-slate-400 mb-2 font-medium">Government / FBR import duties</div>
+          <div className="text-xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight truncate">
+            Rs. {Math.round(totalClearanceDuty).toLocaleString()}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+            <span className="font-bold uppercase tracking-wider">Port & Logistics Expenses</span>
+            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <Truck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-xs text-slate-400 mb-2 font-medium">DryPort, Service, Rail, Crane & Road</div>
+          <div className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400 tracking-tight truncate">
+            Rs. {Math.round(totalClearanceExpenses).toLocaleString()}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+            <span className="font-bold uppercase tracking-wider">Total Clearance Landed Bills</span>
+            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded-full shrink-0">
+              {clearances.length} Bills
+            </span>
+          </div>
+          <div className="text-xs text-slate-400 mb-2 font-medium">Duty + clearing agent charges</div>
+          <div className="text-xl font-bold font-mono text-amber-600 dark:text-amber-400 tracking-tight truncate">
+            Rs. {Math.round(totalClearanceGrand).toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by Invoice # (1110), Clearing Agent (Barca), GD #, BL #, Container #..."
+            value={clearanceSearch}
+            onChange={e => {
+              setClearanceSearch(e.target.value);
+              setClearancePage(1);
+            }}
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl border border-slate-200 dark:border-slate-700 focus:border-amber-600 outline-hidden transition-all"
+          />
+        </div>
+
+        <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+          Showing {filteredClearances.length} clearance bills
+        </div>
+      </div>
+
+      {/* Clearances Table */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-3 px-4">Invoice & Agent</th>
+                <th className="py-3 px-4">Container & GD</th>
+                <th className="py-3 px-4">Port / Weight</th>
+                <th className="py-3 px-4 text-right">Custom Duty</th>
+                <th className="py-3 px-4 text-right">Port & Logistics</th>
+                <th className="py-3 px-4 text-right">Grand Total</th>
+                <th className="py-3 px-4 text-center">Linked Purchase</th>
+                <th className="py-3 px-4 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+              {filteredClearances.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="py-8 text-center text-slate-400 font-medium">
+                    No clearance bills found. Click "+ Clearance Bill" to add one.
+                  </td>
+                </tr>
+              ) : (
+                filteredClearances.slice((clearancePage - 1) * pageSize, clearancePage * pageSize).map((c) => {
+                  return (
+                    <tr
+                      key={c.id}
+                      className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer"
+                      onClick={() => setSelectedClearanceForBill(c)}
+                    >
+                      {/* Invoice & Agent */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                            #{c.invoiceNo}
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            {c.clearingAgent || 'BARCA TRADERS'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Party: <strong className="text-slate-700 dark:text-slate-300">{c.party || 'TOOR HAJI'}</strong>
+                          {c.consignee && ` • ${c.consignee}`}
+                        </div>
+                      </td>
+
+                      {/* Container & GD */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-mono font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>{c.containerNumber || 'N/A'}</span>
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                            {c.containerSize || '40 FT'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-400 mt-0.5">
+                          GD: <strong className="text-slate-600 dark:text-slate-300">{c.gdNo || '-'}</strong>
+                          {c.blNumber && ` • BL: ${c.blNumber}`}
+                        </div>
+                      </td>
+
+                      {/* Port / Weight */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-slate-900 dark:text-white">
+                          {c.port || 'AKDP'} • {c.weight || '-'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Bill Date: {c.billDate || '-'}
+                        </div>
+                      </td>
+
+                      {/* Custom Duty */}
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-purple-600 dark:text-purple-400">
+                        Rs. {Math.round(Number(c.customDuty || 0)).toLocaleString()}
+                      </td>
+
+                      {/* Port & Logistics */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                          Rs. {Math.round(Number(c.totalExpenses || 0)).toLocaleString()}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          DryPort: Rs. {Math.round(Number(c.dryPortExpenses || 0)).toLocaleString()}
+                        </div>
+                      </td>
+
+                      {/* Grand Total */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="font-mono font-bold text-slate-900 dark:text-white text-xs">
+                          Rs. {Math.round(Number(c.grandTotal || 0)).toLocaleString()}
+                        </div>
+                        {Number(c.paidAmount) > 0 && (
+                          <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
+                            Paid: Rs. {Math.round(Number(c.paidAmount)).toLocaleString()}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Linked Purchase */}
+                      <td className="py-3.5 px-4 text-center" onClick={e => e.stopPropagation()}>
+                        {c.purchase ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                            #{c.purchase.invoiceNo} ({c.purchase.supplierName || 'China'})
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">
+                            Direct Bill
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Action */}
+                      <td className="py-3.5 px-4 text-center" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedClearanceForBill(c)}
+                            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                            title="View Duty & Clearance Invoice Voucher"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingClearance(c);
+                              setIsNewClearanceOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                            title="Edit Clearance Bill"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClearance(c)}
+                            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                            title="Delete Clearance Bill"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 10-Item Pagination for Clearances */}
+        <Pagination
+          currentPage={clearancePage}
+          totalItems={filteredClearances.length}
+          pageSize={pageSize}
+          onPageChange={setClearancePage}
+          itemLabel="clearance bills"
+        />
+      </div>
+    </>
+  )}
 
       {/* Invoice Detail Modal */}
       {selectedInvoice && (
@@ -806,6 +1157,23 @@ export const PurchasesList = () => {
           </div>
         </div>
       )}
+
+      {/* New / Edit Clearance Modal */}
+      <NewClearanceModal
+        isOpen={isNewClearanceOpen}
+        onClose={() => {
+          setIsNewClearanceOpen(false);
+          setEditingClearance(null);
+        }}
+        editingClearance={editingClearance}
+      />
+
+      {/* Clearance Digital Voucher Bill Modal */}
+      <ClearanceBillModal
+        clearance={selectedClearanceForBill}
+        isOpen={!!selectedClearanceForBill}
+        onClose={() => setSelectedClearanceForBill(null)}
+      />
 
     </div>
   );

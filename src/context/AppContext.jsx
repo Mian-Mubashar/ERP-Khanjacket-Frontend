@@ -161,6 +161,7 @@ export const AppProvider = ({ children }) => {
   const [auditLogs, setAuditLogs] = useState([]);
   const [categories, setCategories] = useState([]);
   const [warehouseLocations, setWarehouseLocations] = useState([]);
+  const [clearances, setClearances] = useState([]);
 
   // SubTab & Modals visibility
   const [securitySubTab, setSecuritySubTab] = useState('devices');
@@ -176,11 +177,13 @@ export const AppProvider = ({ children }) => {
   const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState(null);
   const [selectedCustomerForBill, setSelectedCustomerForBill] = useState(null);
   const [selectedDispatchForBill, setSelectedDispatchForBill] = useState(null);
+  const [selectedClearanceDetail, setSelectedClearanceDetail] = useState(null);
   const [editingCity, setEditingCity] = useState(null);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
   const [quickSearchTerm, setQuickSearchTerm] = useState('');
 
   const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
+  const [isNewClearanceOpen, setIsNewClearanceOpen] = useState(false);
   const [isNewOutwardOpen, setIsNewOutwardOpen] = useState(false);
   const [isAddArticleOpen, setIsAddArticleOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState(null);
@@ -226,7 +229,8 @@ export const AppProvider = ({ children }) => {
         devicesRes,
         auditRes,
         customerPaymentsRes,
-        supplierPaymentsRes
+        supplierPaymentsRes,
+        clearancesRes
       ] = await Promise.allSettled([
         api.articles.list(),
         api.suppliers.list(),
@@ -241,7 +245,8 @@ export const AppProvider = ({ children }) => {
         api.devices.list(),
         api.audit.list({ limit: 100 }),
         api.customers.listPayments(),
-        api.suppliers.listPayments()
+        api.suppliers.listPayments(),
+        api.clearances.list()
       ]);
 
       if (articlesRes.status === 'fulfilled' && articlesRes.value?.data) {
@@ -299,6 +304,9 @@ export const AppProvider = ({ children }) => {
       }
       if (supplierPaymentsRes.status === 'fulfilled' && supplierPaymentsRes.value?.data) {
         setPayments(supplierPaymentsRes.value.data);
+      }
+      if (clearancesRes.status === 'fulfilled' && clearancesRes.value?.data) {
+        setClearances(clearancesRes.value.data);
       }
     } catch (err) {
       console.warn('[AppContext] Backend offline or unreachable:', err.message);
@@ -451,6 +459,48 @@ export const AppProvider = ({ children }) => {
       return { success: false, message: res?.message || 'Failed to delete purchase entry' };
     } catch (err) {
       return { success: false, message: err.message || 'Error deleting purchase from database' };
+    }
+  };
+
+  // ==========================================
+  // DYNAMIC ACTIONS: CONTAINER CLEARANCES & DUTY
+  // ==========================================
+  const addClearance = async (clearanceData) => {
+    try {
+      const res = await api.clearances.create(clearanceData);
+      if (res?.success && res?.data) {
+        await refreshData();
+        return { success: true, clearance: res.data };
+      }
+      return { success: false, message: res?.message || 'Failed to save clearance bill' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error saving clearance bill to database' };
+    }
+  };
+
+  const updateClearance = async (id, data) => {
+    try {
+      const res = await api.clearances.update(id, data);
+      if (res?.success && res?.data) {
+        await refreshData();
+        return { success: true, clearance: res.data };
+      }
+      return { success: false, message: res?.message || 'Failed to update clearance bill' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error updating clearance bill' };
+    }
+  };
+
+  const deleteClearance = async (id) => {
+    try {
+      const res = await api.clearances.delete(id);
+      if (res?.success) {
+        await refreshData();
+        return { success: true };
+      }
+      return { success: false, message: res?.message || 'Failed to delete clearance bill' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error deleting clearance bill' };
     }
   };
 
@@ -942,6 +992,7 @@ export const AppProvider = ({ children }) => {
         categories,
         warehouseLocations,
         setWarehouseLocations,
+        clearances,
 
         // Dynamic MySQL Persistence Actions
         addArticle,
@@ -970,6 +1021,9 @@ export const AppProvider = ({ children }) => {
         addPurchase,
         updatePurchase,
         deletePurchase,
+        addClearance,
+        updateClearance,
+        deleteClearance,
         addOutward,
         updateOutward,
         deleteOutward,
@@ -1001,6 +1055,8 @@ export const AppProvider = ({ children }) => {
         setSelectedCustomerForBill,
         selectedDispatchForBill,
         setSelectedDispatchForBill,
+        selectedClearanceDetail,
+        setSelectedClearanceDetail,
         editingCity,
         setEditingCity,
 
@@ -1011,6 +1067,8 @@ export const AppProvider = ({ children }) => {
 
         isNewPurchaseOpen,
         setIsNewPurchaseOpen,
+        isNewClearanceOpen,
+        setIsNewClearanceOpen,
         isNewOutwardOpen,
         setIsNewOutwardOpen,
         isAddArticleOpen,
