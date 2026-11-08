@@ -85,23 +85,42 @@ const SrNoInput = ({ rowId, currentSrNo, totalRows, onMove }) => {
 export const UgrahiView = () => {
   const { customers = [], cities = [], areas = [], currentUser } = useApp();
 
+  // Only customers explicitly marked for Ugrahi (Payment Collection)
+  const ugrahiCustomers = useMemo(() => {
+    return (customers || []).filter(c => c && (c.inUgrahi === true || c.inUgrahi === 1));
+  }, [customers]);
+
   // Sheet Meta Information
   const [sheetTitle, setSheetTitle] = useState('All Cities Payment Collection Sheet');
   const [sheetDate, setSheetDate] = useState(new Date().toISOString().split('T')[0]);
   const [collectorName, setCollectorName] = useState(currentUser?.name || 'Admin Khan');
   const [routeLocation, setRouteLocation] = useState('All Wholesale Markets');
-  const [selectedCity, setSelectedCity] = useState('ALL');
+  const [selectedCities, setSelectedCities] = useState(['ALL']);
+  const selectedCity = selectedCities.includes('ALL') || selectedCities.length === 0
+    ? 'ALL'
+    : (selectedCities.length === 1 ? selectedCities[0] : selectedCities.join('+'));
+  const setSelectedCity = (cityName) => {
+    setSelectedCities(cityName ? [cityName] : ['ALL']);
+  };
   const [selectedAreaFilter, setSelectedAreaFilter] = useState('ALL');
   const [tableSearch, setTableSearch] = useState('');
   const [dueOnly, setDueOnly] = useState(false); // Toggle: Only show customers with balance > 0
+
+  // Route Active Check Helper
+  const isRouteActive = useCallback((routeName) => {
+    if (!routeName) return false;
+    if (selectedCities.includes('ALL')) return true;
+    return selectedCities.some(c => c.toLowerCase() === routeName.toLowerCase());
+  }, [selectedCities]);
 
   // Area Append & Route Ordering State
   const [isAppendAreaMenuOpen, setIsAppendAreaMenuOpen] = useState(false);
   const appendAreaMenuRef = useRef(null);
   const [isArrangeModalOpen, setIsArrangeModalOpen] = useState(false);
   const [modalAreaOrder, setModalAreaOrder] = useState([]);
+  const [modalSelectedCities, setModalSelectedCities] = useState(['Lahore']);
 
-  // Persistent Area Sequence Order Map (Permanently remembered across reloads, sheets, and resets)
+  // Persistent Area Sequence Order Map (Permanently remembered per city across reloads, sheets, and resets)
   const [areaSequencesMap, setAreaSequencesMap] = useState(() => {
     try {
       const saved = localStorage.getItem('kc_area_route_sequences_map');
@@ -109,13 +128,6 @@ export const UgrahiView = () => {
         const parsed = JSON.parse(saved);
         if (typeof parsed === 'object' && parsed !== null) {
           return parsed;
-        }
-      }
-      const single = localStorage.getItem('kc_preferred_area_sequence');
-      if (single) {
-        const parsedSingle = JSON.parse(single);
-        if (Array.isArray(parsedSingle) && parsedSingle.length > 0) {
-          return { ALL: parsedSingle, Lahore: parsedSingle };
         }
       }
     } catch (e) {
@@ -133,41 +145,165 @@ export const UgrahiView = () => {
     }
   }, [areaSequencesMap]);
 
+  // Helper to get active saved sequence for city/routes
+  const getActiveSequenceForCities = useCallback((citiesList = selectedCities) => {
+    if (!citiesList || citiesList.length === 0 || citiesList.includes('ALL')) {
+      const combined = [];
+      UGRAHI_ROUTES.forEach(route => {
+        const routeSeq = areaSequencesMap[route];
+        if (Array.isArray(routeSeq)) {
+          routeSeq.forEach(a => {
+            combined.push({ name: a, cityName: route });
+          });
+        }
+      });
+      return combined;
+    }
+
+    if (citiesList.length === 1) {
+      const city = citiesList[0];
+      const seq = areaSequencesMap[city];
+      if (Array.isArray(seq)) {
+        return seq.map(a => ({ name: a, cityName: city }));
+      }
+    } else {
+      const multiKey = citiesList.map(c => c.toLowerCase()).sort().join('+');
+      if (areaSequencesMap[multiKey] && Array.isArray(areaSequencesMap[multiKey])) {
+        return areaSequencesMap[multiKey].map(entry => {
+          const parts = String(entry).split(':::');
+          return { name: parts[0], cityName: parts[1] || '' };
+        });
+      }
+      const combined = [];
+      citiesList.forEach(city => {
+        const routeSeq = areaSequencesMap[city];
+        if (Array.isArray(routeSeq)) {
+          routeSeq.forEach(a => {
+            combined.push({ name: a, cityName: city });
+          });
+        }
+      });
+      return combined;
+    }
+    return [];
+  }, [areaSequencesMap, selectedCities]);
+
   // Helper to get active saved sequence for city/route
   const getActiveSequence = useCallback((cityKey = selectedCity) => {
-    const key = cityKey || 'ALL';
-    if (areaSequencesMap[key] && Array.isArray(areaSequencesMap[key]) && areaSequencesMap[key].length > 0) {
-      return areaSequencesMap[key];
+    if (!cityKey || cityKey === 'ALL') {
+      return getActiveSequenceForCities(['ALL']);
     }
-    if (areaSequencesMap['ALL'] && Array.isArray(areaSequencesMap['ALL']) && areaSequencesMap['ALL'].length > 0) {
-      return areaSequencesMap['ALL'];
-    }
-    try {
-      const single = localStorage.getItem('kc_preferred_area_sequence');
-      if (single) {
-        const parsed = JSON.parse(single);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return [];
-  }, [areaSequencesMap, selectedCity]);
+    return getActiveSequenceForCities([cityKey]);
+  }, [getActiveSequenceForCities, selectedCity]);
 
-  // Sorter utility: Sorts rows strictly by the active area sequence order
+  // Get isolated or combined area list for one, two, or all selected cities
+  const getAreasListForCities = useCallback((targetCities) => {
+    if (!targetCities || targetCities.length === 0) return [];
+
+    const effectiveCities = targetCities.includes('ALL') ? UGRAHI_ROUTES : targetCities;
+    const cityItems = [];
+    const seen = new Set();
+
+    effectiveCities.forEach(city => {
+      const cityLower = city.trim().toLowerCase();
+
+      const cityAreasSet = new Set();
+      areas
+        .filter(a => (a.cityName || '').trim().toLowerCase() === cityLower)
+        .forEach(a => a.name && cityAreasSet.add(a.name.trim()));
+
+      ugrahiCustomers
+        .filter(c => (c.ugrahiRoute || c.city || '').trim().toLowerCase() === cityLower)
+        .forEach(c => c.area && cityAreasSet.add(c.area.trim()));
+
+      const allCityAreas = Array.from(cityAreasSet);
+      const savedSeq = areaSequencesMap[city] || [];
+      const orderedNames = [];
+      const citySeen = new Set();
+
+      savedSeq.forEach(areaName => {
+        const trimmed = (areaName || '').trim();
+        const match = allCityAreas.find(a => a.toLowerCase() === trimmed.toLowerCase());
+        if (match && !citySeen.has(match.toLowerCase())) {
+          citySeen.add(match.toLowerCase());
+          orderedNames.push(match);
+        }
+      });
+
+      allCityAreas.forEach(areaName => {
+        if (!citySeen.has(areaName.toLowerCase())) {
+          citySeen.add(areaName.toLowerCase());
+          orderedNames.push(areaName);
+        }
+      });
+
+      orderedNames.forEach(areaName => {
+        const itemKey = `${areaName.toLowerCase()}:::${cityLower}`;
+        if (!seen.has(itemKey)) {
+          seen.add(itemKey);
+          cityItems.push({ name: areaName, cityName: city });
+        }
+      });
+    });
+
+    const multiKey = effectiveCities.map(c => c.toLowerCase()).sort().join('+');
+    const savedMultiSeq = areaSequencesMap[multiKey];
+    if (Array.isArray(savedMultiSeq) && savedMultiSeq.length > 0) {
+      const rankMap = new Map();
+      savedMultiSeq.forEach((entry, idx) => {
+        rankMap.set(String(entry).toLowerCase(), idx);
+      });
+
+      return [...cityItems].sort((a, b) => {
+        const keyA = `${a.name.toLowerCase()}:::${a.cityName.toLowerCase()}`;
+        const keyB = `${b.name.toLowerCase()}:::${b.cityName.toLowerCase()}`;
+        const rA = rankMap.has(keyA) ? rankMap.get(keyA) : (rankMap.has(a.name.toLowerCase()) ? rankMap.get(a.name.toLowerCase()) : 999);
+        const rB = rankMap.has(keyB) ? rankMap.get(keyB) : (rankMap.has(b.name.toLowerCase()) ? rankMap.get(b.name.toLowerCase()) : 999);
+        return rA - rB;
+      });
+    }
+
+    return cityItems;
+  }, [areas, ugrahiCustomers, areaSequencesMap]);
+
+  // Backward-compatible getAreasListForCity
+  const getAreasListForCity = useCallback((targetCity) => {
+    return getAreasListForCities([targetCity]);
+  }, [getAreasListForCities]);
+
+  // Sorter utility: Sorts rows strictly by the active area sequence order (supports { name, cityName } or string)
   const sortRowsByAreaSequence = useCallback((rowsList, sequenceOrder) => {
     if (!rowsList || rowsList.length === 0) return [];
     if (!sequenceOrder || sequenceOrder.length === 0) return rowsList;
 
-    const areaRank = new Map();
-    sequenceOrder.forEach((name, index) => {
-      if (name) areaRank.set(String(name).trim().toLowerCase(), index);
+    const rankMap = new Map();
+    sequenceOrder.forEach((item, index) => {
+      const areaName = typeof item === 'object' && item !== null ? item.name : item;
+      const cityName = typeof item === 'object' && item !== null ? item.cityName : '';
+      const normArea = (areaName || '').trim().toLowerCase();
+      const normCity = (cityName || '').trim().toLowerCase();
+
+      if (normCity) {
+        rankMap.set(`${normArea}:::${normCity}`, index);
+      }
+      if (!rankMap.has(normArea)) {
+        rankMap.set(normArea, index);
+      }
     });
+
     const fallbackRank = sequenceOrder.length + 999;
 
     return [...rowsList].sort((a, b) => {
       const aArea = (a.area || '').trim().toLowerCase();
+      const aCity = (a.ugrahiRoute || a.city || '').trim().toLowerCase();
       const bArea = (b.area || '').trim().toLowerCase();
-      const rankA = areaRank.has(aArea) ? areaRank.get(aArea) : fallbackRank;
-      const rankB = areaRank.has(bArea) ? areaRank.get(bArea) : fallbackRank;
+      const bCity = (b.ugrahiRoute || b.city || '').trim().toLowerCase();
+
+      const keyA = `${aArea}:::${aCity}`;
+      const keyB = `${bArea}:::${bCity}`;
+
+      const rankA = rankMap.has(keyA) ? rankMap.get(keyA) : (rankMap.has(aArea) ? rankMap.get(aArea) : fallbackRank);
+      const rankB = rankMap.has(keyB) ? rankMap.get(keyB) : (rankMap.has(bArea) ? rankMap.get(bArea) : fallbackRank);
 
       if (rankA !== rankB) return rankA - rankB;
       return (a.name || '').localeCompare(b.name || '');
@@ -214,11 +350,6 @@ export const UgrahiView = () => {
     };
   }, [activeSavedMenuId]);
 
-  // Only customers explicitly marked for Ugrahi (Payment Collection)
-  const ugrahiCustomers = useMemo(() => {
-    return customers.filter(c => c && (c.inUgrahi === true || c.inUgrahi === 1));
-  }, [customers]);
-
   // Helper to map DB customers to collection sheet rows
   const mapCustomersToRows = (custList, filterDueOnly = false) => {
     let list = custList || [];
@@ -240,19 +371,17 @@ export const UgrahiView = () => {
   // Compute available areas for active route
   const availableAreasForRoute = useMemo(() => {
     let cityCustomers = ugrahiCustomers;
-    if (selectedCity && selectedCity !== 'ALL') {
-      cityCustomers = ugrahiCustomers.filter(
-        c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
-      );
+    if (!selectedCities.includes('ALL')) {
+      cityCustomers = ugrahiCustomers.filter(c => isRouteActive(c.ugrahiRoute || c.city));
     }
 
     const areaSet = new Set();
-    if (selectedCity && selectedCity !== 'ALL') {
+    if (!selectedCities.includes('ALL')) {
       areas
-        .filter(a => (a.cityName || '').toLowerCase() === selectedCity.toLowerCase())
-        .forEach(a => areaSet.add(a.name));
+        .filter(a => isRouteActive(a.cityName))
+        .forEach(a => a.name && areaSet.add(a.name.trim()));
     } else {
-      areas.forEach(a => areaSet.add(a.name));
+      areas.forEach(a => a.name && areaSet.add(a.name.trim()));
     }
 
     cityCustomers.forEach(c => {
@@ -262,15 +391,13 @@ export const UgrahiView = () => {
     });
 
     return Array.from(areaSet).sort((a, b) => a.localeCompare(b));
-  }, [areas, ugrahiCustomers, selectedCity]);
+  }, [areas, ugrahiCustomers, selectedCities, isRouteActive]);
 
   // Compute shop count per area
   const areaCounts = useMemo(() => {
     let cityCustomers = ugrahiCustomers;
-    if (selectedCity && selectedCity !== 'ALL') {
-      cityCustomers = ugrahiCustomers.filter(
-        c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
-      );
+    if (!selectedCities.includes('ALL')) {
+      cityCustomers = ugrahiCustomers.filter(c => isRouteActive(c.ugrahiRoute || c.city));
     }
     const counts = { ALL: cityCustomers.length };
     availableAreasForRoute.forEach(areaName => {
@@ -279,7 +406,7 @@ export const UgrahiView = () => {
       ).length;
     });
     return counts;
-  }, [ugrahiCustomers, selectedCity, availableAreasForRoute]);
+  }, [ugrahiCustomers, selectedCities, isRouteActive, availableAreasForRoute]);
 
   // Sort areas for append dropdown: areas with customers first, then alphabetical
   const sortedAreasForAppend = useMemo(() => {
@@ -331,13 +458,11 @@ export const UgrahiView = () => {
       // Case A: Initial mount or empty rows -> populate from ugrahiCustomers for active route in saved area sequence
       if (!prevRows || prevRows.length === 0) {
         let source = ugrahiCustomers;
-        if (selectedCity && selectedCity !== 'ALL') {
-          source = ugrahiCustomers.filter(
-            c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
-          );
+        if (!selectedCities.includes('ALL')) {
+          source = ugrahiCustomers.filter(c => isRouteActive(c.ugrahiRoute || c.city));
         }
         const mapped = mapCustomersToRows(source, dueOnly);
-        return sortRowsByAreaSequence(mapped, getActiveSequence(selectedCity));
+        return sortRowsByAreaSequence(mapped, getActiveSequenceForCities(selectedCities));
       }
 
       let hasChanges = false;
@@ -352,10 +477,10 @@ export const UgrahiView = () => {
             hasChanges = true;
             return false;
           }
-          // If a specific city/route filter is active, verify route still matches
-          if (selectedCity && selectedCity !== 'ALL') {
+          // If specific city/route filter is active, verify route still matches
+          if (!selectedCities.includes('ALL')) {
             const cust = custMap.get(r.customerId);
-            const matchesRoute = cust && (cust.ugrahiRoute || cust.city || '').toLowerCase() === selectedCity.toLowerCase();
+            const matchesRoute = cust && isRouteActive(cust.ugrahiRoute || cust.city);
             if (!matchesRoute) {
               hasChanges = true;
               return false;
@@ -397,10 +522,8 @@ export const UgrahiView = () => {
       // Check if any customer marked in Payment Collection is missing from rows
       const existingCustIds = new Set(updatedExisting.filter(r => r.customerId).map(r => r.customerId));
       let missingCandidates = ugrahiCustomers.filter(c => !existingCustIds.has(c.id));
-      if (selectedCity && selectedCity !== 'ALL') {
-        missingCandidates = missingCandidates.filter(
-          c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
-        );
+      if (!selectedCities.includes('ALL')) {
+        missingCandidates = missingCandidates.filter(c => isRouteActive(c.ugrahiRoute || c.city));
       }
       if (dueOnly) {
         missingCandidates = missingCandidates.filter(c => Number(c.remainingBalance || 0) > 0);
@@ -410,12 +533,12 @@ export const UgrahiView = () => {
         hasChanges = true;
         const newRows = mapCustomersToRows(missingCandidates, dueOnly);
         const combined = [...updatedExisting, ...newRows];
-        return sortRowsByAreaSequence(combined, getActiveSequence(selectedCity));
+        return sortRowsByAreaSequence(combined, getActiveSequenceForCities(selectedCities));
       }
 
       return hasChanges ? updatedExisting : prevRows;
     });
-  }, [customers, ugrahiCustomers, selectedCity, dueOnly, getActiveSequence, sortRowsByAreaSequence]);
+  }, [customers, ugrahiCustomers, selectedCities, isRouteActive, dueOnly, getActiveSequenceForCities, sortRowsByAreaSequence]);
 
   // Saved Sheets Library
   const [savedSheets, setSavedSheets] = useState(() => {
@@ -597,32 +720,54 @@ export const UgrahiView = () => {
     });
   };
 
-  // Route Filter Change Handler (Supports 'ALL' and the 5 specific Ugrahi Routes)
-  const handleCityChange = (routeName) => {
-    setSelectedCity(routeName);
+  // Route Filter Change Handler (Supports multi-select toggle)
+  const handleCityToggle = (cityName) => {
     setSelectedAreaFilter('ALL');
     setTableSearch('');
 
-    const targetSeq = getActiveSequence(routeName);
-
-    if (!routeName || routeName === 'ALL') {
-      const allRows = mapCustomersToRows(ugrahiCustomers, dueOnly);
-      const sorted = sortRowsByAreaSequence(allRows, targetSeq);
-      setRows(sorted);
-      setSheetTitle('All Routes Payment Collection Sheet');
-      setRouteLocation('All Wholesale Routes');
-      return;
+    let nextCities;
+    if (cityName === 'ALL') {
+      nextCities = ['ALL'];
+    } else if (selectedCities.includes('ALL')) {
+      nextCities = [cityName];
+    } else if (selectedCities.some(c => c.toLowerCase() === cityName.toLowerCase())) {
+      if (selectedCities.length === 1) {
+        nextCities = ['ALL'];
+      } else {
+        nextCities = selectedCities.filter(c => c.toLowerCase() !== cityName.toLowerCase());
+      }
+    } else {
+      nextCities = [...selectedCities, cityName];
     }
 
-    const routeCustomers = ugrahiCustomers.filter(
-      c => (c.ugrahiRoute || c.city || '').toLowerCase() === routeName.toLowerCase()
-    );
+    setSelectedCities(nextCities);
 
-    const routeRows = mapCustomersToRows(routeCustomers, dueOnly);
-    const sorted = sortRowsByAreaSequence(routeRows, targetSeq);
+    const targetSeq = getActiveSequenceForCities(nextCities);
+
+    let candidates = ugrahiCustomers;
+    if (!nextCities.includes('ALL')) {
+      candidates = ugrahiCustomers.filter(c => {
+        const cCity = (c.ugrahiRoute || c.city || '').trim().toLowerCase();
+        return nextCities.some(cty => cty.trim().toLowerCase() === cCity);
+      });
+    }
+    if (dueOnly) {
+      candidates = candidates.filter(c => Number(c.remainingBalance || 0) > 0);
+    }
+
+    const nextRows = mapCustomersToRows(candidates, dueOnly);
+    const sorted = sortRowsByAreaSequence(nextRows, targetSeq);
     setRows(sorted);
-    setSheetTitle(`${routeName} Payment Collection Sheet`);
-    setRouteLocation(`${routeName} Wholesale Route`);
+
+    const titleCity = nextCities.includes('ALL') 
+      ? 'All Routes' 
+      : (nextCities.length === 1 ? nextCities[0] : 'Multi-Route');
+    setSheetTitle(`${titleCity} Payment Collection Sheet`);
+    setRouteLocation(nextCities.includes('ALL') ? 'All Wholesale Routes' : (nextCities.length === 1 ? `${nextCities[0]} Wholesale Route` : `${nextCities.length} Routes Collection`));
+  };
+
+  const handleCityChange = (cityName) => {
+    handleCityToggle(cityName);
   };
 
   // Append Area Customers Sequentially Below Current Sheet
@@ -632,10 +777,8 @@ export const UgrahiView = () => {
     let candidates = ugrahiCustomers.filter(
       c => (c.area || '').toLowerCase() === areaName.toLowerCase()
     );
-    if (selectedCity && selectedCity !== 'ALL') {
-      candidates = candidates.filter(
-        c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
-      );
+    if (!selectedCities.includes('ALL')) {
+      candidates = candidates.filter(c => isRouteActive(c.ugrahiRoute || c.city));
     }
     if (dueOnly) {
       candidates = candidates.filter(c => Number(c.remainingBalance || 0) > 0);
@@ -665,68 +808,62 @@ export const UgrahiView = () => {
   };
 
   // Open Route Order / Arrange Modal
-  const handleOpenArrangeModal = () => {
-    const currentKey = selectedCity || 'ALL';
-    const activeSeq = getActiveSequence(currentKey);
-    const presentAreas = [];
-    const seen = new Set();
+  const handleOpenArrangeModal = (citiesOverride) => {
+    let initialCities;
+    if (Array.isArray(citiesOverride) && citiesOverride.length > 0) {
+      initialCities = citiesOverride;
+    } else if (typeof citiesOverride === 'string' && citiesOverride && citiesOverride !== 'ALL') {
+      initialCities = [citiesOverride];
+    } else if (selectedCities && selectedCities.length > 0 && !selectedCities.includes('ALL')) {
+      initialCities = selectedCities;
+    } else {
+      initialCities = ['Lahore'];
+    }
 
-    // Collect all areas currently present in sheet rows
-    const sheetAreaMap = new Map();
-    rows.forEach(r => {
-      const a = (r.area || '').trim();
-      if (a) {
-        sheetAreaMap.set(a.toLowerCase(), a);
-      }
-    });
+    setModalSelectedCities(initialCities);
+    const cityAreas = getAreasListForCities(initialCities);
+    setModalAreaOrder(cityAreas);
+    setIsArrangeModalOpen(true);
+  };
 
-    // 1. First: Areas present in current sheet that have a saved sequence order (in exact saved order!)
-    activeSeq.forEach(a => {
-      const trimmed = (a || '').trim();
-      const lower = trimmed.toLowerCase();
-      if (trimmed && sheetAreaMap.has(lower) && !seen.has(lower)) {
-        seen.add(lower);
-        presentAreas.push(sheetAreaMap.get(lower) || trimmed);
-      }
-    });
-
-    // 2. Then: Any areas present in active sheet that are not yet in the saved sequence
-    rows.forEach(r => {
-      const a = (r.area || '').trim();
-      const lower = a.toLowerCase();
-      if (a && !seen.has(lower)) {
-        seen.add(lower);
-        presentAreas.push(a);
-      }
-    });
-
-    // 3. Then: Any other saved sequence areas for this route (even if currently 0 active shops)
-    activeSeq.forEach(a => {
-      const trimmed = (a || '').trim();
-      const lower = trimmed.toLowerCase();
-      if (trimmed && !seen.has(lower)) {
-        seen.add(lower);
-        presentAreas.push(trimmed);
-      }
-    });
-
-    // 4. Finally: Any remaining registered areas for this route
-    availableAreasForRoute.forEach(a => {
-      const trimmed = (a || '').trim();
-      const lower = trimmed.toLowerCase();
-      if (trimmed && !seen.has(lower)) {
-        seen.add(lower);
-        presentAreas.push(trimmed);
-      }
-    });
-
-    if (presentAreas.length === 0) {
-      showToast('No areas assigned to customers in this sheet yet.', 'info');
+  // Toggle City in Modal Route Selector (Multi-Select Supported)
+  const handleToggleModalCity = (cityName) => {
+    if (cityName === 'ALL') {
+      setModalSelectedCities(['ALL']);
+      const allAreas = getAreasListForCities(['ALL']);
+      setModalAreaOrder(allAreas);
       return;
     }
 
-    setModalAreaOrder(presentAreas);
-    setIsArrangeModalOpen(true);
+    setModalSelectedCities(prev => {
+      let next;
+      if (prev.includes('ALL')) {
+        next = [cityName];
+      } else if (prev.includes(cityName)) {
+        if (prev.length === 1) {
+          next = ['ALL'];
+        } else {
+          next = prev.filter(c => c !== cityName);
+        }
+      } else {
+        next = [...prev, cityName];
+      }
+
+      const nextAreas = getAreasListForCities(next);
+      setModalAreaOrder(nextAreas);
+      return next;
+    });
+  };
+
+  // Move Area to Top
+  const handleMoveAreaToTop = (index) => {
+    if (index <= 0) return;
+    setModalAreaOrder(prev => {
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.unshift(item);
+      return copy;
+    });
   };
 
   // Move Area Up in Modal Sequence
@@ -755,35 +892,78 @@ export const UgrahiView = () => {
 
   // Reset modal sequence to alphabetical order
   const handleResetModalOrderToAZ = () => {
-    setModalAreaOrder(prev => [...prev].sort((a, b) => a.localeCompare(b)));
+    setModalAreaOrder(prev =>
+      [...prev].sort((a, b) => {
+        const nameA = typeof a === 'object' ? a.name : a;
+        const nameB = typeof b === 'object' ? b.name : b;
+        return nameA.localeCompare(nameB);
+      })
+    );
     showToast('Reset to alphabetical order (click Save to permanently save)', 'info');
   };
 
   // Apply Area Sequence Reordering to Rows & Save Permanently in LocalStorage
   const handleApplyAreaSequence = () => {
-    const currentKey = selectedCity || 'ALL';
+    const effectiveCities = modalSelectedCities.includes('ALL') ? UGRAHI_ROUTES : modalSelectedCities;
 
-    // 1. Permanently update sequence map & localStorage
-    setAreaSequencesMap(prev => ({
-      ...prev,
-      [currentKey]: modalAreaOrder,
-      ALL: modalAreaOrder // also set as general fallback
-    }));
-    try {
-      localStorage.setItem('kc_preferred_area_sequence', JSON.stringify(modalAreaOrder));
-    } catch (e) {}
-
-    // 2. Sort current active rows immediately using this sequence
-    setRows(prevRows => {
-      const sorted = sortRowsByAreaSequence(prevRows, modalAreaOrder);
-      try {
-        localStorage.setItem('kc_active_collection_rows', JSON.stringify(sorted));
-      } catch (e) {}
-      return sorted;
+    // 1. Update sequence map for individual cities
+    const updatedMap = { ...areaSequencesMap };
+    effectiveCities.forEach(city => {
+      const cityAreas = modalAreaOrder
+        .filter(item => {
+          const cName = typeof item === 'object' ? item.cityName : '';
+          return !cName || cName.toLowerCase() === city.toLowerCase();
+        })
+        .map(item => (typeof item === 'object' ? item.name : item));
+      if (cityAreas.length > 0) {
+        updatedMap[city] = cityAreas;
+      }
     });
 
+    // 2. Save combined multi-city sequence if multiple cities
+    const multiKey = effectiveCities.map(c => c.toLowerCase()).sort().join('+');
+    updatedMap[multiKey] = modalAreaOrder.map(item => {
+      const aName = typeof item === 'object' ? item.name : item;
+      const cName = typeof item === 'object' ? item.cityName : '';
+      return `${aName}:::${cName}`;
+    });
+
+    setAreaSequencesMap(updatedMap);
+    try {
+      localStorage.setItem('kc_area_route_sequences_map', JSON.stringify(updatedMap));
+    } catch (e) {}
+
+    // 3. Update main screen selectedCities to match modal
+    setSelectedCities(modalSelectedCities);
+
+    // 4. Filter & sort rows for active sheet
+    let candidates = ugrahiCustomers;
+    if (!modalSelectedCities.includes('ALL')) {
+      candidates = ugrahiCustomers.filter(c => {
+        const cCity = (c.ugrahiRoute || c.city || '').trim().toLowerCase();
+        return modalSelectedCities.some(cty => cty.trim().toLowerCase() === cCity);
+      });
+    }
+    if (dueOnly) {
+      candidates = candidates.filter(c => Number(c.remainingBalance || 0) > 0);
+    }
+
+    const candidateRows = mapCustomersToRows(candidates, dueOnly);
+    const sorted = sortRowsByAreaSequence(candidateRows, modalAreaOrder);
+    setRows(sorted);
+    try {
+      localStorage.setItem('kc_active_collection_rows', JSON.stringify(sorted));
+    } catch (e) {}
+
+    // 5. Update Sheet Title
+    const titleCity = modalSelectedCities.includes('ALL') 
+      ? 'All Routes' 
+      : (modalSelectedCities.length === 1 ? modalSelectedCities[0] : 'Multi-Route');
+    setSheetTitle(`${titleCity} Payment Collection Sheet`);
+    setRouteLocation(modalSelectedCities.includes('ALL') ? 'All Wholesale Routes' : (modalSelectedCities.length === 1 ? `${modalSelectedCities[0]} Wholesale Route` : `${modalSelectedCities.length} Routes Collection`));
+
     setIsArrangeModalOpen(false);
-    showToast('Area route sequence saved permanently! All future sheets & reloads will use this order.', 'success');
+    showToast(`Permanent area route sequence for "${titleCity}" saved and applied!`, 'success');
   };
 
   // Toggle "Only Baqaya Due" filter
@@ -792,14 +972,12 @@ export const UgrahiView = () => {
     setDueOnly(nextDue);
 
     let source = ugrahiCustomers;
-    if (selectedCity && selectedCity !== 'ALL') {
-      source = ugrahiCustomers.filter(
-        c => (c.ugrahiRoute || c.city || '').toLowerCase() === selectedCity.toLowerCase()
-      );
+    if (!selectedCities.includes('ALL')) {
+      source = ugrahiCustomers.filter(c => isRouteActive(c.ugrahiRoute || c.city));
     }
 
     const updated = mapCustomersToRows(source, nextDue);
-    const sorted = sortRowsByAreaSequence(updated, getActiveSequence(selectedCity));
+    const sorted = sortRowsByAreaSequence(updated, getActiveSequenceForCities(selectedCities));
     setRows(sorted);
   };
 
@@ -810,15 +988,12 @@ export const UgrahiView = () => {
       setRows([]);
       return;
     }
-    const targetCity = selectedCity || 'ALL';
     let source = ugrahiCustomers;
-    if (targetCity !== 'ALL') {
-      source = ugrahiCustomers.filter(
-        c => (c.ugrahiRoute || c.city || '').toLowerCase() === targetCity.toLowerCase()
-      );
+    if (!selectedCities.includes('ALL')) {
+      source = ugrahiCustomers.filter(c => isRouteActive(c.ugrahiRoute || c.city));
     }
     const allRows = mapCustomersToRows(source, dueOnly);
-    const sorted = sortRowsByAreaSequence(allRows, getActiveSequence(targetCity));
+    const sorted = sortRowsByAreaSequence(allRows, getActiveSequenceForCities(selectedCities));
     setRows(sorted);
     try {
       localStorage.setItem('kc_active_collection_rows', JSON.stringify(sorted));
@@ -1268,57 +1443,75 @@ export const UgrahiView = () => {
             {/* Ugrahi Route Dropdown Filter */}
             <div>
               <select
-                value={selectedCity}
-                onChange={e => handleCityChange(e.target.value)}
+                value={selectedCities.includes('ALL') ? 'ALL' : (selectedCities.length === 1 ? selectedCities[0] : 'MULTI')}
+                onChange={e => {
+                  if (e.target.value === 'ALL') {
+                    handleCityToggle('ALL');
+                  } else {
+                    handleCityChange(e.target.value);
+                  }
+                }}
                 className="w-full px-3 py-1.5 bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold text-blue-800 dark:text-blue-300 outline-hidden focus:border-blue-500 transition-colors cursor-pointer"
                 title="Filter by Ugrahi Route"
               >
-                <option value="ALL">All Cities</option>
+                <option value="ALL">All Cities ({routeCounts.ALL})</option>
                 {UGRAHI_ROUTES.map(route => (
                   <option key={route} value={route}>
-                    {route}
+                    {route} ({routeCounts[route] || 0})
                   </option>
                 ))}
+                {!selectedCities.includes('ALL') && selectedCities.length > 1 && (
+                  <option value="MULTI" disabled>
+                    ✓ Multiple Routes ({selectedCities.length} Selected)
+                  </option>
+                )}
               </select>
             </div>
           </div>
 
-          {/* 5 Dedicated Collection Routes Chips Bar */}
+          {/* Dedicated Collection Routes Chips Bar */}
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-slate-400 mr-1 flex items-center gap-1">
-              <Filter className="w-3 h-3 text-slate-400" />
-              <span>Route Lists:</span>
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
+              <Filter className="w-3.5 h-3.5 text-blue-500" />
+              <span>Route Filter:</span>
             </span>
 
             {/* All Routes Chip */}
             <button
               type="button"
-              onClick={() => handleCityChange('ALL')}
-              className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                selectedCity === 'ALL' || !selectedCity
-                  ? 'bg-blue-600 text-white shadow-2xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              onClick={() => handleCityToggle('ALL')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                selectedCities.includes('ALL')
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700'
               }`}
             >
               All Routes ({routeCounts.ALL})
             </button>
 
-            {/* 5 Dedicated Routes: Lahore, Raiwind, Sheikhupura, Multan, Sialkot */}
+            {/* Dedicated Routes: Lahore, Androon Lahore, Raiwind, Sheikhupura, Multan, Sialkot */}
             {UGRAHI_ROUTES.map(route => {
               const count = routeCounts[route] || 0;
-              const isSelected = selectedCity?.toLowerCase() === route.toLowerCase();
+              const isSelected = !selectedCities.includes('ALL') && selectedCities.some(c => c.toLowerCase() === route.toLowerCase());
               return (
                 <button
                   key={route}
                   type="button"
-                  onClick={() => handleCityChange(route)}
-                  className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  onClick={() => handleCityToggle(route)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     isSelected
-                      ? 'bg-blue-600 text-white shadow-2xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-400/40'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
                   }`}
+                  title={`Click to filter ${route}. Click another route to view multiple together.`}
                 >
-                  {route} ({count})
+                  {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                  <span>{route}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected ? 'bg-white/25 text-white font-bold' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                  }`}>
+                    {count}
+                  </span>
                 </button>
               );
             })}
@@ -1329,7 +1522,7 @@ export const UgrahiView = () => {
             <button
               type="button"
               onClick={handleToggleDueOnly}
-              className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
                 dueOnly
                   ? 'bg-rose-600 text-white shadow-2xs'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -1348,9 +1541,6 @@ export const UgrahiView = () => {
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-blue-500" />
                   <span>Area Route Planning:</span>
-                </span>
-                <span className="text-[11px] text-slate-400 hidden sm:inline">
-                  (Filter view by area, append specific areas, or sequence route)
                 </span>
               </div>
 
@@ -1409,57 +1599,61 @@ export const UgrahiView = () => {
                 {/* Arrange / Route Order by Areas Button */}
                 <button
                   type="button"
-                  onClick={handleOpenArrangeModal}
-                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="Organize / Reorder all shops in sheet by Area sequence (e.g. Shahdara first, then Cantt)"
+                  onClick={() => handleOpenArrangeModal(selectedCities)}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  title="Organize / Reorder all shops in sheet by Area sequence"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Route Order by Area</span>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>
+                    Route Order ({selectedCities.includes('ALL') ? 'All Routes' : (selectedCities.length === 1 ? selectedCities[0] : `${selectedCities.length} Routes`)})
+                  </span>
                 </button>
               </div>
             </div>
 
-            {/* Area Filter Chips Strip */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[11px] font-semibold text-slate-400 mr-1 flex items-center gap-1 shrink-0">
+            {/* Area Filter Chips Strip (Contained to max 2 lines with smooth clean scroller) */}
+            <div className="flex items-start gap-2 pt-1">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-0.5 shrink-0 flex items-center gap-1">
                 <span>View Filter:</span>
               </span>
 
-              {/* All Areas Chip */}
-              <button
-                type="button"
-                onClick={() => setSelectedAreaFilter('ALL')}
-                className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                  selectedAreaFilter === 'ALL' || !selectedAreaFilter
-                    ? 'bg-indigo-600 text-white shadow-2xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                All Areas ({areaCounts.ALL})
-              </button>
+              <div className="flex-1 max-h-[62px] overflow-y-auto pr-1 flex flex-wrap items-center gap-1.5 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] dark:[scrollbar-color:#334155_transparent]">
+                {/* All Areas Chip */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedAreaFilter('ALL')}
+                  className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                    selectedAreaFilter === 'ALL' || !selectedAreaFilter
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  All Areas ({areaCounts.ALL})
+                </button>
 
-              {/* Individual Area Chips */}
-              {availableAreasForRoute.map(areaName => {
-                const count = areaCounts[areaName] || 0;
-                const isSelected = selectedAreaFilter.toLowerCase() === areaName.toLowerCase();
-                return (
-                  <button
-                    key={areaName}
-                    type="button"
-                    onClick={() => setSelectedAreaFilter(isSelected ? 'ALL' : areaName)}
-                    className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
-                      isSelected
-                        ? 'bg-indigo-600 text-white shadow-2xs'
-                        : count > 0
-                          ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200/60 dark:border-blue-900/40'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <span>📍 {areaName}</span>
-                    {count > 0 && <span className="font-bold">({count})</span>}
-                  </button>
-                );
-              })}
+                {/* Individual Area Chips */}
+                {availableAreasForRoute.map(areaName => {
+                  const count = areaCounts[areaName] || 0;
+                  const isSelected = selectedAreaFilter.toLowerCase() === areaName.toLowerCase();
+                  return (
+                    <button
+                      key={areaName}
+                      type="button"
+                      onClick={() => setSelectedAreaFilter(isSelected ? 'ALL' : areaName)}
+                      className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white shadow-2xs'
+                          : count > 0
+                            ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200/60 dark:border-blue-900/40'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <span>📍 {areaName}</span>
+                      {count > 0 && <span className="font-bold">({count})</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -1871,125 +2065,259 @@ export const UgrahiView = () => {
       {/* ARRANGE AREA ROUTE SEQUENCE MODAL                         */}
       {/* ========================================================= */}
       {isArrangeModalOpen && (
-        <div className="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-start justify-between bg-gradient-to-r from-amber-500/5 via-transparent to-blue-500/5">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <span>Route Sequence by Area</span>
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                    Auto-Saved Permanent
+                  <span className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4" />
                   </span>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>
+                        Route Sequence by Area {modalSelectedCities.includes('ALL') ? '(All Routes)' : (modalSelectedCities.length === 1 ? `(${modalSelectedCities[0]})` : `(${modalSelectedCities.length} Routes)`)}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                        Auto-Saved Permanent
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Select 1 or multiple cities below. Arrange their areas in order. Sheet will display accounts in this exact sequence.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Set area recovery order. Once saved, this sequence is permanently remembered for all sheets and reloads.
-                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsArrangeModalOpen(false)}
                 className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Area Sequence List */}
-            <div className="p-4 overflow-y-auto space-y-2 flex-1">
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                <span>Recovery Sequence Order</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleResetModalOrderToAZ}
-                    className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer lowercase"
-                  >
-                    Reset to A-Z
-                  </button>
-                  <span>•</span>
-                  <span>Use arrows to move</span>
-                </div>
+            {/* Route Selection Multi-Toggle Tabs */}
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Choose Cities in Route (Multi-Select):</span>
+                </span>
+                <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                  {modalSelectedCities.includes('ALL')
+                    ? 'All Routes Selected'
+                    : `${modalSelectedCities.length} ${modalSelectedCities.length === 1 ? 'City' : 'Cities'} Active`}
+                </span>
               </div>
 
-              {modalAreaOrder.map((areaName, idx) => {
-                const count = rows.filter(r => (r.area || '').toLowerCase() === areaName.toLowerCase()).length;
-                return (
-                  <div
-                    key={areaName}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between gap-3 transition-all hover:border-amber-300 dark:hover:border-amber-700/60"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-mono font-bold text-xs flex items-center justify-center shrink-0">
-                        {idx + 1}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {/* All Routes Pill */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleModalCity('ALL')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                    modalSelectedCities.includes('ALL')
+                      ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-300'
+                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <span>All Routes</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    modalSelectedCities.includes('ALL') ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                  }`}>
+                    {areas.length}
+                  </span>
+                </button>
+
+                {/* Individual Cities */}
+                {UGRAHI_ROUTES.map(route => {
+                  const isSel = !modalSelectedCities.includes('ALL') && modalSelectedCities.some(c => c.toLowerCase() === route.toLowerCase());
+                  const routeAreaCount = areas.filter(a => (a.cityName || '').trim().toLowerCase() === route.toLowerCase()).length;
+                  return (
+                    <button
+                      key={route}
+                      type="button"
+                      onClick={() => handleToggleModalCity(route)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                        isSel
+                          ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-300'
+                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                      }`}
+                      title={`Click to add/remove ${route}`}
+                    >
+                      {isSel && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                      <span>{route}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                        isSel ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                      }`}>
+                        {routeAreaCount}
                       </span>
-                      <div>
-                        <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                          📍 {areaName}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Area Sequence List Controls */}
+            <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs bg-slate-50/50 dark:bg-slate-800/30">
+              <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <span>Recovery Sequence Order</span>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold">
+                  {modalAreaOrder.length} Areas
+                </span>
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleResetModalOrderToAZ}
+                  className="font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1 text-[11px]"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset A-Z</span>
+                </button>
+                <span className="text-slate-300">•</span>
+                <span className="text-slate-400 text-[11px]">Use arrows to reorder</span>
+              </div>
+            </div>
+
+            {/* Area Cards List */}
+            <div className="p-4 overflow-y-auto space-y-2 flex-1">
+              {modalAreaOrder.length === 0 ? (
+                <div className="text-center py-12 px-4 text-slate-400">
+                  <MapPin className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    No areas found for selected route(s)
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Please select at least one route above.
+                  </p>
+                </div>
+              ) : (
+                modalAreaOrder.map((item, idx) => {
+                  const areaName = typeof item === 'object' && item !== null ? item.name : item;
+                  const cityName = typeof item === 'object' && item !== null ? item.cityName : '';
+                  const count = rows.filter(r => {
+                    const matchesArea = (r.area || '').toLowerCase() === (areaName || '').toLowerCase();
+                    if (!cityName) return matchesArea;
+                    const rCity = (r.ugrahiRoute || r.city || '').toLowerCase();
+                    return matchesArea && rCity === cityName.toLowerCase();
+                  }).length;
+
+                  // Distinct city badge colors
+                  const cityColorClasses = {
+                    'lahore': 'bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+                    'multan': 'bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+                    'sheikhupura': 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+                    'raiwind': 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+                    'androon lahore': 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+                    'sialkot': 'bg-cyan-100 dark:bg-cyan-950/70 text-cyan-800 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800'
+                  }[(cityName || '').toLowerCase()] || 'bg-slate-100 text-slate-700 border-slate-200';
+
+                  return (
+                    <div
+                      key={`${areaName}:::${cityName}:::${idx}`}
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 flex items-center justify-between gap-3 transition-all hover:border-amber-400 dark:hover:border-amber-600 shadow-2xs"
+                    >
+                      {/* Left: Rank & Area info */}
+                      <div className="flex items-center gap-3">
+                        <span className="w-7 h-7 rounded-lg bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-amber-500/20">
+                          {idx + 1}
                         </span>
-                        <span className="text-[11px] text-slate-400 font-mono">
-                          {count} {count === 1 ? 'shop' : 'shops'} in active sheet
-                        </span>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              📍 {areaName}
+                            </span>
+                            {cityName && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${cityColorClasses}`}>
+                                {cityName}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-mono mt-0.5 block">
+                            {count} {count === 1 ? 'shop' : 'shops'} in active collection sheet
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right: Up / Down move controls */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Move to Top */}
+                        <button
+                          type="button"
+                          onClick={() => handleMoveAreaToTop(idx)}
+                          disabled={idx === 0}
+                          className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
+                            idx === 0
+                              ? 'opacity-20 border-slate-200 text-slate-400 cursor-not-allowed'
+                              : 'border-slate-200 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer'
+                          }`}
+                          title="Move to Top (#1)"
+                        >
+                          Top
+                        </button>
+
+                        {/* Move Up */}
+                        <button
+                          type="button"
+                          onClick={() => handleMoveAreaUp(idx)}
+                          disabled={idx === 0}
+                          className={`p-1.5 rounded-lg border transition-all ${
+                            idx === 0
+                              ? 'opacity-20 border-slate-200 text-slate-400 cursor-not-allowed'
+                              : 'border-slate-200 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer'
+                          }`}
+                          title="Move Up"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Move Down */}
+                        <button
+                          type="button"
+                          onClick={() => handleMoveAreaDown(idx)}
+                          disabled={idx === modalAreaOrder.length - 1}
+                          className={`p-1.5 rounded-lg border transition-all ${
+                            idx === modalAreaOrder.length - 1
+                              ? 'opacity-20 border-slate-200 text-slate-400 cursor-not-allowed'
+                              : 'border-slate-200 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer'
+                          }`}
+                          title="Move Down"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleMoveAreaUp(idx)}
-                        disabled={idx === 0}
-                        className={`p-1.5 rounded-lg border transition-all ${
-                          idx === 0
-                            ? 'opacity-30 border-slate-200 text-slate-400 cursor-not-allowed'
-                            : 'border-slate-200 hover:bg-white hover:border-slate-300 dark:border-slate-700 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs'
-                        }`}
-                        title="Move Up"
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleMoveAreaDown(idx)}
-                        disabled={idx === modalAreaOrder.length - 1}
-                        className={`p-1.5 rounded-lg border transition-all ${
-                          idx === modalAreaOrder.length - 1
-                            ? 'opacity-30 border-slate-200 text-slate-400 cursor-not-allowed'
-                            : 'border-slate-200 hover:bg-white hover:border-slate-300 dark:border-slate-700 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs'
-                        }`}
-                        title="Move Down"
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
             {/* Footer Buttons */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Top area (#1) will appear first in the sheet.
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">
+                Top area (#1) will appear first in the collection sheet.
               </span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsArrangeModalOpen(false)}
-                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleApplyAreaSequence}
-                  className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                  disabled={modalAreaOrder.length === 0}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Save & Apply Sequence</span>
+                  <span>
+                    Save & Apply Sequence ({modalAreaOrder.length} Areas)
+                  </span>
                 </button>
               </div>
             </div>

@@ -243,6 +243,17 @@ export const api = {
     dashboard: () => request('/reports/dashboard')
   },
 
+  // Notifications & Announcements (10-Day Retention Clean Engine)
+  notifications: {
+    list: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return request(`/notifications${query ? `?${query}` : ''}`);
+    },
+    cleanup: (days = 10) => request('/notifications/cleanup', { method: 'POST', body: JSON.stringify({ days }) }),
+    markRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
+    markAllRead: () => request('/notifications/read-all', { method: 'PATCH' })
+  },
+
   // Database Backup Snapshot
   backup: {
     export: () => request('/backup/export')

@@ -28,8 +28,11 @@ import {
   Building2,
   Eye,
   ExternalLink,
-  Plus
+  Plus,
+  Zap,
+  Trash2
 } from 'lucide-react';
+import api from '../../services/api';
 import { formatCustomerDisplayName } from '../../utils/formatters';
 import { showToast } from '../../utils/sweetalert';
 import { Pagination } from '../common/Pagination';
@@ -94,6 +97,17 @@ export const AnnouncementsView = () => {
     setCustomersSubFilter(filter);
     setPage(1);
   };
+
+  // 10-Day Retention Scope: '10_DAYS' (Active, auto-purges >10d) | 'ALL' (Full Archive)
+  const [retentionScope, setRetentionScope] = useState('10_DAYS');
+
+  const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
+  const cutoff10Days = useMemo(() => Date.now() - TEN_DAYS_MS, []);
+
+  // Silent automatic 10-day retention cleanup on mount
+  React.useEffect(() => {
+    api.notifications.cleanup(10).catch(() => {});
+  }, []);
 
   // 1. Process Stock Alerts (50% to 0% with 10% step notifications)
   const stockAlerts = useMemo(() => {
@@ -180,10 +194,15 @@ export const AnnouncementsView = () => {
     .sort((a, b) => a.tierRank - b.tierRank || a.percent - b.percent);
   }, [articles]);
 
-  // 2. Process Wasooli (Customer Payments Received)
+  // 2. Process Wasooli (Customer Payments Received) with 10-Day Retention Tracking
   const wasooliList = useMemo(() => {
     return (customerPayments || []).map(p => {
       const amt = Number(p.amount) || 0;
+      const rawDate = new Date(p.date || p.createdAt || 0).getTime();
+      const isWithin10Days = rawDate >= cutoff10Days;
+      const daysAgo = Math.max(0, Math.floor((Date.now() - rawDate) / (1000 * 60 * 60 * 24)));
+      const daysRemaining = Math.max(0, 10 - daysAgo);
+
       return {
         id: `wasooli-${p.id}`,
         rawId: p.id,
@@ -197,16 +216,26 @@ export const AnnouncementsView = () => {
         refNo: p.refNo || `REC-${p.id}`,
         notes: p.notes || '',
         date: p.date || (p.createdAt ? p.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]),
-        rawDate: new Date(p.date || p.createdAt || 0).getTime(),
+        rawDate,
+        isWithin10Days,
+        daysAgo,
+        daysRemaining,
         recordedBy: p.recordedBy || 'Staff'
       };
-    }).sort((a, b) => b.rawDate - a.rawDate);
-  }, [customerPayments]);
+    })
+    .filter(p => retentionScope === 'ALL' || p.isWithin10Days)
+    .sort((a, b) => b.rawDate - a.rawDate);
+  }, [customerPayments, retentionScope, cutoff10Days]);
 
-  // 3. Process Bills (Outward Dispatches Generated)
+  // 3. Process Bills (Outward Dispatches Generated) with 10-Day Retention Tracking
   const billsList = useMemo(() => {
     return (outward || []).map(o => {
       const amt = Number(o.totalSaleAmount) || ((Number(o.quantity) || 0) * (Number(o.unitSalePrice) || 0));
+      const rawDate = new Date(o.date || o.createdAt || 0).getTime();
+      const isWithin10Days = rawDate >= cutoff10Days;
+      const daysAgo = Math.max(0, Math.floor((Date.now() - rawDate) / (1000 * 60 * 60 * 24)));
+      const daysRemaining = Math.max(0, 10 - daysAgo);
+
       return {
         id: `bill-${o.id}`,
         rawId: o.id,
@@ -222,13 +251,18 @@ export const AnnouncementsView = () => {
         articleName: o.articleName || (o.isWithoutStock ? 'Direct Bill (Without Stock)' : o.articleNo),
         isWithoutStock: Boolean(o.isWithoutStock),
         date: o.date || (o.createdAt ? o.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]),
-        rawDate: new Date(o.date || o.createdAt || 0).getTime(),
+        rawDate,
+        isWithin10Days,
+        daysAgo,
+        daysRemaining,
         gatePassNo: o.gatePassNo,
         notes: o.notes || '',
         originalItem: o
       };
-    }).sort((a, b) => b.rawDate - a.rawDate);
-  }, [outward]);
+    })
+    .filter(o => retentionScope === 'ALL' || o.isWithin10Days)
+    .sort((a, b) => b.rawDate - a.rawDate);
+  }, [outward, retentionScope, cutoff10Days]);
 
   // 4. Process Customer Ledger Balance Alerts (with 10+ Days Overdue Wasooli Tracking)
   const customerAlerts = useMemo(() => {
@@ -520,6 +554,21 @@ export const AnnouncementsView = () => {
         </div>
       </div>
 
+      {/* 1B. 10-Day Database Auto-Purge Policy Alert */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/40 text-xs text-amber-900 dark:text-amber-200 shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0 ring-4 ring-emerald-500/20" />
+          <p className="font-medium text-xs leading-relaxed">
+            <strong className="font-bold text-amber-800 dark:text-amber-100">10-Day Database Auto-Retention Active:</strong> Announcements & notifications 10 din baad database se automatically permanently delete/purge ho jati hain taake system bilkul light aur fast rahe. (Main Customer Khata & Bills secure rehte hain).
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+            Auto-Purge Active
+          </span>
+        </div>
+      </div>
+
       {/* 2. Executive KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -538,13 +587,13 @@ export const AnnouncementsView = () => {
             </div>
             <div className="flex-1 min-w-0">
               <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-                WASOOLI RECEIVED
+                WASOOLI RECEIVED {retentionScope === '10_DAYS' ? '(10 DAYS)' : ''}
               </span>
               <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
                 Rs. {Math.round(totalWasooliSum).toLocaleString()}
               </div>
               <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                {wasooliList.length} Payments recorded • Click to view
+                {wasooliList.length} Payments {retentionScope === '10_DAYS' ? 'in last 10 days' : 'total'} • Click to view
               </div>
             </div>
           </div>
@@ -565,13 +614,13 @@ export const AnnouncementsView = () => {
             </div>
             <div className="flex-1 min-w-0">
               <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
-                TOTAL BILLS GENERATED
+                TOTAL BILLS GENERATED {retentionScope === '10_DAYS' ? '(10 DAYS)' : ''}
               </span>
               <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-0.5">
                 Rs. {Math.round(totalBillsSum).toLocaleString()}
               </div>
               <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                {billsList.length} Dispatch Challans • Click to view
+                {billsList.length} Dispatch Challans {retentionScope === '10_DAYS' ? 'in last 10 days' : 'total'} • Click to view
               </div>
             </div>
           </div>
@@ -789,9 +838,45 @@ export const AnnouncementsView = () => {
               </button>
             </div>
 
-            {/* Context Info Pill */}
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1 rounded-xl">
-              Showing <strong>{filteredWasooliBills.length}</strong> transactions
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* 10-Day Retention Scope Toggle */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRetentionScope('10_DAYS');
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    retentionScope === '10_DAYS'
+                      ? 'bg-amber-500 text-white shadow-xs font-bold'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  title="Show active announcements within 10 days"
+                >
+                  ⚡ Active (Last 10 Days)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRetentionScope('ALL');
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    retentionScope === 'ALL'
+                      ? 'bg-slate-800 text-white shadow-xs font-bold dark:bg-slate-700'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  title="Show full historical archive"
+                >
+                  All Time (Archive)
+                </button>
+              </div>
+
+              {/* Context Info Pill */}
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+                Showing <strong>{filteredWasooliBills.length}</strong> transactions {retentionScope === '10_DAYS' ? '(Active 10d)' : '(All)'}
+              </div>
             </div>
           </div>
 
@@ -895,9 +980,20 @@ export const AnnouncementsView = () => {
                               )}
                             </td>
 
-                            {/* Date */}
-                            <td className="py-4 px-4 font-mono text-slate-500 whitespace-nowrap">
-                              {item.date}
+                            {/* Date & 10-Day Retention Badge */}
+                            <td className="py-4 px-4 font-mono whitespace-nowrap">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-semibold text-slate-800 dark:text-slate-200">{item.date}</span>
+                                {item.daysRemaining !== undefined && (
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-block w-fit ${
+                                    item.daysRemaining <= 2 
+                                      ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800' 
+                                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
+                                  }`}>
+                                    {item.daysRemaining === 0 ? 'Purges today' : `${item.daysRemaining}d left in feed`}
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             {/* Details / Maal Source */}
@@ -943,31 +1039,44 @@ export const AnnouncementsView = () => {
                               </span>
                             </td>
 
-                            {/* Actions */}
-                            <td className="py-4 px-4 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-1.5">
-                                {!isWasooli && (
+                            {/* Actions Column */}
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1.5 w-[150px] mx-auto">
+                                {isWasooli ? (
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      if (item.originalItem) setSelectedDispatchForBill(item.originalItem);
-                                    }}
-                                    className="px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-                                    title="View Bill Details"
+                                    onClick={() => openCustomerStatementByNameOrId(item.customerName, item.customerId)}
+                                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-50 hover:bg-emerald-100/90 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/90 dark:border-emerald-800/60 transition-all shadow-2xs hover:shadow-xs cursor-pointer group"
+                                    title="Open Customer Khata Statement"
                                   >
-                                    View Bill
+                                    <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                                    <span>Khata Statement</span>
                                   </button>
-                                )}
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDispatchForBill(item.originalItem || item);
+                                      }}
+                                      className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 transition-all shadow-2xs hover:shadow-xs cursor-pointer group"
+                                      title="View Bill Details"
+                                    >
+                                      <Eye className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
+                                      <span>Bill</span>
+                                    </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => openCustomerStatementByNameOrId(item.customerName, item.customerId)}
-                                  className="px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
-                                  title="Open Customer Khata Statement"
-                                >
-                                  <FileText className="w-3.5 h-3.5" />
-                                  <span>Khata</span>
-                                </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openCustomerStatementByNameOrId(item.customerName, item.customerId)}
+                                      className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-blue-50 hover:bg-blue-100/90 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200/90 dark:border-blue-800/60 transition-all shadow-2xs hover:shadow-xs cursor-pointer group"
+                                      title="Open Customer Khata Statement"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                                      <span>Khata</span>
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1617,15 +1726,18 @@ export const AnnouncementsView = () => {
                                   + Rs. {item.amount.toLocaleString()}
                                 </span>
                               </td>
-                              <td className="py-4 px-4 text-center whitespace-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => openCustomerStatementByNameOrId(item.customerName, item.customerId)}
-                                  className="px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-300 transition-colors flex items-center gap-1 mx-auto cursor-pointer"
-                                >
-                                  <FileText className="w-3.5 h-3.5" />
-                                  <span>Khata</span>
-                                </button>
+                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center w-[150px] mx-auto">
+                                  <button
+                                    type="button"
+                                    onClick={() => openCustomerStatementByNameOrId(item.customerName, item.customerId)}
+                                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-50 hover:bg-emerald-100/90 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/90 dark:border-emerald-800/60 transition-all shadow-2xs hover:shadow-xs cursor-pointer group"
+                                    title="Open Customer Khata Statement"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                                    <span>Khata Statement</span>
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1661,23 +1773,27 @@ export const AnnouncementsView = () => {
                                   Rs. {item.amount.toLocaleString()}
                                 </span>
                               </td>
-                              <td className="py-4 px-4 text-center whitespace-nowrap">
-                                <div className="flex items-center justify-center gap-1.5">
+                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1.5 w-[150px] mx-auto">
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      if (item.originalItem) setSelectedDispatchForBill(item.originalItem);
+                                      setSelectedDispatchForBill(item.originalItem || item);
                                     }}
-                                    className="px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                                    className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 transition-all shadow-2xs hover:shadow-xs cursor-pointer group"
+                                    title="View Bill Details"
                                   >
-                                    Bill
+                                    <Eye className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
+                                    <span>Bill</span>
                                   </button>
+
                                   <button
                                     type="button"
                                     onClick={() => openCustomerStatementByNameOrId(item.customerName, item.customerId)}
-                                    className="px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
+                                    className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-blue-50 hover:bg-blue-100/90 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200/90 dark:border-blue-800/60 transition-all shadow-2xs hover:shadow-xs cursor-pointer group"
+                                    title="Open Customer Khata Statement"
                                   >
-                                    <FileText className="w-3.5 h-3.5" />
+                                    <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
                                     <span>Khata</span>
                                   </button>
                                 </div>

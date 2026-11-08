@@ -69,8 +69,6 @@ const BillDetailModalContent = () => {
 
   const [isDownloading, setIsDownloading] = useState(false);
 
-  if (!selectedDispatchForBill) return null;
-
   const currentChallan = selectedDispatchForBill?.challanNo != null 
     ? String(selectedDispatchForBill.challanNo) 
     : '';
@@ -111,6 +109,8 @@ const BillDetailModalContent = () => {
       return sName === cName || fullName === cName;
     });
   }, [customers, selectedDispatchForBill, selectedCustomerKhata]);
+
+  if (!selectedDispatchForBill) return null;
 
   // Financial calculations
   const isDirectBill = billItems.length > 0 && billItems.every(i => Boolean(i?.isWithoutStock) || i?.articleNo === 'DIRECT-SALE');
@@ -473,7 +473,9 @@ const BillDetailModalContent = () => {
 };
 
 export const BillDetailModal = () => {
-  const { setSelectedDispatchForBill } = useApp();
+  const { selectedDispatchForBill, setSelectedDispatchForBill } = useApp();
+  if (!selectedDispatchForBill) return null;
+
   return (
     <BillErrorBoundary onClose={() => setSelectedDispatchForBill(null)}>
       <BillDetailModalContent />
