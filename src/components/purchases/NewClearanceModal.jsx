@@ -105,25 +105,54 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
 
     try {
       setIsSubmitting(true);
+
+      const payload = {
+        ...form,
+        invoiceNo: (form.invoiceNo || '').trim(),
+        clearingAgent: (form.clearingAgent || 'BARCA TRADERS').trim(),
+        containerNumber: (form.containerNumber || '').trim(),
+        purchaseId: form.purchaseId && String(form.purchaseId).trim() ? String(form.purchaseId).trim() : null,
+        openDate: form.openDate && String(form.openDate).trim() ? String(form.openDate).trim() : null,
+        goDate: form.goDate && String(form.goDate).trim() ? String(form.goDate).trim() : null,
+        customDuty: Math.max(0, Number(form.customDuty) || 0),
+        dryPortExpenses: Math.max(0, Number(form.dryPortExpenses) || 0),
+        serviceCharges: Math.max(0, Number(form.serviceCharges) || 0),
+        agencyFee: Math.max(0, Number(form.agencyFee) || 0),
+        insCharges: Math.max(0, Number(form.insCharges) || 0),
+        roadTransport: Math.max(0, Number(form.roadTransport) || 0),
+        driver: Math.max(0, Number(form.driver) || 0),
+        consigneeCharges: Math.max(0, Number(form.consigneeCharges) || 0),
+        craneLabour: Math.max(0, Number(form.craneLabour) || 0),
+        railway: Math.max(0, Number(form.railway) || 0),
+        otherExpenses: Math.max(0, Number(form.otherExpenses) || 0),
+        paidAmount: Math.max(0, Number(form.paidAmount) || 0)
+      };
+
       if (editingClearance?.id) {
-        const res = await updateClearance(editingClearance.id, form);
-        if (res.success) {
+        const res = await updateClearance(editingClearance.id, payload);
+        if (res?.success) {
           showToast('Container clearance bill updated successfully!', 'success');
           onClose();
         } else {
-          setErrorMsg(res.message || 'Failed to update clearance bill.');
+          const msg = res?.message || 'Failed to update clearance bill.';
+          setErrorMsg(msg);
+          showError('Update Failed', msg);
         }
       } else {
-        const res = await addClearance(form);
-        if (res.success) {
-          showToast(`Clearance Bill #${form.invoiceNo} (${form.clearingAgent}) recorded successfully!`, 'success');
+        const res = await addClearance(payload);
+        if (res?.success) {
+          showToast(`Clearance Bill #${payload.invoiceNo} (${payload.clearingAgent}) recorded successfully!`, 'success');
           onClose();
         } else {
-          setErrorMsg(res.message || 'Failed to record clearance bill.');
+          const msg = res?.message || 'Failed to record clearance bill.';
+          setErrorMsg(msg);
+          showError('Save Failed', msg);
         }
       }
     } catch (err) {
-      setErrorMsg(err.message || 'An error occurred while saving.');
+      const msg = err.message || 'An error occurred while saving.';
+      setErrorMsg(msg);
+      showError('Error Saving Clearance', msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -606,6 +635,14 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
               </div>
             </div>
           </div>
+
+          {/* Error Banner in Footer if errorMsg exists */}
+          {errorMsg && (
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
           {/* Modal Actions Footer */}
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2.5">

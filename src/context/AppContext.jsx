@@ -504,6 +504,32 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const recordClearancePayment = async (clearanceId, paymentData) => {
+    try {
+      const res = await api.clearances.recordPayment(clearanceId, paymentData);
+      if (res?.success && res?.data) {
+        await refreshData();
+        return { success: true, payment: res.data.payment, clearance: res.data.clearance };
+      }
+      return { success: false, message: res?.message || 'Failed to record clearance payment' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error recording clearance payment in database' };
+    }
+  };
+
+  const deleteClearancePayment = async (paymentId, clearanceId) => {
+    try {
+      const res = await api.clearances.deletePayment(paymentId);
+      if (res?.success) {
+        await refreshData();
+        return { success: true, clearance: res.data?.clearance };
+      }
+      return { success: false, message: res?.message || 'Failed to delete clearance payment' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error deleting clearance payment' };
+    }
+  };
+
   // ==========================================
   // DYNAMIC ACTIONS: OUTWARD DISPATCHES
   // ==========================================
@@ -1024,6 +1050,8 @@ export const AppProvider = ({ children }) => {
         addClearance,
         updateClearance,
         deleteClearance,
+        recordClearancePayment,
+        deleteClearancePayment,
         addOutward,
         updateOutward,
         deleteOutward,

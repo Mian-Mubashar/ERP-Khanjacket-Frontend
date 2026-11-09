@@ -263,7 +263,10 @@ export const api = {
     getOne: (id) => request(`/clearances/${id}`),
     create: (data) => request('/clearances', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/clearances/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    delete: (id) => request(`/clearances/${id}`, { method: 'DELETE' })
+    delete: (id) => request(`/clearances/${id}`, { method: 'DELETE' }),
+    recordPayment: (id, data) => request(`/clearances/${id}/payments`, { method: 'POST', body: JSON.stringify(data) }),
+    getPayments: (id) => request(`/clearances/${id}/payments`),
+    deletePayment: (paymentId) => request(`/clearances/payments/${paymentId}`, { method: 'DELETE' })
   },
 
   // Database Backup Snapshot

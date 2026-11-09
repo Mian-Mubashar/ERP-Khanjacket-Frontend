@@ -2258,3 +2258,276 @@ export const downloadDispatchBillPDF = ({
     throw err;
   }
 };
+
+// -------------------------------------------------------------
+// 12. CONTAINER CUSTOMS DUTY & CLEARANCE VOUCHER PDF
+// -------------------------------------------------------------
+export const downloadClearancePDF = (clearance = {}) => {
+  try {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    const c = clearance;
+    const customDuty = Number(c.customDuty) || 0;
+    const dryPort = Number(c.dryPortExpenses) || 0;
+    const service = Number(c.serviceCharges) || 0;
+    const agency = Number(c.agencyFee) || 0;
+    const inst = Number(c.insCharges) || 0;
+    const road = Number(c.roadTransport) || 0;
+    const driver = Number(c.driver) || 0;
+    const consignee = Number(c.consigneeCharges) || 0;
+    const crane = Number(c.craneLabour) || 0;
+    const railway = Number(c.railway) || 0;
+    const other = Number(c.otherExpenses) || 0;
+
+    const totalPortExpenses = dryPort + service + agency + inst + road + driver + consignee + crane + railway + other;
+    const grandTotal = Number(c.grandTotal) || (customDuty + totalPortExpenses);
+    const paidAmount = Number(c.paidAmount) || 0;
+    const remainingAmount = Math.max(0, grandTotal - paidAmount);
+
+    let currentY = drawHeader(
+      doc,
+      'Customs Duty & Clearance Voucher',
+      'Port Logistics, Government Tariff & Clearing Agent Breakdown',
+      `Inv #${c.invoiceNo || 'N/A'} (Cont: ${c.containerNumber || 'N/A'})`
+    );
+
+    // Metadata Info Cards Grid (2 rows of metadata)
+    doc.setFillColor(248, 250, 252); // slate-50
+    doc.setDrawColor(226, 232, 240); // slate-200
+    doc.roundedRect(14, currentY, 182, 28, 2, 2, 'FD');
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+
+    // Row 1: Clearing Agent, Party, Consignee, Bill Date
+    doc.text('Clearing Agent:', 18, currentY + 5.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(c.clearingAgent || 'BARCA TRADERS', 18, currentY + 10);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Party / Owner:', 68, currentY + 5.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(c.party || 'TOOR HAJI', 68, currentY + 10);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Consignee:', 118, currentY + 5.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(c.consignee || 'GUL TRADER', 118, currentY + 10);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Bill Date:', 160, currentY + 5.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(c.billDate || 'N/A', 160, currentY + 10);
+
+    // Line separator
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.line(18, currentY + 13.5, 192, currentY + 13.5);
+
+    // Row 2: Container # & Size, GD #, BL #, Port & Weight
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Container # / Size:', 18, currentY + 19);
+    doc.setFont('courier', 'bold');
+    doc.setTextColor(37, 99, 235); // blue
+    doc.text(`${c.containerNumber || 'N/A'} (${c.containerSize || '40 FT'})`, 18, currentY + 24);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('GD # (Goods Decl):', 68, currentY + 19);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(c.gdNo || '-', 68, currentY + 24);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('BL # (Bill of Lading):', 118, currentY + 19);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(c.blNumber || '-', 118, currentY + 24);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Port & Weight:', 160, currentY + 19);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`${c.port || 'AKDP'} • ${c.weight || '22 MT'}`, 160, currentY + 24);
+
+    currentY += 34;
+
+    // Table of Itemized Port & Customs Expenses
+    const chargeRows = [
+      { name: 'Custom Duty (FBR / Govt. Tariff)', category: 'Govt. Custom Duty', amount: customDuty },
+      { name: 'DryPort Terminal & Handling Charges', category: 'DryPort Expenses', amount: dryPort },
+      { name: 'Service & Forwarding Charges', category: 'Clearing Service', amount: service },
+      { name: 'Agency Fee / Documentation', category: 'Agency Charges', amount: agency },
+      { name: 'INS/T (Marine & Port Insurance)', category: 'Insurance', amount: inst },
+      { name: 'Road Transport / Haulage to Warehouse', category: 'Transport', amount: road },
+      { name: 'Driver Allowance & Tolls', category: 'Logistics', amount: driver },
+      { name: 'Consignee Delivery Order (DO) Charges', category: 'Port Handling', amount: consignee },
+      { name: 'Crane Offloading & Heavy Labour', category: 'Labour & Crane', amount: crane },
+      { name: 'Pakistan Railway Freight & Rake Charges', category: 'Rail Freight', amount: railway },
+      { name: 'Other Port & Demurrage Expenses', category: 'Miscellaneous', amount: other }
+    ].filter(i => i.amount > 0);
+
+    const tableData = chargeRows.map((item, index) => [
+      index + 1,
+      item.name,
+      item.category,
+      formatPKR(item.amount)
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['#', 'Charge Description / Head', 'Category', 'Amount (PKR)']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [30, 41, 59], // slate-800
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        fontStyle: 'bold',
+        halign: 'left'
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2.2,
+        textColor: [51, 65, 85]
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { cellWidth: 95, fontStyle: 'bold' },
+        2: { cellWidth: 42, textColor: [100, 116, 139] },
+        3: { halign: 'right', font: 'courier', fontStyle: 'bold', cellWidth: 35 }
+      }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 5;
+
+    // Financial Summary Box (Right Aligned)
+    const boxWidth = 92;
+    const boxX = 196 - boxWidth;
+
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(boxX, currentY, boxWidth, 38, 2, 2, 'FD');
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+
+    // Custom Duty
+    doc.text('Government Custom Duty:', boxX + 4, currentY + 5.5);
+    doc.setFont('courier', 'bold');
+    doc.setTextColor(126, 34, 206); // purple-700
+    doc.text(formatPKR(customDuty), boxX + boxWidth - 4, currentY + 5.5, { align: 'right' });
+
+    // Port Expenses
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Port & Logistics Charges:', boxX + 4, currentY + 11.5);
+    doc.setFont('courier', 'bold');
+    doc.setTextColor(37, 99, 235); // blue-600
+    doc.text(formatPKR(totalPortExpenses), boxX + boxWidth - 4, currentY + 11.5, { align: 'right' });
+
+    // Divider
+    doc.setDrawColor(226, 232, 240);
+    doc.line(boxX + 4, currentY + 15, boxX + boxWidth - 4, currentY + 15);
+
+    // Grand Total
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.text('Total Clearance Landed Bill:', boxX + 4, currentY + 20);
+    doc.setFont('courier', 'bold');
+    doc.text(formatPKR(grandTotal), boxX + boxWidth - 4, currentY + 20, { align: 'right' });
+
+    // Paid to Agent
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(16, 185, 129); // emerald-600
+    doc.text('Paid to Agent (Adaigi):', boxX + 4, currentY + 26);
+    doc.setFont('courier', 'bold');
+    doc.text(`- ${formatPKR(paidAmount)}`, boxX + boxWidth - 4, currentY + 26, { align: 'right' });
+
+    // Remaining Baqaya Due
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(remainingAmount > 0 ? 225 : 16, remainingAmount > 0 ? 29 : 185, remainingAmount > 0 ? 72 : 129);
+    doc.text('Khata Baqaya Due (Dena Hai):', boxX + 4, currentY + 32);
+    doc.setFont('courier', 'bold');
+    doc.text(formatPKR(remainingAmount), boxX + boxWidth - 4, currentY + 32, { align: 'right' });
+
+    // If payment history exists, render payments ledger below or on next page
+    const payments = Array.isArray(c.payments) ? [...c.payments].sort((a, b) => new Date(b.date) - new Date(a.date)) : [];
+    if (payments.length > 0) {
+      currentY += 44;
+      if (currentY + 30 > doc.internal.pageSize.getHeight() - 40) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Payment Installments Ledger (Adaigi History):', 14, currentY);
+
+      const payTable = payments.map((p, idx) => [
+        idx + 1,
+        p.date || '-',
+        formatPKR(p.amount),
+        p.paymentMethod || 'Bank Transfer',
+        p.refNo || '-',
+        p.notes || '-'
+      ]);
+
+      autoTable(doc, {
+        startY: currentY + 3,
+        head: [['#', 'Payment Date', 'Amount (PKR)', 'Payment Mode', 'Reference / Slip #', 'Notes / Remarks']],
+        body: payTable,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [16, 185, 129], // emerald-600
+          textColor: [255, 255, 255],
+          fontSize: 7.5,
+          fontStyle: 'bold'
+        },
+        styles: {
+          fontSize: 7.5,
+          cellPadding: 2,
+          textColor: [51, 65, 85]
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 10 },
+          1: { cellWidth: 26 },
+          2: { halign: 'right', font: 'courier', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 30 },
+          3: { cellWidth: 35 },
+          4: { font: 'courier', cellWidth: 35 },
+          5: { cellWidth: 46 }
+        }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 6;
+    } else {
+      currentY += 44;
+    }
+
+    // Draw signatures footer
+    drawFooter(doc, currentY);
+
+    const cleanFile = `Clearance_Bill_${c.invoiceNo || 'Voucher'}_${c.containerNumber || 'Cont'}.pdf`;
+    doc.save(cleanFile);
+    return true;
+  } catch (err) {
+    console.error('[downloadClearancePDF Error]:', err);
+    throw err;
+  }
+};
