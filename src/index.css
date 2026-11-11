@@ -192,6 +192,7 @@
     scrollbar-width: none !important;
   }
 
+  #clearance-khata-print-area,
   #clearance-bill-print-area {
     display: block !important;
     width: 100% !important;
@@ -210,6 +211,7 @@
     -ms-overflow-style: none !important;
   }
 
+  #clearance-khata-print-area::-webkit-scrollbar,
   #clearance-bill-print-area::-webkit-scrollbar {
     display: none !important;
     width: 0 !important;

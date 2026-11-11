@@ -2548,3 +2548,137 @@ export const downloadClearancePDF = (clearance = {}) => {
     throw err;
   }
 };
+
+export const downloadClearanceKhataPDF = ({
+  agentName = 'BARCA TRADERS',
+  partyName = 'TOOR HAJI',
+  consigneeName = '',
+  portName = '',
+  targetBills = [],
+  transactions = [],
+  totalBilled = 0,
+  totalPaid = 0,
+  totalRemaining = 0,
+  isCleared = false,
+  isPartial = false
+}) => {
+  try {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    let currentY = drawHeader(
+      doc,
+      'Clearing Agent Khata Ledger',
+      'Port Logistics, Consignment Customs Duty & Settlement Statement',
+      `Agent: ${agentName} | Party: ${partyName}`
+    );
+
+    // Profile & Meta Banner
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(14, currentY, 182, 24, 2, 2, 'FD');
+
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`Clearing Agent: ${agentName}`, 18, currentY + 6);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Consignment Party / Owner: ${partyName}`, 18, currentY + 11.5);
+    doc.text(`Consignee: ${consigneeName || 'N/A'}  |  Port: ${portName || 'Port Qasim / DryPort'}`, 18, currentY + 17);
+    doc.text(`Bills Included: ${targetBills.length} Consignment Clearance Bill(s)`, 18, currentY + 22);
+
+    // Balance Due Banner (Right)
+    const isDue = totalRemaining > 0;
+    doc.setFillColor(isDue ? 254 : 240, isDue ? 242 : 253, isDue ? 242 : 244);
+    doc.setDrawColor(isDue ? 254 : 187, isDue ? 205 : 247, isDue ? 211 : 208);
+    doc.roundedRect(122, currentY + 3.5, 69, 17, 2, 2, 'FD');
+
+    doc.setFontSize(7);
+    doc.setTextColor(isDue ? 225 : 16, isDue ? 29 : 185, isDue ? 72 : 129);
+    doc.setFont('helvetica', 'bold');
+    doc.text(isDue ? 'OUTSTANDING BALANCE DUE' : 'KHATA FULLY SETTLED / CLEARED', 125, currentY + 8.5);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatPKR(totalRemaining), 125, currentY + 16.5);
+
+    currentY += 28;
+
+    // 3 Metric Mini Cards
+    const cardW = 58;
+    const metrics = [
+      { label: 'Total Billed Charges', val: formatPKR(totalBilled), color: [15, 23, 42] },
+      { label: 'Total Paid (Adaigi)', val: formatPKR(totalPaid), color: [16, 185, 129] },
+      { label: 'Net Baqaya Payable', val: formatPKR(totalRemaining), color: isDue ? [225, 29, 72] : [16, 185, 129] }
+    ];
+
+    metrics.forEach((m, i) => {
+      const x = 14 + (i * (cardW + 4));
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(x, currentY, cardW, 13, 1.5, 1.5, 'FD');
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(m.label, x + 3, currentY + 4.5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(m.color[0], m.color[1], m.color[2]);
+      doc.text(m.val, x + 3, currentY + 10);
+    });
+
+    currentY += 18;
+
+    // Table rows
+    const tableRows = transactions.map((t, idx) => [
+      idx + 1,
+      t.date || '-',
+      t.type === 'BILL' ? 'BILL' : 'PAID',
+      t.ref || '-',
+      t.description || (t.type === 'BILL' ? 'Clearance & Port Duty' : 'Installment Payment'),
+      t.debit > 0 ? formatPKR(t.debit) : '—',
+      t.credit > 0 ? formatPKR(t.credit) : '—',
+      formatPKR(t.runningBalance)
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['#', 'Date', 'Type', 'Ref #', 'Particulars & Description', 'Debit (+)', 'Credit (-)', 'Balance (=)']],
+      body: tableRows.length ? tableRows : [['-', '-', '-', '-', 'No transactions logged', '—', '—', 'Rs. 0']],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: [255, 255, 255],
+        fontSize: 7.5,
+        fontStyle: 'bold'
+      },
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 2,
+        textColor: [51, 65, 85]
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 8 },
+        1: { cellWidth: 20 },
+        2: { halign: 'center', cellWidth: 14, fontStyle: 'bold' },
+        3: { font: 'courier', fontStyle: 'bold', cellWidth: 24 },
+        4: { cellWidth: 46 },
+        5: { halign: 'right', font: 'courier', fontStyle: 'bold', cellWidth: 23 },
+        6: { halign: 'right', font: 'courier', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 23 },
+        7: { halign: 'right', font: 'courier', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 24 }
+      }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 8;
+    drawFooter(doc, currentY);
+
+    const filename = `Clearance_Khata_${agentName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(filename);
+    return true;
+  } catch (err) {
+    console.error('[downloadClearanceKhataPDF Error]:', err);
+    throw err;
+  }
+};
