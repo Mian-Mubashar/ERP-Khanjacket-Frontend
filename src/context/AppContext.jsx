@@ -55,15 +55,18 @@ export const AppProvider = ({ children }) => {
   // Derive active tab dynamically from current URL pathname
   const getTabFromPath = useCallback((pathname) => {
     const segment = pathname.replace(/^\//, '').split('/')[0];
-    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'outward', 'suppliers', 'reports', 'security', 'payment-collection', 'announcements'];
+    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'clearance', 'outward', 'suppliers', 'reports', 'security', 'payment-collection', 'announcements', 'profile'];
     if (segment === 'ugrahi') return 'payment-collection';
+    if (segment === 'clearances') return 'clearance';
     return validTabs.includes(segment) ? segment : 'dashboard';
   }, []);
 
   const activeTab = getTabFromPath(location.pathname);
 
   const setActiveTab = useCallback((tab) => {
-    const target = (tab === 'ugrahi' || tab === 'payment-collection') ? 'payment-collection' : tab;
+    let target = tab;
+    if (tab === 'ugrahi' || tab === 'payment-collection') target = 'payment-collection';
+    else if (tab === 'clearances' || tab === 'clearance') target = 'clearance';
     navigate(`/${target}`);
   }, [navigate]);
 
@@ -469,6 +472,7 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.clearances.create(clearanceData);
       if (res?.success && res?.data) {
+        setClearances(prev => [res.data, ...prev]);
         await refreshData();
         return { success: true, clearance: res.data };
       }
@@ -482,6 +486,7 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.clearances.update(id, data);
       if (res?.success && res?.data) {
+        setClearances(prev => prev.map(c => c.id === id ? res.data : c));
         await refreshData();
         return { success: true, clearance: res.data };
       }
@@ -495,6 +500,7 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.clearances.delete(id);
       if (res?.success) {
+        setClearances(prev => prev.filter(c => c.id !== id));
         await refreshData();
         return { success: true };
       }
@@ -508,6 +514,9 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.clearances.recordPayment(clearanceId, paymentData);
       if (res?.success && res?.data) {
+        if (res.data?.clearance) {
+          setClearances(prev => prev.map(c => c.id === clearanceId ? res.data.clearance : c));
+        }
         await refreshData();
         return { success: true, payment: res.data.payment, clearance: res.data.clearance };
       }
@@ -521,6 +530,9 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.clearances.deletePayment(paymentId);
       if (res?.success) {
+        if (res.data?.clearance) {
+          setClearances(prev => prev.map(c => c.id === res.data.clearance.id ? res.data.clearance : c));
+        }
         await refreshData();
         return { success: true, clearance: res.data?.clearance };
       }
@@ -980,6 +992,37 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Update Profile (Name & Avatar)
+   */
+  const updateProfile = async ({ name, avatar }) => {
+    try {
+      const res = await api.auth.updateProfile({ name, avatar });
+      const updatedUser = res?.data || res;
+      if (updatedUser) {
+        setCurrentUser(prev => ({
+          ...prev,
+          ...updatedUser
+        }));
+        localStorage.setItem('kc_user', JSON.stringify({
+          ...(currentUser || {}),
+          ...updatedUser
+        }));
+        return updatedUser;
+      }
+    } catch (err) {
+      console.warn('[AppContext] Profile update fallback:', err.message);
+      const fallback = {
+        ...currentUser,
+        ...(name && { name }),
+        ...(avatar !== undefined && { avatar })
+      };
+      setCurrentUser(fallback);
+      localStorage.setItem('kc_user', JSON.stringify(fallback));
+      return fallback;
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -997,6 +1040,7 @@ export const AppProvider = ({ children }) => {
         isAuthLoading,
         login,
         logout,
+        updateProfile,
         isBackendConnected,
         isDataLoading,
         refreshData,

@@ -559,7 +559,7 @@ export const AnnouncementsView = () => {
         <div className="flex items-center gap-2.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0 ring-4 ring-emerald-500/20" />
           <p className="font-medium text-xs leading-relaxed">
-            <strong className="font-bold text-amber-800 dark:text-amber-100">10-Day Database Auto-Retention Active:</strong> Announcements & notifications 10 din baad database se automatically permanently delete/purge ho jati hain taake system bilkul light aur fast rahe. (Main Customer Khata & Bills secure rehte hain).
+            <strong className="font-bold text-amber-800 dark:text-amber-100">10-Day Database Auto-Retention Active:</strong> Announcements and activity notifications are automatically purged after 10 days to keep the system fast and optimized. (Customer Khatas, Invoices & Financial Ledgers remain permanently saved).
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">

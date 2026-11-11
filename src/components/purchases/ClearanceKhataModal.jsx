@@ -291,6 +291,30 @@ export const ClearanceKhataModal = ({ clearance, isOpen, onClose }) => {
                       </span>
                     </div>
                     <div>
+                      <span className="text-slate-400 block font-medium">Shipping Line + Empty:</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">
+                        Rs. {Math.round(Number(c.shippingLineCharges || 0)).toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-medium">Port Payment:</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">
+                        Rs. {Math.round(Number(c.portPayment || 0)).toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-medium">Clearance Charges:</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">
+                        Rs. {Math.round(Number(c.clearanceCharges || 0)).toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-medium">Consignee (Concinises):</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">
+                        Rs. {Math.round(Number(c.consigneeCharges || 0)).toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
                       <span className="text-slate-400 block font-medium">DryPort Expenses:</span>
                       <span className="font-mono font-bold text-slate-900 dark:text-white">
                         Rs. {Math.round(Number(c.dryPortExpenses || 0)).toLocaleString()}
@@ -303,9 +327,9 @@ export const ClearanceKhataModal = ({ clearance, isOpen, onClose }) => {
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block font-medium">Crane & Railway:</span>
+                      <span className="text-slate-400 block font-medium">Other Expenses:</span>
                       <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                        Rs. {Math.round(Number(c.craneLabour || 0) + Number(c.railway || 0)).toLocaleString()}
+                        Rs. {Math.round(Number(c.otherExpenses || 0)).toLocaleString()}
                       </span>
                     </div>
                   </div>

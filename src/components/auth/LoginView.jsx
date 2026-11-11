@@ -63,13 +63,6 @@ export const LoginView = () => {
     }
   };
 
-  // Quick select demo account credentials
-  const selectDemoAccount = (demoEmail, demoPassword) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setErrorMessage('');
-  };
-
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row bg-slate-950 font-sans text-slate-100 selection:bg-blue-600 selection:text-white">
       
@@ -151,7 +144,7 @@ export const LoginView = () => {
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Atomic Ledger Transactions with Node.js & MySQL Engine</span>
+              <span>Real-time Secure Ledger & Warehouse Transactions</span>
             </div>
           </div>
         </div>
@@ -201,7 +194,7 @@ export const LoginView = () => {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             
             {/* Email Input */}
             <div className="space-y-1.5">
@@ -218,7 +211,7 @@ export const LoginView = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter email address"
                   required
-                  autoComplete="email"
+                  autoComplete="off"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl text-sm font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 />
               </div>
@@ -244,7 +237,7 @@ export const LoginView = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   className="w-full pl-10 pr-11 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl text-sm font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono"
                 />
                 <button
@@ -283,7 +276,7 @@ export const LoginView = () => {
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Authenticating with MySQL...</span>
+                  <span>Signing in...</span>
                 </>
               ) : (
                 <>
@@ -293,72 +286,6 @@ export const LoginView = () => {
               )}
             </button>
           </form>
-
-          {/* Quick 1-Click Demo Profiles (Senior Experience) */}
-          <div className="pt-4 border-t border-slate-800/80">
-            <div className="flex items-center justify-between text-xs text-slate-400 font-semibold mb-2.5">
-              <span>Quick 1-Click Demo Credentials:</span>
-              <span className="text-[10px] text-blue-400">Click to Auto-Fill</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              
-              {/* Profile 1: Admin */}
-              <button
-                type="button"
-                onClick={() => selectDemoAccount('admin@khanclothes.com', 'admin123')}
-                className={`p-2.5 rounded-xl border text-left transition-all ${
-                  email === 'admin@khanclothes.com'
-                    ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/30'
-                    : 'border-slate-800 bg-slate-900/60 hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold text-blue-400">Owner</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                </div>
-                <div className="text-xs font-bold text-white truncate">Admin Khan</div>
-                <div className="text-[10px] text-slate-400">Full Master</div>
-              </button>
-
-              {/* Profile 2: Staff */}
-              <button
-                type="button"
-                onClick={() => selectDemoAccount('staff@khanclothes.com', 'staff123')}
-                className={`p-2.5 rounded-xl border text-left transition-all ${
-                  email === 'staff@khanclothes.com'
-                    ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/30'
-                    : 'border-slate-800 bg-slate-900/60 hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold text-indigo-400">Staff</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                </div>
-                <div className="text-xs font-bold text-white truncate">Tariq Mehmood</div>
-                <div className="text-[10px] text-slate-400">Warehouse Mal</div>
-              </button>
-
-              {/* Profile 3: Viewer */}
-              <button
-                type="button"
-                onClick={() => selectDemoAccount('viewer@khanclothes.com', 'viewer123')}
-                className={`p-2.5 rounded-xl border text-left transition-all ${
-                  email === 'viewer@khanclothes.com'
-                    ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/30'
-                    : 'border-slate-800 bg-slate-900/60 hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold text-purple-400">Auditor</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                </div>
-                <div className="text-xs font-bold text-white truncate">Asim Bilal</div>
-                <div className="text-[10px] text-slate-400">Read-Only</div>
-              </button>
-
-            </div>
-          </div>
 
         </div>
 

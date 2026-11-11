@@ -14,6 +14,7 @@ import { ReportsView } from './components/reports/ReportsView';
 import { SecurityView } from './components/security/SecurityView';
 import { UgrahiView } from './components/ugrahi/UgrahiView';
 import { AnnouncementsView } from './components/announcements/AnnouncementsView';
+import { ProfileView } from './components/profile/ProfileView';
 import { LoginView } from './components/auth/LoginView';
 
 // Modals
@@ -59,7 +60,7 @@ const AuthLoadingScreen = () => {
         {/* Security / Backend verification status */}
         <div className="relative z-10 mt-2 flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 text-xs">
           <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-          <span>Verifying secure session with backend server...</span>
+          <span>Verifying secure session...</span>
         </div>
       </div>
     </div>
@@ -130,7 +131,7 @@ const DashboardLayout = () => {
           </div>
 
           {/* Global Application Footer on Every Page */}
-          <footer className="pt-6 pb-4 mt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm sm:text-base text-slate-600 dark:text-slate-300">
+          <footer className="pt-6 pb-4 mt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm sm:text-base text-slate-600 dark:text-slate-300 print:hidden">
             <div className="font-bold tracking-wider uppercase text-slate-800 dark:text-slate-100 text-sm sm:text-base">
               KHAN JACKET HOUSE
             </div>
@@ -208,13 +209,16 @@ const AppRoutes = () => {
         <Route path="/branches" element={<BranchesView />} />
         <Route path="/customers" element={<CustomersView />} />
         <Route path="/articles" element={<ArticlesList />} />
-        <Route path="/purchases" element={<PurchasesList />} />
+        <Route path="/purchases" element={<PurchasesList defaultTab="PURCHASES" />} />
+        <Route path="/clearance" element={<PurchasesList defaultTab="CLEARANCE" />} />
+        <Route path="/clearances" element={<Navigate to="/clearance" replace />} />
         <Route path="/outward" element={<OutwardList />} />
         <Route path="/suppliers" element={<SuppliersList />} />
         <Route path="/payment-collection" element={<UgrahiView />} />
         <Route path="/ugrahi" element={<Navigate to="/payment-collection" replace />} />
         <Route path="/reports" element={<ReportsView />} />
         <Route path="/security" element={<SecurityView />} />
+        <Route path="/profile" element={<ProfileView />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>

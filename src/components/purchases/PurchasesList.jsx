@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import {
   Ship,
@@ -28,7 +29,11 @@ import { ClearanceBillModal } from './ClearanceBillModal';
 import { ClearanceKhataModal } from './ClearanceKhataModal';
 import { RecordClearancePaymentModal } from './RecordClearancePaymentModal';
 
-export const PurchasesList = () => {
+export const PurchasesList = ({ defaultTab }) => {
+  const location = useLocation();
+  const isClearance = location.pathname.startsWith('/clearance') || defaultTab === 'CLEARANCE';
+  const activeTab = isClearance ? 'CLEARANCE' : 'PURCHASES';
+
   const { 
     purchases = [], 
     clearances = [],
@@ -41,9 +46,6 @@ export const PurchasesList = () => {
     setSelectedArticleDetail, 
     articles = [] 
   } = useApp();
-
-  // Active Sub-Tab: 'PURCHASES' | 'CLEARANCE'
-  const [activeTab, setActiveTab] = useState('PURCHASES');
 
   // Search & Pagination for Purchases
   const [search, setSearch] = useState('');
@@ -299,34 +301,29 @@ export const PurchasesList = () => {
   return (
     <div className="space-y-6">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* ----------------- SCREEN VIEW (Hidden During Voucher Printing) ----------------- */}
+      <div className="purchases-page-content space-y-6 print:hidden">
+
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {activeTab === 'PURCHASES' ? 'China Purchases & Invoices' : 'Container Duty & Clearance Bills'}
+              {isClearance ? 'Khan Traders Clearance' : 'China Purchases & Invoices'}
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
-              {activeTab === 'PURCHASES' ? `${purchases.length} Shipments` : `${clearances.length} Duty Invoices`}
+              {isClearance ? `${clearances.length} Duty Invoices` : `${purchases.length} Shipments`}
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {activeTab === 'PURCHASES'
-              ? 'China import consignments, multi-article container arrivals, and supplier bills'
-              : 'Barca Traders / Clearing agents duty breakdown, DryPort, railway, crane, and logistics vouchers'}
+            {isClearance
+              ? 'Barca Traders / Clearing agents duty breakdown, DryPort, railway, crane, and logistics vouchers'
+              : 'China import consignments, multi-article container arrivals, and supplier bills'}
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
-          {activeTab === 'PURCHASES' ? (
-            <button
-              onClick={() => setIsNewPurchaseOpen(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Purchase Bill</span>
-            </button>
-          ) : (
+          {isClearance ? (
             <button
               onClick={() => {
                 setEditingClearance(null);
@@ -337,51 +334,20 @@ export const PurchasesList = () => {
               <Plus className="w-4 h-4" />
               <span>+ Clearance Bill</span>
             </button>
+          ) : (
+            <button
+              onClick={() => setIsNewPurchaseOpen(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Purchase Bill</span>
+            </button>
           )}
         </div>
       </div>
 
-      {/* Sub-Tab Navigation Bar */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('PURCHASES')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
-            activeTab === 'PURCHASES'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-          }`}
-        >
-          <Ship className="w-4 h-4" />
-          <span>China Factory Purchases</span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-            activeTab === 'PURCHASES' ? 'bg-blue-700 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-          }`}>
-            {purchases.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('CLEARANCE')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
-            activeTab === 'CLEARANCE'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-          }`}
-        >
-          <Anchor className="w-4 h-4" />
-          <span>Container Duty & Clearance Bills</span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-            activeTab === 'CLEARANCE' ? 'bg-blue-700 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-          }`}>
-            {clearances.length}
-          </span>
-        </button>
-      </div>
-
-      {/* ----------------- SUB-TAB CONTENT ----------------- */}
-      {activeTab === 'PURCHASES' ? (
+      {/* ----------------- PAGE CONTENT ----------------- */}
+      {!isClearance ? (
         <>
           {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1361,6 +1327,8 @@ export const PurchasesList = () => {
           </div>
         </div>
       )}
+
+      </div> {/* End .purchases-page-content (Hidden During Print) */}
 
       {/* New / Edit Clearance Modal */}
       <NewClearanceModal

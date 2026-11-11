@@ -101,6 +101,10 @@ export const api = {
       return res;
     },
     getMe: () => request('/auth/me'),
+    updateProfile: (data) => request('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
     switchRole: async (role) => {
       const res = await request('/auth/switch-role', {
         method: 'POST',

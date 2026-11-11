@@ -38,13 +38,16 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
 
     // Itemized charges
     customDuty: item ? Number(item.customDuty || 0) : 0,
+    shippingLineCharges: item ? Number(item.shippingLineCharges || 0) : 0,
+    portPayment: item ? Number(item.portPayment || 0) : 0,
+    clearanceCharges: item ? Number(item.clearanceCharges || 0) : 0,
+    consigneeCharges: item ? Number(item.consigneeCharges || 0) : 0,
     dryPortExpenses: item ? Number(item.dryPortExpenses || 0) : 0,
     serviceCharges: item ? Number(item.serviceCharges || 0) : 0,
     agencyFee: item ? Number(item.agencyFee || 0) : 0,
     insCharges: item ? Number(item.insCharges || 0) : 0,
     roadTransport: item ? Number(item.roadTransport || 0) : 0,
     driver: item ? Number(item.driver || 0) : 0,
-    consigneeCharges: item ? Number(item.consigneeCharges || 0) : 0,
     craneLabour: item ? Number(item.craneLabour || 0) : 0,
     railway: item ? Number(item.railway || 0) : 0,
     otherExpenses: item ? Number(item.otherExpenses || 0) : 0,
@@ -74,13 +77,16 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
   // Calculations
   const customDuty = Number(form.customDuty) || 0;
   const portExpenses = (
+    (Number(form.shippingLineCharges) || 0) +
+    (Number(form.portPayment) || 0) +
+    (Number(form.clearanceCharges) || 0) +
+    (Number(form.consigneeCharges) || 0) +
     (Number(form.dryPortExpenses) || 0) +
     (Number(form.serviceCharges) || 0) +
     (Number(form.agencyFee) || 0) +
     (Number(form.insCharges) || 0) +
     (Number(form.roadTransport) || 0) +
     (Number(form.driver) || 0) +
-    (Number(form.consigneeCharges) || 0) +
     (Number(form.craneLabour) || 0) +
     (Number(form.railway) || 0) +
     (Number(form.otherExpenses) || 0)
@@ -115,13 +121,16 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
         openDate: form.openDate && String(form.openDate).trim() ? String(form.openDate).trim() : null,
         goDate: form.goDate && String(form.goDate).trim() ? String(form.goDate).trim() : null,
         customDuty: Math.max(0, Number(form.customDuty) || 0),
+        shippingLineCharges: Math.max(0, Number(form.shippingLineCharges) || 0),
+        portPayment: Math.max(0, Number(form.portPayment) || 0),
+        clearanceCharges: Math.max(0, Number(form.clearanceCharges) || 0),
+        consigneeCharges: Math.max(0, Number(form.consigneeCharges) || 0),
         dryPortExpenses: Math.max(0, Number(form.dryPortExpenses) || 0),
         serviceCharges: Math.max(0, Number(form.serviceCharges) || 0),
         agencyFee: Math.max(0, Number(form.agencyFee) || 0),
         insCharges: Math.max(0, Number(form.insCharges) || 0),
         roadTransport: Math.max(0, Number(form.roadTransport) || 0),
         driver: Math.max(0, Number(form.driver) || 0),
-        consigneeCharges: Math.max(0, Number(form.consigneeCharges) || 0),
         craneLabour: Math.max(0, Number(form.craneLabour) || 0),
         railway: Math.max(0, Number(form.railway) || 0),
         otherExpenses: Math.max(0, Number(form.otherExpenses) || 0),
@@ -398,7 +407,67 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
                   />
                 </div>
 
-                {/* 2. DryPort Expences */}
+                {/* 2. Shipping Line + Empty */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Shipping Line + Empty
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.shippingLineCharges}
+                    onChange={e => handleChange('shippingLineCharges', e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                  />
+                </div>
+
+                {/* 3. Port Payment */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Port Payment
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.portPayment}
+                    onChange={e => handleChange('portPayment', e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                  />
+                </div>
+
+                {/* 4. Clearance Charges */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Clearance Charges
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.clearanceCharges}
+                    onChange={e => handleChange('clearanceCharges', e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                  />
+                </div>
+
+                {/* 5. Consignee Charges (Concinises) */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Consignee Charges (Concinises)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.consigneeCharges}
+                    onChange={e => handleChange('consigneeCharges', e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                  />
+                </div>
+
+                {/* 6. DryPort Expenses */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     DryPort Expenses
@@ -413,7 +482,7 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
                   />
                 </div>
 
-                {/* 3. Service Charges */}
+                {/* 7. Service Charges */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Service Charges
@@ -428,7 +497,7 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
                   />
                 </div>
 
-                {/* 4. Agency Fee */}
+                {/* 8. Agency Fee */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Agency Fee
@@ -443,7 +512,7 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
                   />
                 </div>
 
-                {/* 5. INS/T Charges */}
+                {/* 9. INS/T Charges */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     INS/T Charges (Insurance)
@@ -458,52 +527,7 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
                   />
                 </div>
 
-                {/* 6. Road Transport (RWP / KP) */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Road Transport (RWP / KP)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.roadTransport}
-                    onChange={e => handleChange('roadTransport', e.target.value)}
-                    placeholder="100000"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
-                  />
-                </div>
-
-                {/* 7. Driver */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Driver & Tolls
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.driver}
-                    onChange={e => handleChange('driver', e.target.value)}
-                    placeholder="20000"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
-                  />
-                </div>
-
-                {/* 8. Crane & Labour */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Crane, Labour + Extra Case ...
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.craneLabour}
-                    onChange={e => handleChange('craneLabour', e.target.value)}
-                    placeholder="55000"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
-                  />
-                </div>
-
-                {/* 9. Railway */}
+                {/* 10. Railway Freight */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Railway Freight
@@ -518,10 +542,55 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
                   />
                 </div>
 
-                {/* 10. Consignee / Other */}
+                {/* 11. Road Transport (RWP / KP) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Other Port Charges
+                    Road Transport (RWP / KP)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.roadTransport}
+                    onChange={e => handleChange('roadTransport', e.target.value)}
+                    placeholder="100000"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                  />
+                </div>
+
+                {/* 12. Driver */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Driver & Tolls
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.driver}
+                    onChange={e => handleChange('driver', e.target.value)}
+                    placeholder="20000"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                  />
+                </div>
+
+                {/* 13. Crane & Labour */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Crane, Labour + Extra Case ...
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.craneLabour}
+                    onChange={e => handleChange('craneLabour', e.target.value)}
+                    placeholder="55000"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                  />
+                </div>
+
+                {/* 14. Other Expenses */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Other Expenses
                   </label>
                   <input
                     type="number"

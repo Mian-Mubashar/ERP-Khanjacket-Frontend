@@ -14,7 +14,9 @@ import {
   ChevronDown,
   ChevronRight,
   Warehouse,
-  ReceiptText
+  ReceiptText,
+  Anchor,
+  User
 } from 'lucide-react';
 import iconLogoImg from '../../images/khan jacket icon logo.png';
 
@@ -23,6 +25,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     articles, 
     suppliers, 
     purchases,
+    clearances = [],
     cities,
     customers,
     sidebarCollapsed,
@@ -38,6 +41,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     customers: false,
     articles: false,
     purchases: false,
+    clearance: false,
     outward: false,
     suppliers: false,
     reports: false,
@@ -136,6 +140,18 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
         </button>
 
         <button
+          onClick={() => setActiveTab('clearance')}
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+            activeTab === 'clearance' 
+              ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium shadow-xs' 
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+          title="Khan Traders Clearance"
+        >
+          <Anchor className="w-5 h-5" />
+        </button>
+
+        <button
           onClick={() => setActiveTab('outward')}
           className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
             activeTab === 'outward' 
@@ -208,6 +224,18 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           title="Security & Mobile Devices"
         >
           <ShieldCheck className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+            activeTab === 'profile' 
+              ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium shadow-xs' 
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+          title="Profile"
+        >
+          <User className="w-5 h-5" />
         </button>
       </aside>
     );
@@ -448,6 +476,52 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                 </div>
                 <span className="text-[11px] text-slate-400 font-mono">
                   {purchases.length}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 7. Khan Traders Clearance */}
+        <div>
+          <button
+            onClick={() => {
+              toggleSection('clearance');
+              setActiveTab('clearance');
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer group ${
+              activeTab === 'clearance'
+                ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50/50 dark:bg-blue-950/30'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Anchor className={`w-4.5 h-4.5 shrink-0 ${activeTab === 'clearance' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-blue-500'}`} />
+              <span className="whitespace-nowrap truncate text-sm">Khan Traders Clearance</span>
+            </div>
+            {expandedSections.clearance ? (
+              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+            )}
+          </button>
+
+          {expandedSections.clearance && (
+            <div className="pl-9 pr-2 py-1 space-y-0.5">
+              <button
+                onClick={() => setActiveTab('clearance')}
+                className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                  activeTab === 'clearance'
+                    ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-normal'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span>Duty & Clearance Bills</span>
+                </div>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  {clearances.length}
                 </span>
               </button>
             </div>
@@ -745,6 +819,23 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
               </button>
             </div>
           )}
+        </div>
+
+        {/* 13. Profile */}
+        <div>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer group ${
+              activeTab === 'profile'
+                ? 'bg-blue-50/70 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-medium border border-blue-200/50 dark:border-blue-900/40 shadow-2xs'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <User className={`w-4.5 h-4.5 ${activeTab === 'profile' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-blue-600'}`} />
+              <span>Profile</span>
+            </div>
+          </button>
         </div>
 
       </div>

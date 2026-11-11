@@ -2269,6 +2269,9 @@ export const downloadClearancePDF = (clearance = {}) => {
 
     const c = clearance;
     const customDuty = Number(c.customDuty) || 0;
+    const shippingLine = Number(c.shippingLineCharges) || 0;
+    const portPayment = Number(c.portPayment) || 0;
+    const clearanceCharges = Number(c.clearanceCharges) || 0;
     const dryPort = Number(c.dryPortExpenses) || 0;
     const service = Number(c.serviceCharges) || 0;
     const agency = Number(c.agencyFee) || 0;
@@ -2280,7 +2283,7 @@ export const downloadClearancePDF = (clearance = {}) => {
     const railway = Number(c.railway) || 0;
     const other = Number(c.otherExpenses) || 0;
 
-    const totalPortExpenses = dryPort + service + agency + inst + road + driver + consignee + crane + railway + other;
+    const totalPortExpenses = shippingLine + portPayment + clearanceCharges + dryPort + service + agency + inst + road + driver + consignee + crane + railway + other;
     const grandTotal = Number(c.grandTotal) || (customDuty + totalPortExpenses);
     const paidAmount = Number(c.paidAmount) || 0;
     const remainingAmount = Math.max(0, grandTotal - paidAmount);
@@ -2367,16 +2370,19 @@ export const downloadClearancePDF = (clearance = {}) => {
     // Table of Itemized Port & Customs Expenses
     const chargeRows = [
       { name: 'Custom Duty (FBR / Govt. Tariff)', category: 'Govt. Custom Duty', amount: customDuty },
+      { name: 'Shipping Line + Empty Container Charges', category: 'Shipping Line', amount: shippingLine },
+      { name: 'Port Payment & Terminal Charges', category: 'Port Payment', amount: portPayment },
+      { name: 'Clearance Charges / Clearing Agent Fee', category: 'Clearance Fee', amount: clearanceCharges },
+      { name: 'Consignee Charges (Concinises / DO)', category: 'Port Handling', amount: consignee },
       { name: 'DryPort Terminal & Handling Charges', category: 'DryPort Expenses', amount: dryPort },
       { name: 'Service & Forwarding Charges', category: 'Clearing Service', amount: service },
       { name: 'Agency Fee / Documentation', category: 'Agency Charges', amount: agency },
       { name: 'INS/T (Marine & Port Insurance)', category: 'Insurance', amount: inst },
+      { name: 'Pakistan Railway Freight & Rake Charges', category: 'Rail Freight', amount: railway },
       { name: 'Road Transport / Haulage to Warehouse', category: 'Transport', amount: road },
       { name: 'Driver Allowance & Tolls', category: 'Logistics', amount: driver },
-      { name: 'Consignee Delivery Order (DO) Charges', category: 'Port Handling', amount: consignee },
       { name: 'Crane Offloading & Heavy Labour', category: 'Labour & Crane', amount: crane },
-      { name: 'Pakistan Railway Freight & Rake Charges', category: 'Rail Freight', amount: railway },
-      { name: 'Other Port & Demurrage Expenses', category: 'Miscellaneous', amount: other }
+      { name: 'Other Expenses & Demurrage', category: 'Miscellaneous', amount: other }
     ].filter(i => i.amount > 0);
 
     const tableData = chargeRows.map((item, index) => [

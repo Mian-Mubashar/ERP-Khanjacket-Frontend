@@ -23,7 +23,9 @@ import {
   AlertTriangle,
   ArrowDownLeft,
   Wallet,
-  Clock
+  Clock,
+  CheckCircle2,
+  Trash2
 } from 'lucide-react';
 import { showToast } from '../../utils/sweetalert';
 import { getOverdueCustomerReminders } from '../../utils/paymentReminders';
@@ -280,6 +282,10 @@ export const Navbar = () => {
 
   const lowStockCount = useMemo(() => {
     return activeNotifications.filter(n => n.category === 'STOCK').length;
+  }, [activeNotifications]);
+
+  const activityCount = useMemo(() => {
+    return activeNotifications.filter(n => n.category === 'WASOOLI' || n.category === 'BILL').length;
   }, [activeNotifications]);
 
   const filteredNotifs = useMemo(() => {
@@ -666,198 +672,322 @@ export const Navbar = () => {
             {isNotificationOpen && (
               <div 
                 ref={notifDropdownRef}
-                className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150"
+                className="absolute right-0 mt-2.5 w-[340px] sm:w-[410px] max-w-[calc(100vw-1.5rem)] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150 flex flex-col"
               >
-                {/* Dropdown Header */}
-                <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/50">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400 flex items-center justify-center">
+                {/* Clean Executive Header */}
+                <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/40">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 flex items-center justify-center shrink-0">
                       <Bell className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                        Notifications & Alerts
-                      </h4>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        {overduePaymentsCount > 0 && (
-                          <span className="text-rose-600 dark:text-rose-400 font-bold">{overduePaymentsCount} Overdue Wasooli • </span>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
+                          Notifications & Alerts
+                        </h4>
+                        {activeNotifications.length > 0 && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                            {activeNotifications.length}
+                          </span>
                         )}
-                        {lowStockCount} Low Stock • {activeNotifications.length} Active
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {overduePaymentsCount > 0 ? (
+                          <span className="text-rose-600 dark:text-rose-400 font-semibold">{overduePaymentsCount} Overdue Payments</span>
+                        ) : (
+                          <span>All accounts are up to date</span>
+                        )}
+                        {lowStockCount > 0 && ` • ${lowStockCount} Low Stock`}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {activeNotifications.length > 0 && (
                       <button
                         type="button"
                         onClick={clearAllNotifications}
-                        className="text-[11px] font-bold text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                        className="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer flex items-center gap-1"
                         title="Clear all active notifications"
                       >
-                        Clear All
+                        <Trash2 className="w-3 h-3" />
+                        <span>Clear</span>
                       </button>
                     )}
-                    <span className="text-slate-300 dark:text-slate-700">•</span>
                     <button
                       type="button"
-                      onClick={() => {
-                        setIsNotificationOpen(false);
-                        setActiveTab('announcements');
-                        navigate('/announcements');
-                      }}
-                      className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                      onClick={() => setIsNotificationOpen(false)}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      title="Close"
                     >
-                      View All →
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* Sub-Tabs: All | Overdue Wasooli | Stock Warnings | Wasooli & Bills */}
-                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5 bg-white dark:bg-slate-900 overflow-x-auto">
-                  <button
-                    type="button"
-                    onClick={() => setNotifTab('ALL')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer shrink-0 ${
-                      notifTab === 'ALL'
-                        ? 'bg-blue-600 text-white shadow-2xs'
-                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    All ({activeNotifications.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNotifTab('OVERDUE')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
-                      notifTab === 'OVERDUE'
-                        ? 'bg-rose-600 text-white shadow-2xs'
-                        : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40'
-                    }`}
-                  >
-                    <Clock className="w-3 h-3 text-rose-500" />
-                    <span>Overdue Wasooli ({overduePaymentsCount})</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNotifTab('STOCK')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
-                      notifTab === 'STOCK'
-                        ? 'bg-amber-600 text-white shadow-2xs'
-                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    Stock ({lowStockCount})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNotifTab('TRANSACTIONS')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer shrink-0 ${
-                      notifTab === 'TRANSACTIONS'
-                        ? 'bg-emerald-600 text-white shadow-2xs'
-                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    Wasooli & Bills
-                  </button>
+                {/* Segmented Filter Pills (Zero Overflow) */}
+                <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40">
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setNotifTab('ALL')}
+                      className={`py-1 text-center rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        notifTab === 'ALL'
+                          ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      All ({activeNotifications.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNotifTab('OVERDUE')}
+                      className={`py-1 text-center rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                        notifTab === 'OVERDUE'
+                          ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-2xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span>Overdue</span>
+                      {overduePaymentsCount > 0 && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                      )}
+                      <span className="text-[10px] opacity-80">({overduePaymentsCount})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNotifTab('STOCK')}
+                      className={`py-1 text-center rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                        notifTab === 'STOCK'
+                          ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span>Stock</span>
+                      {lowStockCount > 0 && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      )}
+                      <span className="text-[10px] opacity-80">({lowStockCount})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNotifTab('TRANSACTIONS')}
+                      className={`py-1 text-center rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        notifTab === 'TRANSACTIONS'
+                          ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      Recent
+                    </button>
+                  </div>
                 </div>
 
-                {/* Notifications Feed Items */}
-                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+                {/* Notifications Cards Feed */}
+                <div className="max-h-84 overflow-y-auto p-2.5 space-y-2">
                   {filteredNotifs.length === 0 ? (
-                    <div className="py-8 text-center space-y-1">
-                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                        No notifications in this filter
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        Everything is healthy and up to date!
-                      </p>
+                    <div className="py-10 text-center space-y-2">
+                      <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-200 dark:border-emerald-800">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          All Clear!
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          No pending alerts or notifications in this category.
+                        </p>
+                      </div>
                     </div>
                   ) : (
-                    filteredNotifs.slice(0, 15).map(n => (
-                      <div
-                        key={n.id}
-                        onClick={() => {
-                          dismissNotification(null, n.id);
-                          n.action();
-                        }}
-                        className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer flex items-start gap-3 group relative"
-                      >
-                        <div className="mt-0.5 shrink-0">
-                          {n.category === 'OVERDUE_PAYMENT' && (
-                            <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 flex items-center justify-center animate-pulse">
-                              <Clock className="w-3.5 h-3.5 text-rose-600" />
-                            </div>
-                          )}
-                          {n.category === 'STOCK' && (
-                            <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 flex items-center justify-center">
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                            </div>
-                          )}
-                          {n.category === 'WASOOLI' && (
-                            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
-                              <ArrowDownLeft className="w-3.5 h-3.5" />
-                            </div>
-                          )}
-                          {n.category === 'BILL' && (
-                            <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 flex items-center justify-center">
-                              <Truck className="w-3.5 h-3.5" />
-                            </div>
-                          )}
-                        </div>
+                    filteredNotifs.slice(0, 15).map(n => {
+                      // 1. OVERDUE WASOOLI CARD
+                      if (n.category === 'OVERDUE_PAYMENT') {
+                        const balance = Number(n.balance) || 0;
+                        const days = n.daysPending || 10;
+                        return (
+                          <div
+                            key={n.id}
+                            className="p-3 rounded-xl border border-rose-200/90 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/25 hover:bg-rose-50/70 dark:hover:bg-rose-950/35 transition-all relative group space-y-2 shadow-2xs"
+                          >
+                            {/* Card Top: Customer Shop Name + Days Badge + Dismiss X */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300 flex items-center justify-center shrink-0">
+                                  <Clock className="w-3.5 h-3.5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-xs font-bold text-slate-900 dark:text-white truncate block">
+                                    {n.customerName || n.title}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate block">
+                                    {n.shopkeeperName ? `${n.shopkeeperName} • ` : ''}{n.city || 'Wholesale Khata'}
+                                  </span>
+                                </div>
+                              </div>
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                              {n.title}
-                            </span>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded shrink-0 ${n.badgeColor}`}>
-                              {n.badge}
-                            </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-900/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                                  {days} Days Overdue
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => dismissNotification(e, n.id)}
+                                  className="opacity-40 group-hover:opacity-100 p-1 hover:bg-rose-200/60 dark:hover:bg-rose-900/60 text-slate-400 hover:text-rose-700 rounded-md transition-all cursor-pointer"
+                                  title="Dismiss"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Card Middle: Clear Big Baqaya Balance */}
+                            <div className="p-2 rounded-lg bg-white/90 dark:bg-slate-900/80 border border-rose-100 dark:border-rose-900/40 flex items-center justify-between">
+                              <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                                Outstanding Due Balance:
+                              </span>
+                              <span className="text-sm font-mono font-black text-rose-600 dark:text-rose-400">
+                                Rs. {Math.round(balance).toLocaleString()}
+                              </span>
+                            </div>
+
+                            {/* Card Actions: Quick Wasooli & Khata */}
+                            <div className="flex items-center justify-between gap-2 pt-0.5">
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                Since {n.unpaidSinceDateStr || 'Recent'}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    dismissNotification(null, n.id);
+                                    if (setSelectedCustomerKhata) setSelectedCustomerKhata(n.customer);
+                                    setIsNotificationOpen(false);
+                                  }}
+                                  className="px-2.5 py-1 text-[10.5px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                                >
+                                  View Khata
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    dismissNotification(null, n.id);
+                                    if (setSelectedCustomerForPayment) setSelectedCustomerForPayment(n.customer);
+                                    if (setIsRecordCustomerPaymentOpen) setIsRecordCustomerPaymentOpen(true);
+                                    setIsNotificationOpen(false);
+                                  }}
+                                  className="px-2.5 py-1 text-[10.5px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                                >
+                                  <Wallet className="w-3 h-3" />
+                                  <span>+ Receive Payment</span>
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 mt-0.5">
-                            {n.desc}
-                          </p>
-                          <div className="flex items-center justify-between gap-2 mt-1">
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              {n.time}
-                            </span>
-                            {n.category === 'OVERDUE_PAYMENT' && (
+                        );
+                      }
+
+                      // 2. STOCK WARNING CARD
+                      if (n.category === 'STOCK') {
+                        return (
+                          <div
+                            key={n.id}
+                            onClick={() => {
+                              dismissNotification(null, n.id);
+                              n.action();
+                            }}
+                            className="p-3 rounded-xl border border-amber-200/90 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/25 hover:bg-amber-50/70 dark:hover:bg-amber-950/35 transition-all cursor-pointer relative group space-y-1.5 shadow-2xs"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 flex items-center justify-center shrink-0">
+                                  <AlertTriangle className="w-3.5 h-3.5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-xs font-bold text-slate-900 dark:text-white truncate block">
+                                    {n.title}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                    Godown: {n.time || 'Main Warehouse'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${n.badgeColor}`}>
+                                  {n.badge}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => dismissNotification(e, n.id)}
+                                  className="opacity-40 group-hover:opacity-100 p-1 hover:bg-amber-200/60 dark:hover:bg-amber-900/60 text-slate-400 hover:text-amber-700 rounded-md transition-all cursor-pointer"
+                                  title="Dismiss"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium pl-9">
+                              {n.desc}
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      // 3. RECENT ACTIVITY CARDS (WASOOLI & BILLS)
+                      return (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            dismissNotification(null, n.id);
+                            n.action();
+                          }}
+                          className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer relative group space-y-1 shadow-2xs"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                                n.category === 'WASOOLI'
+                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                              }`}>
+                                {n.category === 'WASOOLI' ? <ArrowDownLeft className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold text-slate-900 dark:text-white truncate block">
+                                  {n.title}
+                                </span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate block">
+                                  {n.desc}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] font-mono text-slate-400">
+                                {n.time}
+                              </span>
                               <button
                                 type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  dismissNotification(null, n.id);
-                                  if (setSelectedCustomerForPayment) setSelectedCustomerForPayment(n.customer);
-                                  if (setIsRecordCustomerPaymentOpen) setIsRecordCustomerPaymentOpen(true);
-                                  setIsNotificationOpen(false);
-                                }}
-                                className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-2xs transition-colors shrink-0 flex items-center gap-1"
-                                title="Record payment from this customer"
+                                onClick={(e) => dismissNotification(e, n.id)}
+                                className="opacity-40 group-hover:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 rounded-md transition-all cursor-pointer"
+                                title="Dismiss"
                               >
-                                <Wallet className="w-3 h-3" />
-                                <span>+ Wasooli</span>
+                                <X className="w-3.5 h-3.5" />
                               </button>
-                            )}
+                            </div>
                           </div>
                         </div>
-
-                        {/* Dismiss single notification button on hover */}
-                        <button
-                          type="button"
-                          onClick={(e) => dismissNotification(e, n.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-all shrink-0 cursor-pointer self-center"
-                          title="Dismiss / remove notification"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
-                {/* Footer Link to Full Announcements */}
-                <div className="p-2.5 bg-slate-50/80 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 text-center">
+                {/* Dropdown Footer Link */}
+                <div className="p-2.5 bg-slate-50/80 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => {
@@ -865,9 +995,10 @@ export const Navbar = () => {
                       setActiveTab('announcements');
                       navigate('/announcements');
                     }}
-                    className="w-full py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl transition-colors cursor-pointer"
+                    className="w-full py-1.5 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    Open Full Announcements & Tables Dashboard →
+                    <span>View All Announcements & Activity</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -897,8 +1028,12 @@ export const Navbar = () => {
               </span>
               
               <div className="relative">
-                <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
-                  <User className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs overflow-hidden">
+                  {currentUser?.avatar ? (
+                    <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
                 </div>
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
               </div>
@@ -935,6 +1070,17 @@ export const Navbar = () => {
                   ))}
                 </div>
                 <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 mt-1 space-y-1">
+                  <button
+                    onClick={() => {
+                      setActiveTab('profile');
+                      setIsRoleMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg flex items-center gap-2 cursor-pointer"
+                  >
+                    <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>My Profile</span>
+                  </button>
+
                   <button
                     onClick={() => {
                       setSecuritySubTab('devices');
