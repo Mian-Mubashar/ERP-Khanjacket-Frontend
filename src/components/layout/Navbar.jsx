@@ -59,6 +59,7 @@ export const Navbar = () => {
   const dropdownRef = useRef(null);
   const notifDropdownRef = useRef(null);
   const notifButtonRef = useRef(null);
+  const roleMenuRef = useRef(null);
 
   const [searchInput, setSearchInput] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL'); // 'ALL' | 'ARTICLES' | 'CUSTOMERS' | 'SUPPLIERS' | 'DISPATCHES'
@@ -111,9 +112,43 @@ export const Navbar = () => {
     };
     if (isNotificationOpen) {
       document.addEventListener('mousedown', handleClickOutsideNotif);
+      document.addEventListener('touchstart', handleClickOutsideNotif);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutsideNotif);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideNotif);
+      document.removeEventListener('touchstart', handleClickOutsideNotif);
+    };
   }, [isNotificationOpen]);
+
+  // Close user profile / role dropdown on click outside
+  useEffect(() => {
+    const handleClickOutsideRole = (e) => {
+      if (roleMenuRef.current && !roleMenuRef.current.contains(e.target)) {
+        setIsRoleMenuOpen(false);
+      }
+    };
+    if (isRoleMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutsideRole);
+      document.addEventListener('touchstart', handleClickOutsideRole);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideRole);
+      document.removeEventListener('touchstart', handleClickOutsideRole);
+    };
+  }, [isRoleMenuOpen]);
+
+  // Close open dropdowns on Escape key press
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setIsRoleMenuOpen(false);
+        setIsNotificationOpen(false);
+        setIsDropdownOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, []);
 
   // Compute live notifications for the Bell icon
   const notifications = useMemo(() => {
@@ -1018,7 +1053,7 @@ export const Navbar = () => {
           </button>
 
           {/* User Profile Avatar with Name & Online Indicator */}
-          <div className="relative">
+          <div className="relative" ref={roleMenuRef}>
             <button
               onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
               className="flex items-center gap-2.5 pl-3 pr-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs cursor-pointer"
