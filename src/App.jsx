@@ -27,6 +27,7 @@ import { AddLocationModal } from './components/articles/AddLocationModal';
 import { AddCustomerModal } from './components/customers/AddCustomerModal';
 import { EditCustomerModal } from './components/customers/EditCustomerModal';
 import { RecordCustomerPaymentModal } from './components/customers/RecordCustomerPaymentModal';
+import { RecordMaalWapsiModal } from './components/customers/RecordMaalWapsiModal';
 import { CustomerStatementModal } from './components/customers/CustomerStatementModal';
 import { NewPurchaseModal } from './components/purchases/NewPurchaseModal';
 import { NewOutwardModal } from './components/outward/NewOutwardModal';
@@ -169,6 +170,7 @@ const DashboardLayout = () => {
       <EditCustomerModal />
       <EditSupplierModal />
       <RecordCustomerPaymentModal />
+      <RecordMaalWapsiModal />
       <AddPaymentModal />
 
       {/* 3. Nested Dialogs (z-[70] / z-[80]) */}
@@ -181,7 +183,8 @@ const DashboardLayout = () => {
 };
 
 const AppRoutes = () => {
-  const { setActiveTab } = useApp();
+  const { setActiveTab, currentUser } = useApp();
+  const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
 
   return (
     <Routes>
@@ -210,8 +213,14 @@ const AppRoutes = () => {
         <Route path="/customers" element={<CustomersView />} />
         <Route path="/articles" element={<ArticlesList />} />
         <Route path="/purchases" element={<PurchasesList defaultTab="PURCHASES" />} />
-        <Route path="/clearance" element={<PurchasesList defaultTab="CLEARANCE" />} />
-        <Route path="/clearances" element={<Navigate to="/clearance" replace />} />
+        <Route 
+          path="/clearance" 
+          element={isAdmin ? <PurchasesList defaultTab="CLEARANCE" /> : <Navigate to="/dashboard" replace />} 
+        />
+        <Route 
+          path="/clearances" 
+          element={<Navigate to={isAdmin ? "/clearance" : "/dashboard"} replace />} 
+        />
         <Route path="/outward" element={<OutwardList />} />
         <Route path="/suppliers" element={<SuppliersList />} />
         <Route path="/payment-collection" element={<UgrahiView />} />

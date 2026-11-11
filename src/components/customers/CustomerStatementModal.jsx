@@ -33,7 +33,11 @@ export const CustomerStatementModal = () => {
     updateOutward,
     deleteOutward,
     outward = [], 
-    customerPayments = [] 
+    customerPayments = [],
+    customerReturns = [],
+    deleteCustomerReturn,
+    setIsRecordMaalWapsiOpen,
+    setSelectedCustomerForWapsi 
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('LEDGER'); // 'LEDGER' | 'DISPATCHES' | 'PAYMENTS'
@@ -93,11 +97,17 @@ export const CustomerStatementModal = () => {
     (p.customerName && currentShopLower && p.customerName.toLowerCase().includes(currentShopLower))
   );
 
+  const customerReturnHistory = (customerReturns || []).filter(r => 
+    (r.customerId && r.customerId === selectedCustomerKhata.id) ||
+    (r.customerName && currentShopLower && r.customerName.toLowerCase().includes(currentShopLower))
+  );
+
   const totalBilled = customerDispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
   const totalPaid = customerPayHistory.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const totalReturned = customerReturnHistory.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0);
   const recordedTotalBill = Number(selectedCustomerKhata.totalBill) || 0;
   const openingBalance = Math.max(0, recordedTotalBill - totalBilled);
-  const currentNetBalance = Math.max(0, (openingBalance + totalBilled) - totalPaid);
+  const currentNetBalance = Math.max(0, (openingBalance + totalBilled) - (totalPaid + totalReturned));
 
   // Build unified running ledger matching traditional physical Khata
   const events = [];
@@ -164,6 +174,22 @@ export const CustomerStatementModal = () => {
       subDesc: p.notes ? p.notes : 'Naqad Wasool shuda raqam',
       debit: 0,
       credit: Number(p.amount) || 0
+    });
+  });
+
+  // 4. Customer Sales Return (Credit Note)
+  customerReturnHistory.forEach(r => {
+    events.push({
+      id: `ret-${r.id}`,
+      originalItem: r,
+      date: r.date,
+      rawDate: new Date(r.date || r.createdAt || 0).getTime(),
+      type: 'RETURN',
+      ref: r.returnSlipNo || `SR-${r.id}`,
+      desc: `Sales Return — ${r.articleNo} (${r.quantity} pcs @ Rs. ${Number(r.unitPrice || 0).toLocaleString()})`,
+      subDesc: `Reason: ${r.reason || 'General Return'}${r.notes ? ` | Note: ${r.notes}` : ''}`,
+      debit: 0,
+      credit: Number(r.totalAmount) || 0
     });
   });
 
@@ -358,6 +384,13 @@ export const CustomerStatementModal = () => {
           setIsSubmitting(false);
           return;
         }
+      } else if (deletingEntry.type === 'RETURN') {
+        const res = await deleteCustomerReturn(deletingEntry.item.id);
+        if (!res?.success) {
+          setActionError(res?.message || 'Failed to delete return entry');
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       setDeletingEntry(null);
@@ -411,6 +444,19 @@ export const CustomerStatementModal = () => {
 
             <button
               type="button"
+              onClick={() => {
+                setSelectedCustomerForWapsi(selectedCustomerKhata);
+                setIsRecordMaalWapsiOpen(true);
+              }}
+              className="px-3 py-1.5 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
+              title="Record Sales Return for this shopkeeper"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span>Sales Return</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleOpenOutward}
               className="px-3 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors font-semibold cursor-pointer flex items-center gap-1.5 shadow-2xs"
             >
@@ -420,7 +466,7 @@ export const CustomerStatementModal = () => {
 
             <button
               type="button"
-              onClick={() => downloadCustomerKhataPDF(selectedCustomerKhata, customerDispatches, customerPayHistory)}
+              onClick={() => downloadCustomerKhataPDF(selectedCustomerKhata, customerDispatches, customerPayHistory, customerReturnHistory)}
               className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
               title="Download Statement PDF"
             >
@@ -548,9 +594,17 @@ export const CustomerStatementModal = () => {
                             {row.date}
                           </td>
                           <td className="py-2.5 px-4 font-sans">
-                            <span className="font-medium text-slate-900 dark:text-white text-xs">
-                              {row.desc}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {row.type === 'RETURN' && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800">
+                                  <RotateCcw className="w-2.5 h-2.5" />
+                                  Sales Return
+                                </span>
+                              )}
+                              <span className="font-medium text-slate-900 dark:text-white text-xs">
+                                {row.desc}
+                              </span>
+                            </div>
                             {row.subDesc && (
                               <span className="text-[11px] text-slate-400 block mt-0.5">
                                 {row.subDesc}
@@ -773,14 +827,16 @@ export const CustomerStatementModal = () => {
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => handleStartEdit(activeDropdown.type, activeDropdown.item)}
-            className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5 text-blue-500" />
-            <span>Edit Entry</span>
-          </button>
+          {activeDropdown.type !== 'RETURN' && (
+            <button
+              type="button"
+              onClick={() => handleStartEdit(activeDropdown.type, activeDropdown.item)}
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5 text-blue-500" />
+              <span>Edit Entry</span>
+            </button>
+          )}
 
           {activeDropdown.type !== 'OPENING' && (
             <button
@@ -789,7 +845,7 @@ export const CustomerStatementModal = () => {
               className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-              <span>Delete Entry</span>
+              <span>{activeDropdown.type === 'RETURN' ? 'Delete Return Entry' : 'Delete Entry'}</span>
             </button>
           )}
         </div>
@@ -1038,7 +1094,11 @@ export const CustomerStatementModal = () => {
             </div>
 
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              {deletingEntry.type === 'PAYMENT' ? 'Delete Payment Receipt?' : 'Delete Dispatch Bill?'}
+              {deletingEntry.type === 'PAYMENT' 
+                ? 'Delete Payment Receipt?' 
+                : deletingEntry.type === 'RETURN'
+                ? 'Delete Sales Return Entry?'
+                : 'Delete Dispatch Bill?'}
             </h3>
 
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
@@ -1048,6 +1108,14 @@ export const CustomerStatementModal = () => {
                   <br />
                   <span className="text-[11px] text-rose-500 mt-1 block">
                     This will restore Rs. {Number(deletingEntry.item.amount).toLocaleString()} to the customer's outstanding balance.
+                  </span>
+                </>
+              ) : deletingEntry.type === 'RETURN' ? (
+                <>
+                  Are you sure you want to delete Sales Return entry <strong className="text-slate-700 dark:text-slate-200 font-mono">#{deletingEntry.item.returnSlipNo || deletingEntry.item.id}</strong> ({deletingEntry.item.quantity} pcs of {deletingEntry.item.articleNo}) for <strong className="text-purple-600 font-mono">Rs. {Number(deletingEntry.item.totalAmount).toLocaleString()}</strong>?
+                  <br />
+                  <span className="text-[11px] text-rose-500 mt-1 block">
+                    This will restore Rs. {Number(deletingEntry.item.totalAmount).toLocaleString()} back to the customer's balance and revert warehouse stock.
                   </span>
                 </>
               ) : (

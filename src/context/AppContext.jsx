@@ -165,10 +165,14 @@ export const AppProvider = ({ children }) => {
   const [categories, setCategories] = useState([]);
   const [warehouseLocations, setWarehouseLocations] = useState([]);
   const [clearances, setClearances] = useState([]);
+  const [customerReturns, setCustomerReturns] = useState([]);
 
   // SubTab & Modals visibility
   const [securitySubTab, setSecuritySubTab] = useState('devices');
   const [announcementsSubTab, setAnnouncementsSubTab] = useState('WASOOLI_BILLS');
+  const [clearanceSubTab, setClearanceSubTab] = useState('BILLS');
+  const [isRecordMaalWapsiOpen, setIsRecordMaalWapsiOpen] = useState(false);
+  const [selectedCustomerForWapsi, setSelectedCustomerForWapsi] = useState(null);
 
   const [selectedArticleDetail, setSelectedArticleDetail] = useState(null);
   const [selectedArticleForOutward, setSelectedArticleForOutward] = useState(null);
@@ -233,7 +237,8 @@ export const AppProvider = ({ children }) => {
         auditRes,
         customerPaymentsRes,
         supplierPaymentsRes,
-        clearancesRes
+        clearancesRes,
+        customerReturnsRes
       ] = await Promise.allSettled([
         api.articles.list(),
         api.suppliers.list(),
@@ -249,7 +254,8 @@ export const AppProvider = ({ children }) => {
         api.audit.list({ limit: 100 }),
         api.customers.listPayments(),
         api.suppliers.listPayments(),
-        api.clearances.list()
+        api.clearances.list(),
+        api.customerReturns.list()
       ]);
 
       if (articlesRes.status === 'fulfilled' && articlesRes.value?.data) {
@@ -310,6 +316,9 @@ export const AppProvider = ({ children }) => {
       }
       if (clearancesRes.status === 'fulfilled' && clearancesRes.value?.data) {
         setClearances(clearancesRes.value.data);
+      }
+      if (customerReturnsRes.status === 'fulfilled' && customerReturnsRes.value?.data) {
+        setCustomerReturns(customerReturnsRes.value.data);
       }
     } catch (err) {
       console.warn('[AppContext] Backend offline or unreachable:', err.message);
@@ -542,6 +551,22 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const updateClearancePayment = async (paymentId, clearanceId, paymentData) => {
+    try {
+      const res = await api.clearances.updatePayment(paymentId, paymentData);
+      if (res?.success) {
+        if (res.data?.clearance) {
+          setClearances(prev => prev.map(c => c.id === res.data.clearance.id ? res.data.clearance : c));
+        }
+        await refreshData();
+        return { success: true, payment: res.data?.payment, clearance: res.data?.clearance };
+      }
+      return { success: false, message: res?.message || 'Failed to update clearance payment' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error updating clearance payment' };
+    }
+  };
+
   // ==========================================
   // DYNAMIC ACTIONS: OUTWARD DISPATCHES
   // ==========================================
@@ -768,6 +793,32 @@ export const AppProvider = ({ children }) => {
       return { success: false, message: res?.message || 'Failed to delete customer payment' };
     } catch (err) {
       return { success: false, message: err.message || 'Error deleting customer payment from database' };
+    }
+  };
+
+  const recordCustomerReturn = async (returnData) => {
+    try {
+      const res = await api.customerReturns.create(returnData);
+      if (res?.success) {
+        await refreshData();
+        return { success: true, returnRecord: res.data?.returnRecord };
+      }
+      return { success: false, message: res?.message || 'Failed to record sales return' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error recording sales return in database' };
+    }
+  };
+
+  const deleteCustomerReturn = async (id) => {
+    try {
+      const res = await api.customerReturns.delete(id);
+      if (res?.success) {
+        await refreshData();
+        return { success: true };
+      }
+      return { success: false, message: res?.message || 'Failed to delete return entry' };
+    } catch (err) {
+      return { success: false, message: err.message || 'Error deleting return entry' };
     }
   };
 
@@ -1053,6 +1104,7 @@ export const AppProvider = ({ children }) => {
         setAreas,
         customers,
         customerPayments,
+        customerReturns,
         suppliers,
         purchases,
         outward,
@@ -1085,6 +1137,8 @@ export const AppProvider = ({ children }) => {
         recordCustomerPayment,
         updateCustomerPayment,
         deleteCustomerPayment,
+        recordCustomerReturn,
+        deleteCustomerReturn,
         addSupplier,
         updateSupplier,
         deleteSupplier,
@@ -1096,6 +1150,7 @@ export const AppProvider = ({ children }) => {
         deleteClearance,
         recordClearancePayment,
         deleteClearancePayment,
+        updateClearancePayment,
         addOutward,
         updateOutward,
         deleteOutward,
@@ -1171,6 +1226,10 @@ export const AppProvider = ({ children }) => {
         setIsEditCustomerOpen,
         isRecordCustomerPaymentOpen,
         setIsRecordCustomerPaymentOpen,
+        isRecordMaalWapsiOpen,
+        setIsRecordMaalWapsiOpen,
+        selectedCustomerForWapsi,
+        setSelectedCustomerForWapsi,
         isAddStuffOpen,
         setIsAddStuffOpen,
         isAddCategoryOpen,
@@ -1182,6 +1241,8 @@ export const AppProvider = ({ children }) => {
         setSecuritySubTab,
         announcementsSubTab,
         setAnnouncementsSubTab,
+        clearanceSubTab,
+        setClearanceSubTab,
         activeTab,
         setActiveTab
       }}

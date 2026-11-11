@@ -291,7 +291,7 @@ export const downloadInvoicePDF = (invoice) => {
 // -------------------------------------------------------------
 // 2. CUSTOMER KHATA STATEMENT / LEDGER PDF (Image 1 Authentic Khata)
 // -------------------------------------------------------------
-export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = []) => {
+export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [], returns = []) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   let currentY = drawHeader(
     doc,
@@ -303,10 +303,11 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
   // Financial calculations
   const totalBilled = dispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
   const totalPaid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const totalReturned = returns.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0);
   const totalPieces = dispatches.reduce((s, d) => s + (Number(d.quantity) || 0), 0);
   const recordedBill = Number(customer.totalBill) || 0;
   const openingBalance = Math.max(0, recordedBill - totalBilled);
-  const currentNetBalance = Math.max(0, (openingBalance + totalBilled) - totalPaid);
+  const currentNetBalance = Math.max(0, (openingBalance + totalBilled) - (totalPaid + totalReturned));
 
   // Customer Profile Banner
   doc.setFillColor(248, 250, 252);
@@ -398,6 +399,16 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
       desc: `Wasooli / Payment Received (MK / ${p.paymentMethod || 'Cash'})${p.notes ? ' - ' + p.notes : ''}`,
       debit: 0,
       credit: Number(p.amount) || 0
+    });
+  });
+
+  returns.forEach(r => {
+    events.push({
+      date: r.date,
+      rawDate: new Date(r.date || r.createdAt).getTime(),
+      desc: `Maal Wapsi / Return - ${r.articleNo} (${(r.quantity || 0).toLocaleString()} pcs @ Rs. ${(r.unitPrice || 0).toLocaleString()})${r.reason ? ' - ' + r.reason : ''}`,
+      debit: 0,
+      credit: Number(r.totalAmount) || 0
     });
   });
 

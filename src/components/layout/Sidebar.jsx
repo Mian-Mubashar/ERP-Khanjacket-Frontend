@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   LayoutDashboard,
@@ -22,6 +22,7 @@ import iconLogoImg from '../../images/khan jacket icon logo.png';
 
 export const Sidebar = ({ activeTab, setActiveTab }) => {
   const { 
+    currentUser,
     articles, 
     suppliers, 
     purchases,
@@ -32,8 +33,21 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     securitySubTab,
     setSecuritySubTab,
     announcementsSubTab,
-    setAnnouncementsSubTab
+    setAnnouncementsSubTab,
+    clearanceSubTab,
+    setClearanceSubTab
   } = useApp();
+
+  const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
+
+  const uniqueClearingAgentsCount = useMemo(() => {
+    const set = new Set();
+    (clearances || []).forEach(c => {
+      const name = (c.clearingAgent || 'BARCA TRADERS').trim().toLowerCase();
+      if (name) set.add(name);
+    });
+    return set.size;
+  }, [clearances]);
 
   // All menu sections are CLOSED by default as requested: "by default ya menu drop down na rhe means band rhe, click per dropdown ho"
   const [expandedSections, setExpandedSections] = useState({
@@ -139,17 +153,19 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           <Ship className="w-5 h-5" />
         </button>
 
-        <button
-          onClick={() => setActiveTab('clearance')}
-          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'clearance' 
-              ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium shadow-xs' 
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-          title="Khan Traders Clearance"
-        >
-          <Anchor className="w-5 h-5" />
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('clearance')}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              activeTab === 'clearance' 
+                ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium shadow-xs' 
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+            title="Khan Traders Clearance"
+          >
+            <Anchor className="w-5 h-5" />
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('outward')}
@@ -482,51 +498,53 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           )}
         </div>
 
-        {/* 7. Khan Traders Clearance */}
-        <div>
-          <button
-            onClick={() => {
-              toggleSection('clearance');
-              setActiveTab('clearance');
-            }}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer group ${
-              activeTab === 'clearance'
-                ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50/50 dark:bg-blue-950/30'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Anchor className={`w-4.5 h-4.5 shrink-0 ${activeTab === 'clearance' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-blue-500'}`} />
-              <span className="whitespace-nowrap truncate text-sm">Khan Traders Clearance</span>
-            </div>
-            {expandedSections.clearance ? (
-              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-            )}
-          </button>
+        {/* 7. Khan Traders Clearance (Admin Only) */}
+        {isAdmin && (
+          <div>
+            <button
+              onClick={() => {
+                toggleSection('clearance');
+                setActiveTab('clearance');
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer group ${
+                activeTab === 'clearance'
+                  ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50/50 dark:bg-blue-950/30'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Anchor className={`w-4.5 h-4.5 shrink-0 ${activeTab === 'clearance' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-blue-500'}`} />
+                <span className="whitespace-nowrap truncate text-sm">Khan Traders Clearance</span>
+              </div>
+              {expandedSections.clearance ? (
+                <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+              )}
+            </button>
 
-          {expandedSections.clearance && (
-            <div className="pl-9 pr-2 py-1 space-y-0.5">
-              <button
-                onClick={() => setActiveTab('clearance')}
-                className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                  activeTab === 'clearance'
-                    ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-normal'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  <span>Duty & Clearance Bills</span>
-                </div>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  {clearances.length}
-                </span>
-              </button>
-            </div>
-          )}
-        </div>
+            {expandedSections.clearance && (
+              <div className="pl-9 pr-2 py-1 space-y-0.5">
+                <button
+                  onClick={() => setActiveTab('clearance')}
+                  className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                    activeTab === 'clearance'
+                      ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-normal'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span>Duty & Clearance Bills</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    {clearances.length}
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 7. Stock Outward (Dispatches to Shops) */}
         <div>

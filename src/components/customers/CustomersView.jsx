@@ -39,6 +39,8 @@ export const CustomersView = () => {
     setIsEditCustomerOpen,
     setIsRecordCustomerPaymentOpen,
     setSelectedCustomerForPayment,
+    setIsRecordMaalWapsiOpen,
+    setSelectedCustomerForWapsi,
     setSelectedCustomerKhata,
     setIsNewOutwardOpen,
     setSelectedCustomerForBill,
@@ -204,61 +206,85 @@ export const CustomersView = () => {
     <div className="space-y-6">
       
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100 tracking-wide uppercase">
-            CUSTOMERS & SHOPKEEPERS
-          </h1>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight uppercase">
+              CUSTOMERS & SHOPKEEPERS
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+              {customers.length} Shops
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Wholesale buyers, shops directory, pieces dispatched, payments received & outstanding balances
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Download Customers List PDF Button */}
+        {/* Action Header Toolbar (Shadcn UI style) */}
+        <div className="flex flex-wrap items-center justify-start lg:justify-end gap-2.5">
+          {/* 1. Utility: Download PDF */}
           <button
             type="button"
             onClick={handleExportPDF}
-            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-xs font-semibold rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
             title="Download Customers Register PDF"
           >
-            <Download className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <Download className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             <span>Download PDF</span>
           </button>
 
-          {/* New Customer Bill / Outward Dispatch Button */}
+          {/* 2. Secondary: Sales Return */}
           <button
             type="button"
             onClick={() => {
-              setSelectedCustomerForBill(null);
-              setIsNewOutwardOpen(true);
+              setSelectedCustomerForWapsi(null);
+              setIsRecordMaalWapsiOpen(true);
             }}
-            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            title="Create a new customer bill / dispatch goods"
+            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-purple-50/70 dark:hover:bg-purple-950/30 text-slate-700 dark:text-slate-200 hover:text-purple-700 dark:hover:text-purple-300 border border-slate-200 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-800/60 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
+            title="Record Customer Sales Return"
           >
-            <Truck className="w-4 h-4" />
-            <span>+ New Bill</span>
+            <RotateCcw className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <span>Sales Return</span>
           </button>
 
+          {/* 3. Secondary: Receive Payment */}
           <button
             type="button"
             onClick={() => {
               setSelectedCustomerForPayment(null);
               setIsRecordCustomerPaymentOpen(true);
             }}
-            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-xs font-medium rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/30 text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800/60 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
+            title="Receive Customer Payment (Wasooli)"
           >
             <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>Receive Payment</span>
           </button>
 
+          {/* 4. Secondary: Add Shopkeeper */}
           <button
             type="button"
             onClick={() => setIsAddCustomerOpen(true)}
-            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
+            title="Register a new wholesale customer / shopkeeper"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             <span>Add Shopkeeper</span>
+          </button>
+
+          {/* 5. Primary Action: + New Bill */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCustomerForBill(null);
+              setIsNewOutwardOpen(true);
+            }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-sm font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+            title="Create a new customer bill / dispatch goods"
+          >
+            <Truck className="w-4 h-4" />
+            <span>+ New Bill</span>
           </button>
         </div>
       </div>
@@ -722,7 +748,22 @@ export const CustomersView = () => {
             <span>Receive Payment</span>
           </button>
 
-          {/* 4. Edit Details */}
+          {/* 4. Sales Return */}
+          <button
+            type="button"
+            onClick={() => {
+              const c = activeDropdown.cust;
+              setActiveDropdown(null);
+              setSelectedCustomerForWapsi(c);
+              setIsRecordMaalWapsiOpen(true);
+            }}
+            className="w-full px-3 py-2 text-xs font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center gap-2.5 transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+            <span>Sales Return</span>
+          </button>
+
+          {/* 5. Edit Details */}
           <button
             type="button"
             onClick={() => {

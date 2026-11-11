@@ -270,7 +270,18 @@ export const api = {
     delete: (id) => request(`/clearances/${id}`, { method: 'DELETE' }),
     recordPayment: (id, data) => request(`/clearances/${id}/payments`, { method: 'POST', body: JSON.stringify(data) }),
     getPayments: (id) => request(`/clearances/${id}/payments`),
-    deletePayment: (paymentId) => request(`/clearances/payments/${paymentId}`, { method: 'DELETE' })
+    deletePayment: (paymentId) => request(`/clearances/payments/${paymentId}`, { method: 'DELETE' }),
+    updatePayment: (paymentId, data) => request(`/clearances/payments/${paymentId}`, { method: 'PUT', body: JSON.stringify(data) })
+  },
+
+  // Customer Sales Returns (Maal Wapsi)
+  customerReturns: {
+    list: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return request(`/customer-returns${query ? `?${query}` : ''}`);
+    },
+    create: (data) => request('/customer-returns', { method: 'POST', body: JSON.stringify(data) }),
+    delete: (id) => request(`/customer-returns/${id}`, { method: 'DELETE' })
   },
 
   // Database Backup Snapshot
