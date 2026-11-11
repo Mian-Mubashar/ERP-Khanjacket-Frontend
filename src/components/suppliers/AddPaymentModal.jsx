@@ -171,7 +171,7 @@ export const AddPaymentModal = () => {
             </div>
             {currentSupplier && (
               <div className="text-right sm:pl-4 shrink-0">
-                <span className="text-[10px] text-slate-400 block font-medium uppercase tracking-wider">Current Baqaya Due</span>
+                <span className="text-[10px] text-slate-400 block font-medium uppercase tracking-wider">Current Balance Due</span>
                 <span className="text-base font-bold font-mono text-rose-600 dark:text-rose-400">
                   {formatPKR(oldBalance)}
                 </span>

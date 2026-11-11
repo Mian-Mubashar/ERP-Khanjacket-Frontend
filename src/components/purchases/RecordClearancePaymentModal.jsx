@@ -82,7 +82,7 @@ export const RecordClearancePaymentModal = ({ clearance, isOpen, onClose, onSucc
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                Record Clearance Payment (Adaigi)
+                Record Clearance Payment
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Agent: <strong className="text-slate-800 dark:text-slate-200">{clearance.clearingAgent}</strong> • Bill #{clearance.invoiceNo}
@@ -122,7 +122,7 @@ export const RecordClearancePaymentModal = ({ clearance, isOpen, onClose, onSucc
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Remaining Baqaya</span>
+              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Remaining Balance</span>
               <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-xs">
                 Rs. {Math.round(currentRemaining).toLocaleString()}
               </span>
@@ -223,7 +223,7 @@ export const RecordClearancePaymentModal = ({ clearance, isOpen, onClose, onSucc
           <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900/60 flex items-center justify-between">
             <div>
               <span className="text-[10px] text-blue-700 dark:text-blue-300 uppercase font-bold block">
-                Projected Remaining Baqaya
+                Projected Remaining Balance
               </span>
               <span className="text-[11px] text-slate-500 dark:text-slate-400">
                 After deducting Rs. {Math.round(payNum).toLocaleString()}
@@ -254,7 +254,7 @@ export const RecordClearancePaymentModal = ({ clearance, isOpen, onClose, onSucc
               className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{isSubmitting ? 'Saving Payment...' : 'Save Payment (Adaigi Darj Karein)'}</span>
+              <span>{isSubmitting ? 'Saving Payment...' : 'Save Payment'}</span>
             </button>
           </div>
         </form>

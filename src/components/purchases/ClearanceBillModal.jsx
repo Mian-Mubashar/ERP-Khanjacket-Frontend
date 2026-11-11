@@ -312,7 +312,7 @@ export const ClearanceBillModal = ({ clearance, isOpen, onClose }) => {
 
             <div className="text-right">
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block print:text-slate-600 print:text-[8.5px]">
-                Clearing Baqaya Due
+                Balance Due
               </span>
               <span className={`text-base font-mono font-black print:text-sm ${
                 isCleared ? 'text-emerald-600 dark:text-emerald-400 print:text-emerald-700' : 'text-rose-600 dark:text-rose-400 print:text-rose-700'

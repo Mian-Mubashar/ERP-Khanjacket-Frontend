@@ -56,7 +56,7 @@ export const ClearanceKhataModal = ({ clearance, isOpen, onClose }) => {
   const handleDeletePayment = async (payment) => {
     const isConfirmed = await confirmDelete({
       title: `Delete Payment of Rs. ${Number(payment.amount).toLocaleString()}?`,
-      text: `Are you sure you want to revert this payment made on ${payment.date}? Remaining Baqaya will be adjusted back.`,
+      text: `Are you sure you want to revert this payment made on ${payment.date}? Remaining balance will be adjusted back.`,
       confirmButtonText: 'Yes, Delete Payment'
     });
 
@@ -85,7 +85,7 @@ export const ClearanceKhataModal = ({ clearance, isOpen, onClose }) => {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                    Clearing Khata & Payment Ledger
+                    Clearing Account & Payment Ledger
                   </h2>
                   {isCleared ? (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/30">
@@ -171,7 +171,7 @@ export const ClearanceKhataModal = ({ clearance, isOpen, onClose }) => {
 
               <div className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
                 <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-                  Total Paid (Adaigi)
+                  Total Paid
                 </span>
                 <div className="text-xl font-mono font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
                   Rs. {Math.round(paidAmount).toLocaleString()}
@@ -183,13 +183,13 @@ export const ClearanceKhataModal = ({ clearance, isOpen, onClose }) => {
 
               <div className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
                 <span className={`text-[10px] font-bold uppercase tracking-wider block ${remainingAmount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
-                  Remaining Baqaya Due
+                  Remaining Balance Due
                 </span>
                 <div className={`text-xl font-mono font-extrabold mt-1 ${remainingAmount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
                   Rs. {Math.round(remainingAmount).toLocaleString()}
                 </div>
                 <span className="text-[11px] text-slate-400 mt-0.5 block">
-                  {remainingAmount > 0 ? 'Net balance remaining to be cleared' : 'Fully settled (Khata cleared)'}
+                  {remainingAmount > 0 ? 'Net balance remaining to be cleared' : 'Fully settled (Account cleared)'}
                 </span>
               </div>
             </div>
@@ -200,7 +200,7 @@ export const ClearanceKhataModal = ({ clearance, isOpen, onClose }) => {
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                   <span className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
-                    Payment Installments History (Adaigi Ledger)
+                    Payment Installments History (Ledger)
                   </span>
                 </div>
                 <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">

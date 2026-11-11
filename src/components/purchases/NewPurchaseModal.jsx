@@ -448,7 +448,7 @@ export const NewPurchaseModal = () => {
                         </span>
                         {Number(s.remainingBalance) > 0 && (
                           <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-200/60 dark:border-rose-900/60">
-                            Baqaya: Rs. {Number(s.remainingBalance).toLocaleString()}
+                            Due: Rs. {Number(s.remainingBalance).toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -859,7 +859,7 @@ export const NewPurchaseModal = () => {
               </div>
 
               <div className="flex justify-between items-center text-xs font-bold pt-2 border-t border-slate-200 dark:border-slate-700">
-                <span className="text-slate-600 dark:text-slate-400">Remaining Balance (Baqaya):</span>
+                <span className="text-slate-600 dark:text-slate-400">Remaining Balance:</span>
                 <div className="text-right">
                   <span className="font-mono text-rose-600 dark:text-rose-400 text-sm block">
                     Rs. {remaining.toLocaleString()}

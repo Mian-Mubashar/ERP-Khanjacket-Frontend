@@ -372,7 +372,7 @@ export const SupplierStatementModal = () => {
           {/* Remaining Balance */}
           <div className="bg-white dark:bg-slate-900 px-4 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
-              Outstanding Baqaya Due
+              Outstanding Balance Due
             </span>
             <div className="text-base sm:text-lg font-bold font-mono text-rose-600 dark:text-rose-400 mt-0.5 leading-snug">
               Rs. {Math.round(Number(sup.remainingBalance || 0)).toLocaleString()}

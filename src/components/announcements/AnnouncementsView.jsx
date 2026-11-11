@@ -667,7 +667,7 @@ export const AnnouncementsView = () => {
             </div>
             <div className="flex-1 min-w-0">
               <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">
-                KHATA BAQAYA DUE
+                CUSTOMER BALANCE DUE
               </span>
               <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 mt-0.5">
                 Rs. {Math.round(totalCustomerDueSum).toLocaleString()}
@@ -1350,7 +1350,7 @@ export const AnnouncementsView = () => {
                 }`}
               >
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                <span>Pending Baqaya Due</span>
+                <span>Pending Balance Due</span>
               </button>
 
               <button
@@ -1369,7 +1369,7 @@ export const AnnouncementsView = () => {
 
             {/* Context Info Pill */}
             <div className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1 rounded-xl">
-              Kul <strong>{filteredCustomerAlerts.length}</strong> dukaanein ({pendingCustomersCount} par baqaya hai{overdueCustomersCount > 0 ? `, ${overdueCustomersCount} overdue 10+ days` : ''})
+              Total <strong>{filteredCustomerAlerts.length}</strong> Shops ({pendingCustomersCount} with balance due{overdueCustomersCount > 0 ? `, ${overdueCustomersCount} overdue 10+ days` : ''})
             </div>
           </div>
 
@@ -1488,7 +1488,7 @@ export const AnnouncementsView = () => {
                               ) : c.isDue ? (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800">
                                   <AlertTriangle className="w-3 h-3 text-amber-600" />
-                                  <span>Baqaya Due</span>
+                                  <span>Balance Due</span>
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800">
@@ -1615,7 +1615,7 @@ export const AnnouncementsView = () => {
                                 <span className="font-mono font-bold text-sm text-rose-600 dark:text-rose-400">
                                   Rs. {Math.round(item.amount).toLocaleString()}
                                 </span>
-                                <span className="text-[10px] text-slate-400 block font-normal">Pending Baqaya</span>
+                                <span className="text-[10px] text-slate-400 block font-normal">Pending Balance</span>
                               </td>
                               <td className="py-4 px-4 text-center whitespace-nowrap">
                                 <div className="flex items-center justify-center gap-1.5">

@@ -358,7 +358,7 @@ export const CustomersView = () => {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-rose-500 uppercase tracking-wider block">
-                  OUTSTANDING KHATA (BAQAYA)
+                  OUTSTANDING BALANCE DUE
                 </span>
                 {totalKhataOutstanding >= 1000000 ? (
                   <span className="text-[11px] font-bold font-mono text-rose-600 dark:text-rose-400 bg-rose-100/70 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-800 shrink-0">
@@ -366,7 +366,7 @@ export const CustomersView = () => {
                   </span>
                 ) : (
                   <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-100/70 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-800 shrink-0">
-                    Baqaya Due
+                    Balance Due
                   </span>
                 )}
               </div>
@@ -374,7 +374,7 @@ export const CustomersView = () => {
                 Rs. {Math.round(totalKhataOutstanding).toLocaleString()}
               </div>
               <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
-                {customers.filter(c => (Number(c.remainingBalance) || 0) > 0).length} Dukaandars with pending balances
+                {customers.filter(c => (Number(c.remainingBalance) || 0) > 0).length} Shopkeepers with pending balance
               </span>
             </div>
           </div>

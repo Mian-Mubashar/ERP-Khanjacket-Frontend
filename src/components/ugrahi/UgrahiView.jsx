@@ -1528,7 +1528,7 @@ export const UgrahiView = () => {
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
-              <span>Only Baqaya Due</span>
+              <span>Only Balance Due</span>
               {dueOnly && <span className="text-[9px] bg-white/25 px-1 rounded font-bold">Active</span>}
             </button>
           </div>
