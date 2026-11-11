@@ -332,7 +332,7 @@ export const PurchasesList = ({ defaultTab }) => {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Clearance Bill</span>
+              <span>Clearance Bill</span>
             </button>
           ) : (
             <button
