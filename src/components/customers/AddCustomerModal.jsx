@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { X, CheckCircle2, AlertCircle, ReceiptText, MapPin } from 'lucide-react';
 import { showToast, showError } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
-import { UGRAHI_ROUTES } from '../../constants/ugrahiRoutes';
+
 
 export const AddCustomerModal = () => {
   const { isAddCustomerOpen, setIsAddCustomerOpen, cities, areas = [], addCustomer } = useApp();
@@ -18,7 +18,7 @@ export const AddCustomerModal = () => {
   const [openingBalance, setOpeningBalance] = useState('');
   const [notes, setNotes] = useState('');
   const [inUgrahi, setInUgrahi] = useState(false);
-  const [ugrahiRoute, setUgrahiRoute] = useState('Lahore');
+  const [ugrahiRoute, setUgrahiRoute] = useState(cities[0]?.name || 'Lahore');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -75,7 +75,7 @@ export const AddCustomerModal = () => {
     setOpeningBalance('');
     setNotes('');
     setInUgrahi(false);
-    setUgrahiRoute('Lahore');
+    setUgrahiRoute(cities[0]?.name || 'Lahore');
     setSuccess('');
   };
 
@@ -289,7 +289,7 @@ export const AddCustomerModal = () => {
                     onChange={(e) => {
                       const checked = e.target.checked;
                       setInUgrahi(checked);
-                      if (checked && UGRAHI_ROUTES.includes(city)) {
+                      if (checked && cities.some(c => c.name === city)) {
                         setUgrahiRoute(city);
                       }
                     }}
@@ -325,25 +325,27 @@ export const AddCustomerModal = () => {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    {UGRAHI_ROUTES.map(route => {
-                      const isSelected = ugrahiRoute === route;
-                      return (
-                        <button
-                          key={route}
-                          type="button"
-                          onClick={() => setUgrahiRoute(route)}
-                          className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                            isSelected
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs scale-[1.02]'
-                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500'
-                          }`}
-                        >
-                          <MapPin className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
-                          <span>{route}</span>
-                        </button>
-                      );
-                    })}
+                  <div className="max-h-32 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {cities.map(c => {
+                        const isSelected = ugrahiRoute === c.name;
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setUgrahiRoute(c.name)}
+                            className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                              isSelected
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs scale-[1.02]'
+                                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500'
+                            }`}
+                          >
+                            <MapPin className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+                            <span>{c.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <p className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
                     ✓ This customer will be included in the <b>"{ugrahiRoute}"</b> route on the Payment Collection page.

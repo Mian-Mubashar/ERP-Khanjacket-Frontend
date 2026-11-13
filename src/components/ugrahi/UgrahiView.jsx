@@ -29,7 +29,6 @@ import Swal, { showToast, confirmDelete, showError } from '../../utils/sweetaler
 import { downloadUgrahiSheetPDF } from '../../utils/pdfGenerator';
 import { formatCustomerDisplayName } from '../../utils/formatters';
 import { Pagination } from '../common/Pagination';
-import { UGRAHI_ROUTES } from '../../constants/ugrahiRoutes';
 import logoImg from '../../images/khan jacket logo.png';
 
 // Editable Serial Number Input for Row Reordering
@@ -149,7 +148,8 @@ export const UgrahiView = () => {
   const getActiveSequenceForCities = useCallback((citiesList = selectedCities) => {
     if (!citiesList || citiesList.length === 0 || citiesList.includes('ALL')) {
       const combined = [];
-      UGRAHI_ROUTES.forEach(route => {
+      cities.forEach(cityObj => {
+        const route = cityObj.name;
         const routeSeq = areaSequencesMap[route];
         if (Array.isArray(routeSeq)) {
           routeSeq.forEach(a => {
@@ -200,7 +200,7 @@ export const UgrahiView = () => {
   const getAreasListForCities = useCallback((targetCities) => {
     if (!targetCities || targetCities.length === 0) return [];
 
-    const effectiveCities = targetCities.includes('ALL') ? UGRAHI_ROUTES : targetCities;
+    const effectiveCities = targetCities.includes('ALL') ? cities.map(c => c.name) : targetCities;
     const cityItems = [];
     const seen = new Set();
 
@@ -421,11 +421,11 @@ export const UgrahiView = () => {
   // Compute shop count per Ugrahi route (Lahore, Raiwind, Sheikhupura, Multan, Sialkot)
   const routeCounts = useMemo(() => {
     const counts = { ALL: ugrahiCustomers.length };
-    UGRAHI_ROUTES.forEach(r => {
-      counts[r] = ugrahiCustomers.filter(c => (c.ugrahiRoute || c.city || '').toLowerCase() === r.toLowerCase()).length;
+    cities.forEach(cityObj => {
+      counts[cityObj.name] = ugrahiCustomers.filter(c => (c.ugrahiRoute || c.city || '').toLowerCase() === cityObj.name.toLowerCase()).length;
     });
     return counts;
-  }, [ugrahiCustomers]);
+  }, [ugrahiCustomers, cities]);
 
   // Initial Rows Data with LocalStorage fallback
   const [rows, setRows] = useState(() => {
@@ -904,7 +904,7 @@ export const UgrahiView = () => {
 
   // Apply Area Sequence Reordering to Rows & Save Permanently in LocalStorage
   const handleApplyAreaSequence = () => {
-    const effectiveCities = modalSelectedCities.includes('ALL') ? UGRAHI_ROUTES : modalSelectedCities;
+    const effectiveCities = modalSelectedCities.includes('ALL') ? cities.map(c => c.name) : modalSelectedCities;
 
     // 1. Update sequence map for individual cities
     const updatedMap = { ...areaSequencesMap };
@@ -1455,9 +1455,9 @@ export const UgrahiView = () => {
                 title="Filter by Ugrahi Route"
               >
                 <option value="ALL">All Cities ({routeCounts.ALL})</option>
-                {UGRAHI_ROUTES.map(route => (
-                  <option key={route} value={route}>
-                    {route} ({routeCounts[route] || 0})
+                {cities.map(cityObj => (
+                  <option key={cityObj.id} value={cityObj.name}>
+                    {cityObj.name} ({routeCounts[cityObj.name] || 0})
                   </option>
                 ))}
                 {!selectedCities.includes('ALL') && selectedCities.length > 1 && (
@@ -1470,8 +1470,8 @@ export const UgrahiView = () => {
           </div>
 
           {/* Dedicated Collection Routes Chips Bar */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5 overflow-x-auto pb-1" style={{flexWrap:'nowrap', scrollbarWidth:'none'}}>
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1 shrink-0 whitespace-nowrap">
               <Filter className="w-3.5 h-3.5 text-blue-500" />
               <span>Route Filter:</span>
             </span>
@@ -1480,7 +1480,7 @@ export const UgrahiView = () => {
             <button
               type="button"
               onClick={() => handleCityToggle('ALL')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                 selectedCities.includes('ALL')
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700'
@@ -1489,8 +1489,9 @@ export const UgrahiView = () => {
               All Routes ({routeCounts.ALL})
             </button>
 
-            {/* Dedicated Routes: Lahore, Androon Lahore, Raiwind, Sheikhupura, Multan, Sialkot */}
-            {UGRAHI_ROUTES.map(route => {
+            {/* Dynamic Routes from DB Cities */}
+            {cities.map(cityObj => {
+              const route = cityObj.name;
               const count = routeCounts[route] || 0;
               const isSelected = !selectedCities.includes('ALL') && selectedCities.some(c => c.toLowerCase() === route.toLowerCase());
               return (
@@ -1498,7 +1499,7 @@ export const UgrahiView = () => {
                   key={route}
                   type="button"
                   onClick={() => handleCityToggle(route)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                     isSelected
                       ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-400/40'
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
@@ -1516,13 +1517,13 @@ export const UgrahiView = () => {
               );
             })}
 
-            <div className="h-3.5 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
+            <div className="h-3.5 w-px bg-slate-200 dark:bg-slate-700 mx-1 shrink-0" />
 
             {/* Only Baqaya Due Toggle */}
             <button
               type="button"
               onClick={handleToggleDueOnly}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap ${
                 dueOnly
                   ? 'bg-rose-600 text-white shadow-2xs'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -2131,13 +2132,14 @@ export const UgrahiView = () => {
                   </span>
                 </button>
 
-                {/* Individual Cities */}
-                {UGRAHI_ROUTES.map(route => {
+                {/* Individual Cities — dynamic from DB */}
+                {cities.map(cityObj => {
+                  const route = cityObj.name;
                   const isSel = !modalSelectedCities.includes('ALL') && modalSelectedCities.some(c => c.toLowerCase() === route.toLowerCase());
                   const routeAreaCount = areas.filter(a => (a.cityName || '').trim().toLowerCase() === route.toLowerCase()).length;
                   return (
                     <button
-                      key={route}
+                      key={cityObj.id}
                       type="button"
                       onClick={() => handleToggleModalCity(route)}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
