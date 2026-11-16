@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { showToast, showError } from '../../utils/sweetalert';
 import { formatPKR, formatLakhCrore } from '../../utils/formatters';
 import { SearchableSelect } from '../common/SearchableSelect';
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
-const generateReceiptNo = () => `REC-${Date.now().toString().slice(-4)}`;
+const generateReceiptNo = () => `REC-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
 export const RecordCustomerPaymentModal = () => {
   const { 
@@ -27,6 +27,8 @@ export const RecordCustomerPaymentModal = () => {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (isRecordCustomerPaymentOpen) {
@@ -34,6 +36,8 @@ export const RecordCustomerPaymentModal = () => {
       setDate(getTodayDate());
       setError('');
       setSuccess('');
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
 
       if (selectedCustomerForPayment) {
         setCustomerId(selectedCustomerForPayment.id);
@@ -51,20 +55,30 @@ export const RecordCustomerPaymentModal = () => {
   const newBalance = Math.max(0, oldBalance - payAmt);
 
   const setPresetAmount = (val) => {
+    if (isSubmitting) return;
     setAmount(val);
   };
 
   const handleClose = () => {
+    if (isSubmitting) return;
     setIsRecordCustomerPaymentOpen(false);
     setSelectedCustomerForPayment(null);
     setAmount('');
     setNotes('');
     setError('');
     setSuccess('');
+    setIsSubmitting(false);
+    isSubmittingRef.current = false;
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+
+    // Prevent duplicate multi-clicks immediately (in-memory lock)
+    if (isSubmittingRef.current || isSubmitting) {
+      return;
+    }
+
     setError('');
     setSuccess('');
 
@@ -80,23 +94,31 @@ export const RecordCustomerPaymentModal = () => {
       return;
     }
 
-    const res = await recordCustomerPayment({
-      customerId: currentCustomer.id,
-      amount: payAmt,
-      paymentMethod,
-      refNo: refNo.trim(),
-      notes: notes.trim(),
-      date
-    });
+    try {
+      isSubmittingRef.current = true;
+      setIsSubmitting(true);
 
-    if (!res || !res.success) {
-      showError('Payment Failed', res?.message || 'Error recording customer payment in MySQL');
-      setError(res?.message || 'Error recording customer payment in MySQL');
-      return;
+      const res = await recordCustomerPayment({
+        customerId: currentCustomer.id,
+        amount: payAmt,
+        paymentMethod,
+        refNo: refNo.trim(),
+        notes: notes.trim(),
+        date
+      });
+
+      if (!res || !res.success) {
+        showError('Payment Failed', res?.message || 'Error recording customer payment in MySQL');
+        setError(res?.message || 'Error recording customer payment in MySQL');
+        return;
+      }
+
+      showToast(`Received Rs. ${payAmt.toLocaleString()} from ${currentCustomer.shopName}!`, 'success');
+      handleClose();
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
-
-    showToast(`Received Rs. ${payAmt.toLocaleString()} from ${currentCustomer.shopName}!`, 'success');
-    handleClose();
   };
 
   return (
@@ -364,18 +386,31 @@ export const RecordCustomerPaymentModal = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={handleClose}
-              className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={handleSubmit}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              className={`px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 ${
+                isSubmitting ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
+              }`}
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Save Payment</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Recording Wasooli...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Save Payment</span>
+                </>
+              )}
             </button>
           </div>
         </div>

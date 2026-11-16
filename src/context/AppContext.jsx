@@ -657,14 +657,63 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.suppliers.recordPayment(paymentData);
       if (res?.success && res?.data) {
-        await refreshData(); // Auto update remaining supplier balance from MySQL
+        const payAmt = Number(paymentData.amount) || 0;
+        const newPayment = res.data;
+
+        // 1. Instant local state updates (0ms delay for UI)
+        setSuppliers(prev => (prev || []).map(s => {
+          if (s.id === paymentData.supplierId) {
+            const currentBal = Number(s.remainingBalance || 0);
+            const currentPaid = Number(s.totalPayments || 0);
+            return {
+              ...s,
+              totalPayments: currentPaid + payAmt,
+              remainingBalance: Math.max(0, currentBal - payAmt)
+            };
+          }
+          return s;
+        }));
+
+        setSupplierPayments(prev => {
+          const list = prev || [];
+          if (list.some(p => p.id === newPayment.id)) return list;
+          return [newPayment, ...list];
+        });
+
+        setSelectedSupplierDetail(prev => {
+          if (!prev || prev.id !== paymentData.supplierId) return prev;
+          const currentBal = Number(prev.remainingBalance || 0);
+          const currentPaid = Number(prev.totalPayments || 0);
+          return {
+            ...prev,
+            totalPayments: currentPaid + payAmt,
+            remainingBalance: Math.max(0, currentBal - payAmt)
+          };
+        });
+
+        // 2. Non-blocking targeted background refresh for suppliers and payments only
+        Promise.allSettled([
+          api.suppliers.list(),
+          api.suppliers.listPayments()
+        ]).then(([supRes, payRes]) => {
+          if (supRes.status === 'fulfilled' && supRes.value?.data) {
+            const sortedSuppliers = [...supRes.value.data].sort((a, b) => 
+              (a.company || a.name || '').localeCompare(b.company || b.name || '', undefined, { sensitivity: 'base' })
+            );
+            setSuppliers(sortedSuppliers);
+          }
+          if (payRes.status === 'fulfilled' && payRes.value?.data) {
+            setSupplierPayments(payRes.value.data);
+          }
+        }).catch(() => {});
+
         addAuditLog(
           'Supplier Payment Recorded',
           'Supplier Payment',
-          `Paid Rs. ${Number(paymentData.amount).toLocaleString()} to vendor`,
+          `Paid Rs. ${payAmt.toLocaleString()} to vendor`,
           `Recorded in MySQL ledger`
         );
-        return { success: true, payment: res.data };
+        return { success: true, payment: newPayment };
       }
       return { success: false, message: res?.message || 'Failed to record payment' };
     } catch (err) {
@@ -755,14 +804,63 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customers.recordPayment(paymentData);
       if (res?.success && res?.data) {
-        await refreshData(); // Auto reduce outstanding customer khata balance from MySQL
+        const payAmt = Number(paymentData.amount) || 0;
+        const newPayment = res.data;
+
+        // 1. Instant local state updates (0ms delay for UI)
+        setCustomers(prev => (prev || []).map(c => {
+          if (c.id === paymentData.customerId) {
+            const currentBal = Number(c.remainingBalance || 0);
+            const currentPaid = Number(c.totalPaid || 0);
+            return {
+              ...c,
+              totalPaid: currentPaid + payAmt,
+              remainingBalance: Math.max(0, currentBal - payAmt)
+            };
+          }
+          return c;
+        }));
+
+        setCustomerPayments(prev => {
+          const list = prev || [];
+          if (list.some(p => p.id === newPayment.id)) return list;
+          return [newPayment, ...list];
+        });
+
+        setSelectedCustomerKhata(prev => {
+          if (!prev || prev.id !== paymentData.customerId) return prev;
+          const currentBal = Number(prev.remainingBalance || 0);
+          const currentPaid = Number(prev.totalPaid || 0);
+          return {
+            ...prev,
+            totalPaid: currentPaid + payAmt,
+            remainingBalance: Math.max(0, currentBal - payAmt)
+          };
+        });
+
+        // 2. Non-blocking targeted background refresh for customers and payments only
+        Promise.allSettled([
+          api.customers.list(),
+          api.customers.listPayments()
+        ]).then(([custRes, payRes]) => {
+          if (custRes.status === 'fulfilled' && custRes.value?.data) {
+            const sortedCustomers = [...custRes.value.data].sort((a, b) => 
+              (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })
+            );
+            setCustomers(sortedCustomers);
+          }
+          if (payRes.status === 'fulfilled' && payRes.value?.data) {
+            setCustomerPayments(payRes.value.data);
+          }
+        }).catch(() => {});
+
         addAuditLog(
           'Customer Payment Received',
           'Customer Khata',
-          `Received payment of Rs. ${Number(paymentData.amount).toLocaleString()}`,
+          `Received payment of Rs. ${payAmt.toLocaleString()}`,
           `Recorded in MySQL ledger`
         );
-        return { success: true, payment: res.data };
+        return { success: true, payment: newPayment };
       }
       return { success: false, message: res?.message || 'Failed to record customer receipt' };
     } catch (err) {
