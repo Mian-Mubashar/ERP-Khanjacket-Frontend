@@ -1449,10 +1449,31 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
   doc.setTextColor(16, 185, 129); // emerald-600
   doc.text(formatPKR(totalWasool), 193, 60, { align: 'right' });
 
+  // Detect if this sheet is specifically for Multan route
+  const isMultan = Boolean(
+    (sheetTitle && sheetTitle.toLowerCase().includes('multan')) ||
+    (routeName && routeName.toLowerCase().includes('multan')) ||
+    (Array.isArray(sheetData.selectedCities) && sheetData.selectedCities.some(c => c && c.toLowerCase() === 'multan')) ||
+    (sheetData.city && sheetData.city.toLowerCase() === 'multan') ||
+    (rows.length > 0 && rows.every(r => r.city && r.city.toLowerCase() === 'multan'))
+  );
+
   // Map all rows cleanly (stripping any stray [area] brackets)
   const tableRows = rows.map((r, rIdx) => {
     let displayName = (r.name || '—').trim();
     displayName = displayName.replace(/\s*\[[^\]]+\]\s*$/, '').trim() || '—';
+    const phone = r.phone || '—';
+
+    if (isMultan) {
+      return [
+        rIdx + 1,
+        displayName,
+        phone,
+        formatPKR(r.totalDue),
+        r.wasool ? formatPKR(r.wasool) : ''
+      ];
+    }
+
     return [
       rIdx + 1,
       displayName,
@@ -1461,11 +1482,30 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
     ];
   });
 
+  const tableHead = isMultan
+    ? [['#', 'Customer / Shop Name', 'Phone #', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']]
+    : [['#', 'Customer / Shop Name', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']];
+
+  const colStyles = isMultan
+    ? {
+        0: { halign: 'center', cellWidth: 10, fontStyle: 'bold' },
+        1: { fontStyle: 'bold', cellWidth: 72 },
+        2: { halign: 'center', font: 'courier', fontStyle: 'bold', cellWidth: 35 },
+        3: { halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 35 },
+        4: { halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 30 }
+      }
+    : {
+        0: { halign: 'center', cellWidth: 10, fontStyle: 'bold' },
+        1: { fontStyle: 'bold' },
+        2: { halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 35 },
+        3: { halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 32 }
+      };
+
   autoTable(doc, {
     startY: 69,
     margin: { top: 46, bottom: 20, left: 14, right: 14 },
-    head: [['#', 'Customer / Shop Name', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']],
-    body: tableRows.length ? tableRows : [['-', 'No customer entries in sheet', 'Rs. 0', '']],
+    head: tableHead,
+    body: tableRows.length ? tableRows : [['-', 'No customer entries in sheet', ...(isMultan ? ['—'] : []), 'Rs. 0', '']],
     theme: 'grid',
     headStyles: { 
       fillColor: [15, 23, 42], 
@@ -1484,19 +1524,14 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
       lineColor: [226, 232, 240],
       lineWidth: 0.15
     },
-    columnStyles: {
-      0: { halign: 'center', cellWidth: 10, fontStyle: 'bold' },
-      1: { fontStyle: 'bold' },
-      2: { halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 35 },
-      3: { halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 32 }
-    },
+    columnStyles: colStyles,
     alternateRowStyles: {
       fillColor: [248, 250, 252]
     },
     foot: [[
       {
         content: `TOTAL (${rows.length} SHOPS):`,
-        colSpan: 2,
+        colSpan: isMultan ? 3 : 2,
         styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42], fontSize: 10 }
       },
       {
@@ -2679,6 +2714,393 @@ export const downloadClearanceKhataPDF = ({
     return true;
   } catch (err) {
     console.error('[downloadClearanceKhataPDF Error]:', err);
+    throw err;
+  }
+};
+
+// -------------------------------------------------------------
+// ANNOUNCEMENTS & ALERTS REGISTER PDF EXPORT
+// -------------------------------------------------------------
+export const downloadAnnouncementsPDF = ({
+  mainTab = 'WASOOLI_BILLS',
+  dataList = [],
+  stats = {},
+  filters = {}
+}) => {
+  try {
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const printTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    let title = 'ANNOUNCEMENTS & ACTIVITY REGISTER';
+    let subtitle = `Real-Time Ledger Notifications • Generated: ${printDate} ${printTime}`;
+    let docIdentifier = 'Announcements';
+
+    if (mainTab === 'WASOOLI_BILLS') {
+      title = 'ANNOUNCEMENTS: WASOOLI RECEIPTS & DISPATCH BILLS';
+      subtitle = `10-Day Real-Time Transactions Log • Audit Date: ${printDate} ${printTime}`;
+      docIdentifier = 'Wasooli & Bills';
+    } else if (mainTab === 'STOCK') {
+      title = 'ANNOUNCEMENTS: GARMENTS LOW STOCK ALERTS';
+      subtitle = `Inventory Depletion Warnings (50% to 0% Level) • Audit Date: ${printDate}`;
+      docIdentifier = 'Stock Alerts';
+    } else if (mainTab === 'CUSTOMERS') {
+      title = 'ANNOUNCEMENTS: CUSTOMER KHATA & OVERDUE WASOOLI';
+      subtitle = `Customer Khata Balances & Overdue Payment Reminders • Audit Date: ${printDate}`;
+      docIdentifier = 'Customer Khata';
+    } else if (mainTab === 'ALL') {
+      title = 'ANNOUNCEMENTS: REAL-TIME ACTIVITY TIMELINE';
+      subtitle = `Complete Warehouse Events & Notifications Feed • Audit Date: ${printDate}`;
+      docIdentifier = 'Activity Feed';
+    }
+
+    if (filters?.selectedCity && filters.selectedCity !== 'ALL') {
+      subtitle = `City: ${filters.selectedCity} | ${subtitle}`;
+    }
+
+    // Draw Brand Header
+    let currentY = drawHeader(doc, title, subtitle, docIdentifier);
+
+    // KPI Executive Summary Box (Landscape: width 269mm)
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(14, currentY, 269, 18, 2, 2, 'FD');
+
+    // KPI Details by Tab
+    if (mainTab === 'WASOOLI_BILLS') {
+      const wasooliItems = dataList.filter(d => d.type === 'WASOOLI');
+      const billItems = dataList.filter(d => d.type === 'BILL');
+      const wasooliSum = wasooliItems.reduce((s, w) => s + (Number(w.amount) || 0), 0);
+      const billsSum = billItems.reduce((s, b) => s + (Number(b.amount) || 0), 0);
+
+      // Col 1: Counts
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Entries:', 18, currentY + 6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${dataList.length} Transactions (${wasooliItems.length} Wasooli / ${billItems.length} Bills)`, 42, currentY + 6.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Active Scope:', 18, currentY + 13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(59, 130, 246);
+      doc.text(filters?.retentionScope === 'ALL' ? 'Full Archive (All Time)' : 'Active (Last 10 Days)', 42, currentY + 13);
+
+      // Col 2: Total Wasooli
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Wasooli Received:', 125, currentY + 6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(16, 185, 129); // emerald-600
+      doc.text(formatPKR(wasooliSum), 195, currentY + 6.5);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Bills Dispatched:', 125, currentY + 13);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(37, 99, 235); // blue-600
+      doc.text(formatPKR(billsSum), 195, currentY + 13);
+
+      // Col 3: Net Cash Inflow
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Net Balance Difference:', 220, currentY + 6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(formatPKR(billsSum - wasooliSum), 278, currentY + 6.5, { align: 'right' });
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+      doc.text('Auto-Purge 10-Day Retention Active', 278, currentY + 13, { align: 'right' });
+
+    } else if (mainTab === 'STOCK') {
+      const outCount = dataList.filter(s => s.tier === 'TIER_0' || s.currentStock <= 0).length;
+      const criticalCount = dataList.filter(s => s.tier === 'TIER_10' || s.tier === 'TIER_20').length;
+      const totalStockPcs = dataList.reduce((s, item) => s + (Number(item.currentStock) || 0), 0);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Articles with Low Stock:', 18, currentY + 6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${dataList.length} Garment Articles`, 56, currentY + 6.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Current Remaining Stock:', 18, currentY + 13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(59, 130, 246);
+      doc.text(`${totalStockPcs.toLocaleString()} Pieces Total`, 56, currentY + 13);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Out of Stock (0%):', 130, currentY + 6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(225, 29, 72); // rose-600
+      doc.text(`${outCount} Articles Empty`, 185, currentY + 6.5);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Critical Level (<= 20%):', 130, currentY + 13);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(245, 158, 11); // amber-500
+      doc.text(`${criticalCount} Articles Critical`, 185, currentY + 13);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+      doc.text('Threshold: <= 50% of Initial Inward Pcs', 278, currentY + 10, { align: 'right' });
+
+    } else if (mainTab === 'CUSTOMERS') {
+      const overdueCount = dataList.filter(c => c.isOverdue).length;
+      const totalDue = dataList.reduce((s, c) => s + (Number(c.remainingBalance) || 0), 0);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Customer Khata Count:', 18, currentY + 6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${dataList.length} Wholesale Buyers`, 54, currentY + 6.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Payment Overdue (10d+):', 18, currentY + 13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(225, 29, 72);
+      doc.text(`${overdueCount} Shops Overdue`, 54, currentY + 13);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Outstanding Due:', 140, currentY + 9);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(225, 29, 72);
+      doc.text(formatPKR(totalDue), 205, currentY + 9);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+      doc.text('Overdue Rule: No Wasooli in 10+ Days', 278, currentY + 10, { align: 'right' });
+
+    } else {
+      // ALL Timeline
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Events & Alerts:', 18, currentY + 9.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${dataList.length} Recorded Notifications`, 56, currentY + 9.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Active City Filter:', 140, currentY + 9.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(59, 130, 246);
+      doc.text(filters?.selectedCity || 'All Cities', 170, currentY + 9.5);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+      doc.text('Real-time Central Warehouse Event Stream', 278, currentY + 9.5, { align: 'right' });
+    }
+
+    // AutoTable Generation
+    let tableHead = [];
+    let tableBody = [];
+    let colStyles = {};
+
+    if (mainTab === 'WASOOLI_BILLS') {
+      tableHead = [['#', 'Type (Qisam)', 'Challan / Bill #', 'Customer / Shop Name', 'City / Branch', 'Date', 'Details / Note', 'Amount (PKR)']];
+      tableBody = dataList.map((item, idx) => {
+        const isWasooli = item.type === 'WASOOLI';
+        const typeLabel = isWasooli ? 'Wasooli Recv.' : 'Dispatch Bill';
+        const refNo = item.challanNo ? `#${item.challanNo}` : (item.refNo || '—');
+        const custName = item.customerName || '—';
+        const city = item.city || '—';
+        const dateStr = item.date || '—';
+        const detailStr = item.paymentMethod || item.articleName || item.notes || '—';
+        const amtStr = isWasooli ? `+ ${formatPKR(item.amount)}` : formatPKR(item.amount);
+
+        return [idx + 1, typeLabel, refNo, custName, city, dateStr, detailStr, amtStr];
+      });
+
+      colStyles = {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { halign: 'center', cellWidth: 26, fontStyle: 'bold' },
+        2: { font: 'courier', fontStyle: 'bold', cellWidth: 32 },
+        3: { cellWidth: 55, fontStyle: 'bold' },
+        4: { cellWidth: 30 },
+        5: { halign: 'center', cellWidth: 24 },
+        6: { cellWidth: 54 },
+        7: { halign: 'right', fontStyle: 'bold', cellWidth: 38 }
+      };
+
+    } else if (mainTab === 'STOCK') {
+      tableHead = [['#', 'Article #', 'Article Name', 'Category', 'Fabric / Stuff', 'Location', 'Current Pcs', 'Initial Pcs', 'Stock %', 'Urgency Status']];
+      tableBody = dataList.map((s, idx) => {
+        return [
+          idx + 1,
+          s.articleNo || '—',
+          s.articleName || '—',
+          s.category || '—',
+          s.stuff || '—',
+          s.location || 'Godown',
+          `${(s.currentStock || 0).toLocaleString()} pcs`,
+          `${(s.initialStock || 0).toLocaleString()} pcs`,
+          `${Math.round(s.percent || 0)}%`,
+          s.urgency || s.tierLabel || 'Low Stock'
+        ];
+      });
+
+      colStyles = {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { font: 'courier', fontStyle: 'bold', cellWidth: 26 },
+        2: { cellWidth: 50, fontStyle: 'bold' },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 30 },
+        5: { cellWidth: 26 },
+        6: { halign: 'right', fontStyle: 'bold', cellWidth: 24 },
+        7: { halign: 'right', cellWidth: 22 },
+        8: { halign: 'center', fontStyle: 'bold', cellWidth: 20 },
+        9: { halign: 'center', fontStyle: 'bold', cellWidth: 33 }
+      };
+
+    } else if (mainTab === 'CUSTOMERS') {
+      tableHead = [['#', 'Shop / Customer Name', 'Shopkeeper Name', 'City / Branch', 'Phone Number', 'Overdue Since', 'Pending Days', 'Due Balance (PKR)']];
+      tableBody = dataList.map((c, idx) => {
+        return [
+          idx + 1,
+          c.shopName || '—',
+          c.shopkeeperName || '—',
+          c.city || '—',
+          c.phone || '—',
+          c.unpaidSinceDateStr || 'Recent',
+          c.isOverdue ? `${c.daysPending}d Overdue` : `${c.daysPending || 0}d Pending`,
+          formatPKR(c.remainingBalance || 0)
+        ];
+      });
+
+      colStyles = {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { cellWidth: 58, fontStyle: 'bold' },
+        2: { cellWidth: 42 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 32 },
+        5: { halign: 'center', cellWidth: 28 },
+        6: { halign: 'center', fontStyle: 'bold', cellWidth: 30 },
+        7: { halign: 'right', fontStyle: 'bold', cellWidth: 39 }
+      };
+
+    } else {
+      // ALL Timeline
+      tableHead = [['#', 'Date & Time', 'Event Type', 'Title / Description', 'Customer / Article', 'City / Branch', 'Status / Urgency', 'Amount / Pcs']];
+      tableBody = dataList.map((item, idx) => {
+        const cat = item.eventCategory || item.type || 'EVENT';
+        const titleText = item.title || item.articleName || 'Notification';
+        const refText = item.customerName || item.articleNo || '—';
+        const cityText = item.city || item.location || '—';
+        const timeText = item.date || item.time || 'Recent';
+        const statusText = item.urgency || item.tierLabel || item.notes || 'Normal';
+        const valText = item.amount ? formatPKR(item.amount) : (item.currentStock !== undefined ? `${item.currentStock} pcs` : '—');
+
+        return [idx + 1, timeText, cat, titleText, refText, cityText, statusText, valText];
+      });
+
+      colStyles = {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { halign: 'center', cellWidth: 26 },
+        2: { halign: 'center', fontStyle: 'bold', cellWidth: 26 },
+        3: { cellWidth: 56, fontStyle: 'bold' },
+        4: { cellWidth: 46 },
+        5: { cellWidth: 28 },
+        6: { halign: 'center', cellWidth: 38 },
+        7: { halign: 'right', fontStyle: 'bold', cellWidth: 39 }
+      };
+    }
+
+    autoTable(doc, {
+      startY: currentY + 22,
+      margin: { top: 46, bottom: 22, left: 14, right: 14 },
+      head: tableHead,
+      body: tableBody.length ? tableBody : [['-', 'No announcements or records found for active filters', '', '', '', '', '', '']],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [15, 23, 42], // slate-900
+        textColor: [255, 255, 255],
+        fontSize: 8.5,
+        fontStyle: 'bold',
+        halign: 'center',
+        minCellHeight: 8.5,
+        cellPadding: 2.5
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2.5,
+        textColor: [51, 65, 85]
+      },
+      columnStyles: colStyles,
+      didParseCell: (data) => {
+        // Highlight amounts & types
+        if (mainTab === 'WASOOLI_BILLS' && data.section === 'body') {
+          if (data.column.index === 1) {
+            const val = String(data.cell.raw);
+            if (val.includes('Wasooli')) {
+              data.cell.styles.textColor = [16, 185, 129]; // emerald
+            } else {
+              data.cell.styles.textColor = [37, 99, 235]; // blue
+            }
+          }
+          if (data.column.index === 7) {
+            const val = String(data.cell.raw);
+            if (val.startsWith('+')) {
+              data.cell.styles.textColor = [16, 185, 129]; // emerald
+            }
+          }
+        }
+        if (mainTab === 'CUSTOMERS' && data.section === 'body') {
+          if (data.column.index === 6 && String(data.cell.raw).includes('Overdue')) {
+            data.cell.styles.textColor = [225, 29, 72]; // rose-600
+          }
+          if (data.column.index === 7) {
+            data.cell.styles.textColor = [225, 29, 72];
+          }
+        }
+        if (mainTab === 'STOCK' && data.section === 'body') {
+          if (data.column.index === 8) {
+            const p = parseInt(data.cell.raw, 10);
+            if (p === 0) data.cell.styles.textColor = [225, 29, 72];
+            else if (p <= 20) data.cell.styles.textColor = [234, 88, 12];
+          }
+        }
+      }
+    });
+
+    const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : currentY + 30;
+    drawFooter(doc, finalY + 12);
+
+    const safeTab = mainTab.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const fileDate = new Date().toISOString().split('T')[0];
+    const filename = `KhanClothes_Announcements_${safeTab}_${fileDate}.pdf`;
+    doc.save(filename);
+    return true;
+  } catch (err) {
+    console.error('[downloadAnnouncementsPDF Error]:', err);
     throw err;
   }
 };

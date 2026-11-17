@@ -363,6 +363,7 @@ export const UgrahiView = () => {
       address: c.marketAddress ? `${c.marketAddress}, ${c.city}` : c.city || '',
       city: c.ugrahiRoute || c.city || '',
       area: c.area || '',
+      phone: c.phone || '',
       totalDue: Number(c.remainingBalance) || 0,
       wasool: ''
     }));
@@ -498,13 +499,15 @@ export const UgrahiView = () => {
           const freshAddress = cust.marketAddress ? `${cust.marketAddress}, ${cust.city}` : cust.city || '';
           const freshCity = cust.ugrahiRoute || cust.city || '';
           const freshArea = cust.area || '';
+          const freshPhone = cust.phone || '';
 
           if (
             r.totalDue !== freshDue ||
             r.name !== freshName ||
             r.address !== freshAddress ||
             r.city !== freshCity ||
-            r.area !== freshArea
+            r.area !== freshArea ||
+            r.phone !== freshPhone
           ) {
             hasChanges = true;
             return {
@@ -513,7 +516,8 @@ export const UgrahiView = () => {
               name: freshName,
               address: freshAddress,
               city: freshCity,
-              area: freshArea
+              area: freshArea,
+              phone: freshPhone
             };
           }
           return r;
@@ -653,6 +657,7 @@ export const UgrahiView = () => {
             address: matched.marketAddress ? `${matched.marketAddress}, ${matched.city}` : matched.city || '',
             city: matched.city || '',
             area: matched.area || '',
+            phone: matched.phone || '',
             totalDue: matched.remainingBalance || 0,
             customerId: matched.id
           };
@@ -1128,15 +1133,34 @@ export const UgrahiView = () => {
 
   // Download PDF of Active Sheet
   const handleDownloadPDF = () => {
+    const custMap = new Map((customers || []).map(c => [c.id, c]));
+    const targetSource = displayedRows.length > 0 ? displayedRows : rows;
+    const enrichedRows = targetSource.map(r => {
+      const cust = r.customerId ? custMap.get(r.customerId) : null;
+      return {
+        ...r,
+        phone: r.phone || (cust ? cust.phone : '') || ''
+      };
+    });
+
     downloadUgrahiSheetPDF({
       sheetTitle,
       sheetDate,
       recoveryAgent: collectorName,
       targetRoute: routeLocation,
-      rows: displayedRows.length > 0 ? displayedRows : rows
+      selectedCities,
+      city: selectedCity,
+      rows: enrichedRows
     });
     showToast('Collection PDF downloaded successfully!', 'success');
   };
+
+  const isMultanActive = Boolean(
+    (sheetTitle && sheetTitle.toLowerCase().includes('multan')) ||
+    (routeLocation && routeLocation.toLowerCase().includes('multan')) ||
+    (Array.isArray(selectedCities) && selectedCities.some(c => c && c.toLowerCase() === 'multan')) ||
+    (selectedCity && selectedCity.toLowerCase() === 'multan')
+  );
 
   return (
     <div className="space-y-4">
@@ -1171,8 +1195,12 @@ export const UgrahiView = () => {
           <thead>
             <tr className="bg-slate-100 font-bold border-b border-slate-800">
               <th className="border border-slate-800 p-2 text-center w-10">#</th>
-              <th className="border border-slate-800 p-2 text-right w-40">Total Balance</th>
-              <th className="border border-slate-800 p-2 text-right w-40">Amount Received</th>
+              <th className="border border-slate-800 p-2">Customer / Shop Name</th>
+              {isMultanActive && (
+                <th className="border border-slate-800 p-2 text-center w-36">Phone #</th>
+              )}
+              <th className="border border-slate-800 p-2 text-right w-36">Total Balance</th>
+              <th className="border border-slate-800 p-2 text-right w-36">Amount Received</th>
             </tr>
           </thead>
           <tbody>
@@ -1180,6 +1208,11 @@ export const UgrahiView = () => {
               <tr key={row.id || idx} className="border-b border-slate-300">
                 <td className="border border-slate-800 p-2 text-center font-bold">{idx + 1}</td>
                 <td className="border border-slate-800 p-2 font-semibold">{row.name || '—'}</td>
+                {isMultanActive && (
+                  <td className="border border-slate-800 p-2 text-center font-mono font-bold text-xs">
+                    {row.phone || '—'}
+                  </td>
+                )}
                 <td className="border border-slate-800 p-2 text-right font-mono font-bold">
                   {row.totalDue ? `Rs. ${Number(row.totalDue).toLocaleString()}` : '—'}
                 </td>
@@ -1191,7 +1224,7 @@ export const UgrahiView = () => {
           </tbody>
           <tfoot>
             <tr className="bg-slate-100 font-bold border-t-2 border-slate-800 text-sm">
-              <td colSpan="2" className="border border-slate-800 p-2 text-right font-bold">
+              <td colSpan={isMultanActive ? 3 : 2} className="border border-slate-800 p-2 text-right font-bold">
                 Grand Total ({rows.length} Accounts):
               </td>
               <td className="border border-slate-800 p-2 text-right font-mono font-bold">
@@ -1199,9 +1232,6 @@ export const UgrahiView = () => {
               </td>
               <td className="border border-slate-800 p-2 text-right font-mono font-bold">
                 Rs. {totalCollected.toLocaleString()}
-              </td>
-              <td className="border border-slate-800 p-2 text-center text-xs">
-                Balance: Rs. {remainingBalance.toLocaleString()}
               </td>
             </tr>
           </tfoot>

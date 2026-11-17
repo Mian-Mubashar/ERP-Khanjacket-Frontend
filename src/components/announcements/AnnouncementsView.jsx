@@ -30,11 +30,13 @@ import {
   ExternalLink,
   Plus,
   Zap,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
 import api from '../../services/api';
 import { formatCustomerDisplayName } from '../../utils/formatters';
-import { showToast } from '../../utils/sweetalert';
+import { showToast, showError } from '../../utils/sweetalert';
+import { downloadAnnouncementsPDF } from '../../utils/pdfGenerator';
 import { Pagination } from '../common/Pagination';
 import { calculateCustomerPaymentPendingDays, getOverdueCustomerReminders } from '../../utils/paymentReminders';
 
@@ -78,6 +80,7 @@ export const AnnouncementsView = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('ALL');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -468,6 +471,52 @@ export const AnnouncementsView = () => {
     }
   };
 
+  const handleDownloadPDF = () => {
+    try {
+      setIsExportingPDF(true);
+      showToast('Preparing Announcements PDF...', 'info');
+
+      let activeList = [];
+      if (mainTab === 'WASOOLI_BILLS') {
+        activeList = filteredWasooliBills;
+      } else if (mainTab === 'STOCK') {
+        activeList = filteredStockAlerts;
+      } else if (mainTab === 'CUSTOMERS') {
+        activeList = filteredCustomerAlerts;
+      } else {
+        activeList = filteredTimeline;
+      }
+
+      downloadAnnouncementsPDF({
+        mainTab,
+        dataList: activeList,
+        stats: {
+          totalWasooliSum,
+          totalBillsSum,
+          totalLowStockCount,
+          totalCustomerDueSum,
+          pendingCustomersCount,
+          overdueCustomersCount
+        },
+        filters: {
+          selectedCity,
+          searchTerm,
+          wasooliBillsSubFilter,
+          stockSubFilter,
+          customersSubFilter,
+          retentionScope
+        }
+      });
+
+      showToast('Announcements PDF downloaded successfully!', 'success');
+    } catch (err) {
+      console.error('[handleDownloadPDF Error]:', err);
+      showError('PDF Error', err.message || 'Could not generate Announcements PDF');
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
   const openCustomerStatementByNameOrId = (custName, custId) => {
     if (custId) {
       const found = customers.find(c => String(c.id) === String(custId));
@@ -517,6 +566,17 @@ export const AnnouncementsView = () => {
         </div>
 
         <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={handleDownloadPDF}
+            disabled={isExportingPDF}
+            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+            title="Download PDF report of current announcements and alerts"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span>{isExportingPDF ? 'Generating...' : 'Download PDF'}</span>
+          </button>
+
           <button
             type="button"
             onClick={handleRefresh}
@@ -877,6 +937,17 @@ export const AnnouncementsView = () => {
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
                 Showing <strong>{filteredWasooliBills.length}</strong> transactions {retentionScope === '10_DAYS' ? '(Active 10d)' : '(All)'}
               </div>
+
+              <button
+                type="button"
+                onClick={handleDownloadPDF}
+                disabled={isExportingPDF}
+                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                title="Export current Wasooli & Bills list to PDF"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Export PDF</span>
+              </button>
             </div>
           </div>
 
@@ -1133,8 +1204,21 @@ export const AnnouncementsView = () => {
               ))}
             </div>
 
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1 rounded-xl">
-              Showing <strong>{filteredStockAlerts.length}</strong> models
+            <div className="flex items-center gap-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1 rounded-xl">
+                Showing <strong>{filteredStockAlerts.length}</strong> models
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDownloadPDF}
+                disabled={isExportingPDF}
+                className="px-3 py-1 text-xs font-bold rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                title="Download Low Stock Alerts PDF"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Export PDF</span>
+              </button>
             </div>
           </div>
 
@@ -1368,8 +1452,21 @@ export const AnnouncementsView = () => {
             </div>
 
             {/* Context Info Pill */}
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1 rounded-xl">
-              Total <strong>{filteredCustomerAlerts.length}</strong> Shops ({pendingCustomersCount} with balance due{overdueCustomersCount > 0 ? `, ${overdueCustomersCount} overdue 10+ days` : ''})
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1 rounded-xl">
+                Total <strong>{filteredCustomerAlerts.length}</strong> Shops ({pendingCustomersCount} with balance due{overdueCustomersCount > 0 ? `, ${overdueCustomersCount} overdue 10+ days` : ''})
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDownloadPDF}
+                disabled={isExportingPDF}
+                className="px-3 py-1 text-xs font-bold rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                title="Download Customer Khata & Overdue PDF"
+              >
+                <Download className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                <span>Export PDF</span>
+              </button>
             </div>
           </div>
 
@@ -1554,7 +1651,19 @@ export const AnnouncementsView = () => {
             <span className="font-bold uppercase tracking-wider">
               Live Feed: Stock Warnings, Payments & Bills
             </span>
-            <span>Showing {filteredTimeline.length} total updates</span>
+            <div className="flex items-center gap-2">
+              <span>Showing {filteredTimeline.length} total updates</span>
+              <button
+                type="button"
+                onClick={handleDownloadPDF}
+                disabled={isExportingPDF}
+                className="px-3 py-1 text-xs font-bold rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                title="Download Live Activity Feed PDF"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Export PDF</span>
+              </button>
+            </div>
           </div>
 
           {/* Unified Timeline Table */}
