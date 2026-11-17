@@ -397,8 +397,10 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.articles.create(articleData);
       if (res?.success && res?.data) {
-        await refreshData();
-        return { success: true, article: res.data };
+        const newArt = res.data;
+        setArticles(prev => [newArt, ...(prev || []).filter(a => a.articleNo !== newArt.articleNo)]);
+        api.articles.list().then(r => r?.data && setArticles(r.data)).catch(() => {});
+        return { success: true, article: newArt };
       }
       return { success: false, message: res?.message || 'Failed to create article in database' };
     } catch (err) {
@@ -410,8 +412,10 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.articles.update(articleNo, updateData);
       if (res?.success && res?.data) {
-        await refreshData();
-        return { success: true, article: res.data };
+        const updated = res.data;
+        setArticles(prev => (prev || []).map(a => a.articleNo === articleNo ? { ...a, ...updated } : a));
+        api.articles.list().then(r => r?.data && setArticles(r.data)).catch(() => {});
+        return { success: true, article: updated };
       }
       return { success: false, message: res?.message || 'Failed to update article' };
     } catch (err) {
@@ -423,7 +427,8 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.articles.delete(articleNo);
       if (res?.success) {
-        await refreshData();
+        setArticles(prev => (prev || []).filter(a => a.articleNo !== articleNo));
+        api.articles.list().then(r => r?.data && setArticles(r.data)).catch(() => {});
         return { success: true, message: res?.message || 'Article deleted successfully' };
       }
       return { success: false, message: res?.message || 'Failed to delete article' };
@@ -439,8 +444,32 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.purchases.create(purchaseData);
       if (res?.success && res?.data) {
-        await refreshData(); // Auto re-sync articles, stock, supplier ledger, and payments from MySQL
-        return { success: true, purchase: res.data };
+        const newPurchase = res.data;
+        setPurchases(prev => [newPurchase, ...(prev || [])]);
+
+        // Optimistic stock update for items
+        if (newPurchase.items && Array.isArray(newPurchase.items)) {
+          setArticles(prev => (prev || []).map(art => {
+            const matched = newPurchase.items.find(it => it.articleNo === art.articleNo);
+            if (matched) {
+              return { ...art, currentStock: Number(art.currentStock || 0) + Number(matched.quantity || 0) };
+            }
+            return art;
+          }));
+        }
+
+        // Targeted background sync
+        Promise.allSettled([
+          api.purchases.list(),
+          api.articles.list(),
+          api.suppliers.list()
+        ]).then(([pRes, aRes, sRes]) => {
+          if (pRes.status === 'fulfilled' && pRes.value?.data) setPurchases(pRes.value.data);
+          if (aRes.status === 'fulfilled' && aRes.value?.data) setArticles(aRes.value.data);
+          if (sRes.status === 'fulfilled' && sRes.value?.data) setSuppliers(sRes.value.data);
+        }).catch(() => {});
+
+        return { success: true, purchase: newPurchase };
       }
       return { success: false, message: res?.message || 'Failed to save purchase bill in database' };
     } catch (err) {
@@ -452,7 +481,15 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.purchases.update(id, data);
       if (res?.success) {
-        await refreshData();
+        Promise.allSettled([
+          api.purchases.list(),
+          api.articles.list(),
+          api.suppliers.list()
+        ]).then(([pRes, aRes, sRes]) => {
+          if (pRes.status === 'fulfilled' && pRes.value?.data) setPurchases(pRes.value.data);
+          if (aRes.status === 'fulfilled' && aRes.value?.data) setArticles(aRes.value.data);
+          if (sRes.status === 'fulfilled' && sRes.value?.data) setSuppliers(sRes.value.data);
+        }).catch(() => {});
         return { success: true, purchase: res.data };
       }
       return { success: false, message: res?.message || 'Failed to update purchase entry' };
@@ -465,7 +502,16 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.purchases.delete(id);
       if (res?.success) {
-        await refreshData();
+        setPurchases(prev => (prev || []).filter(p => p.id !== id));
+        Promise.allSettled([
+          api.purchases.list(),
+          api.articles.list(),
+          api.suppliers.list()
+        ]).then(([pRes, aRes, sRes]) => {
+          if (pRes.status === 'fulfilled' && pRes.value?.data) setPurchases(pRes.value.data);
+          if (aRes.status === 'fulfilled' && aRes.value?.data) setArticles(aRes.value.data);
+          if (sRes.status === 'fulfilled' && sRes.value?.data) setSuppliers(sRes.value.data);
+        }).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete purchase entry' };
@@ -481,8 +527,8 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.clearances.create(clearanceData);
       if (res?.success && res?.data) {
-        setClearances(prev => [res.data, ...prev]);
-        await refreshData();
+        setClearances(prev => [res.data, ...(prev || [])]);
+        api.clearances.list().then(r => r?.data && setClearances(r.data)).catch(() => {});
         return { success: true, clearance: res.data };
       }
       return { success: false, message: res?.message || 'Failed to save clearance bill' };
@@ -495,8 +541,8 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.clearances.update(id, data);
       if (res?.success && res?.data) {
-        setClearances(prev => prev.map(c => c.id === id ? res.data : c));
-        await refreshData();
+        setClearances(prev => (prev || []).map(c => c.id === id ? res.data : c));
+        api.clearances.list().then(r => r?.data && setClearances(r.data)).catch(() => {});
         return { success: true, clearance: res.data };
       }
       return { success: false, message: res?.message || 'Failed to update clearance bill' };
@@ -509,8 +555,8 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.clearances.delete(id);
       if (res?.success) {
-        setClearances(prev => prev.filter(c => c.id !== id));
-        await refreshData();
+        setClearances(prev => (prev || []).filter(c => c.id !== id));
+        api.clearances.list().then(r => r?.data && setClearances(r.data)).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete clearance bill' };
@@ -524,9 +570,9 @@ export const AppProvider = ({ children }) => {
       const res = await api.clearances.recordPayment(clearanceId, paymentData);
       if (res?.success && res?.data) {
         if (res.data?.clearance) {
-          setClearances(prev => prev.map(c => c.id === clearanceId ? res.data.clearance : c));
+          setClearances(prev => (prev || []).map(c => c.id === clearanceId ? res.data.clearance : c));
         }
-        await refreshData();
+        api.clearances.list().then(r => r?.data && setClearances(r.data)).catch(() => {});
         return { success: true, payment: res.data.payment, clearance: res.data.clearance };
       }
       return { success: false, message: res?.message || 'Failed to record clearance payment' };
@@ -540,9 +586,9 @@ export const AppProvider = ({ children }) => {
       const res = await api.clearances.deletePayment(paymentId);
       if (res?.success) {
         if (res.data?.clearance) {
-          setClearances(prev => prev.map(c => c.id === res.data.clearance.id ? res.data.clearance : c));
+          setClearances(prev => (prev || []).map(c => c.id === res.data.clearance.id ? res.data.clearance : c));
         }
-        await refreshData();
+        api.clearances.list().then(r => r?.data && setClearances(r.data)).catch(() => {});
         return { success: true, clearance: res.data?.clearance };
       }
       return { success: false, message: res?.message || 'Failed to delete clearance payment' };
@@ -556,9 +602,9 @@ export const AppProvider = ({ children }) => {
       const res = await api.clearances.updatePayment(paymentId, paymentData);
       if (res?.success) {
         if (res.data?.clearance) {
-          setClearances(prev => prev.map(c => c.id === res.data.clearance.id ? res.data.clearance : c));
+          setClearances(prev => (prev || []).map(c => c.id === res.data.clearance.id ? res.data.clearance : c));
         }
-        await refreshData();
+        api.clearances.list().then(r => r?.data && setClearances(r.data)).catch(() => {});
         return { success: true, payment: res.data?.payment, clearance: res.data?.clearance };
       }
       return { success: false, message: res?.message || 'Failed to update clearance payment' };
@@ -574,8 +620,49 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.outward.create(outwardData);
       if (res?.success && res?.data) {
-        await refreshData(); // Auto re-sync decremented stock, customer khata, and outward records from MySQL
-        return { success: true, outward: res.data };
+        const newDispatch = res.data;
+        setOutward(prev => [newDispatch, ...(prev || [])]);
+
+        // Optimistic stock decrement
+        if (newDispatch.items && Array.isArray(newDispatch.items)) {
+          setArticles(prev => (prev || []).map(art => {
+            const matched = newDispatch.items.find(it => it.articleNo === art.articleNo);
+            if (matched) {
+              return { ...art, currentStock: Math.max(0, Number(art.currentStock || 0) - Number(matched.quantity || 0)) };
+            }
+            return art;
+          }));
+        }
+
+        // Optimistic customer balance addition
+        if (newDispatch.customerId) {
+          setCustomers(prev => (prev || []).map(c => {
+            if (c.id === newDispatch.customerId) {
+              const prevBal = Number(c.remainingBalance || 0);
+              const prevBill = Number(c.totalBill || 0);
+              const addedAmt = Number(newDispatch.totalAmount || 0);
+              return {
+                ...c,
+                totalBill: prevBill + addedAmt,
+                remainingBalance: prevBal + addedAmt
+              };
+            }
+            return c;
+          }));
+        }
+
+        // Targeted background sync
+        Promise.allSettled([
+          api.outward.list(),
+          api.articles.list(),
+          api.customers.list()
+        ]).then(([oRes, aRes, cRes]) => {
+          if (oRes.status === 'fulfilled' && oRes.value?.data) setOutward(oRes.value.data);
+          if (aRes.status === 'fulfilled' && aRes.value?.data) setArticles(aRes.value.data);
+          if (cRes.status === 'fulfilled' && cRes.value?.data) setCustomers(cRes.value.data);
+        }).catch(() => {});
+
+        return { success: true, outward: newDispatch };
       }
       return { success: false, message: res?.message || 'Failed to record outward dispatch' };
     } catch (err) {
@@ -587,7 +674,15 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.outward.update(id, data);
       if (res?.success) {
-        await refreshData();
+        Promise.allSettled([
+          api.outward.list(),
+          api.articles.list(),
+          api.customers.list()
+        ]).then(([oRes, aRes, cRes]) => {
+          if (oRes.status === 'fulfilled' && oRes.value?.data) setOutward(oRes.value.data);
+          if (aRes.status === 'fulfilled' && aRes.value?.data) setArticles(aRes.value.data);
+          if (cRes.status === 'fulfilled' && cRes.value?.data) setCustomers(cRes.value.data);
+        }).catch(() => {});
         return { success: true, outward: res.data };
       }
       return { success: false, message: res?.message || 'Failed to update outward dispatch' };
@@ -600,7 +695,16 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.outward.delete(id);
       if (res?.success) {
-        await refreshData();
+        setOutward(prev => (prev || []).filter(o => o.id !== id));
+        Promise.allSettled([
+          api.outward.list(),
+          api.articles.list(),
+          api.customers.list()
+        ]).then(([oRes, aRes, cRes]) => {
+          if (oRes.status === 'fulfilled' && oRes.value?.data) setOutward(oRes.value.data);
+          if (aRes.status === 'fulfilled' && aRes.value?.data) setArticles(aRes.value.data);
+          if (cRes.status === 'fulfilled' && cRes.value?.data) setCustomers(cRes.value.data);
+        }).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete outward dispatch' };
@@ -616,7 +720,8 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.suppliers.create(supplierData);
       if (res?.success && res?.data) {
-        await refreshData();
+        setSuppliers(prev => [...(prev || []), res.data]);
+        api.suppliers.list().then(r => r?.data && setSuppliers(r.data)).catch(() => {});
         return { success: true, supplier: res.data };
       }
       return { success: false, message: res?.message || 'Failed to register supplier' };
@@ -629,7 +734,8 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.suppliers.update(id, updateData);
       if (res?.success) {
-        await refreshData();
+        setSuppliers(prev => (prev || []).map(s => s.id === id ? { ...s, ...(res.data || updateData) } : s));
+        api.suppliers.list().then(r => r?.data && setSuppliers(r.data)).catch(() => {});
         return { success: true, supplier: res.data };
       }
       return { success: false, message: res?.message || 'Failed to update supplier' };
@@ -642,9 +748,9 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.suppliers.delete(id);
       if (res?.success) {
-        setSuppliers(prev => prev.filter(s => s.id !== id));
+        setSuppliers(prev => (prev || []).filter(s => s.id !== id));
         setSelectedSupplierDetail(prev => (prev?.id === id ? null : prev));
-        await refreshData();
+        api.suppliers.list().then(r => r?.data && setSuppliers(r.data)).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete supplier' };
@@ -725,7 +831,13 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.suppliers.updatePayment(id, data);
       if (res?.success) {
-        await refreshData();
+        Promise.allSettled([
+          api.suppliers.list(),
+          api.suppliers.listPayments()
+        ]).then(([supRes, payRes]) => {
+          if (supRes.status === 'fulfilled' && supRes.value?.data) setSuppliers(supRes.value.data);
+          if (payRes.status === 'fulfilled' && payRes.value?.data) setSupplierPayments(payRes.value.data);
+        }).catch(() => {});
         return { success: true, payment: res.data };
       }
       return { success: false, message: res?.message || 'Failed to update payment entry' };
@@ -738,7 +850,14 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.suppliers.deletePayment(id);
       if (res?.success) {
-        await refreshData();
+        setSupplierPayments(prev => (prev || []).filter(p => p.id !== id));
+        Promise.allSettled([
+          api.suppliers.list(),
+          api.suppliers.listPayments()
+        ]).then(([supRes, payRes]) => {
+          if (supRes.status === 'fulfilled' && supRes.value?.data) setSuppliers(supRes.value.data);
+          if (payRes.status === 'fulfilled' && payRes.value?.data) setSupplierPayments(payRes.value.data);
+        }).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete payment entry' };
@@ -754,18 +873,19 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customers.create(custData);
       if (res?.success && res?.data) {
-        setCustomers(prev => [...prev.filter(c => c.id !== res.data.id), res.data].sort((a, b) => 
+        const newCust = res.data;
+        setCustomers(prev => [...(prev || []).filter(c => c.id !== newCust.id), newCust].sort((a, b) => 
           (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })
         ));
         setCustomerFilterKey(prev => prev + 1);
-        await refreshData();
+        api.customers.list().then(r => r?.data && setCustomers(r.data)).catch(() => {});
         addAuditLog(
           'Shopkeeper Registered', 
           'Wholesale Customers', 
-          `Added shop ${res.data.shopName} in ${res.data.city}`, 
+          `Added shop ${newCust.shopName} in ${newCust.city}`, 
           `Saved to MySQL Khata`
         );
-        return { success: true, customer: res.data };
+        return { success: true, customer: newCust };
       }
       return { success: false, message: res?.message || 'Failed to register customer' };
     } catch (err) {
@@ -777,7 +897,8 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customers.update(id, data);
       if (res?.success) {
-        await refreshData();
+        setCustomers(prev => (prev || []).map(c => c.id === id ? { ...c, ...(res.data || data) } : c));
+        api.customers.list().then(r => r?.data && setCustomers(r.data)).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to update customer' };
@@ -790,8 +911,8 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customers.delete(id);
       if (res?.success) {
-        setCustomers(prev => prev.filter(c => c.id !== id));
-        await refreshData();
+        setCustomers(prev => (prev || []).filter(c => c.id !== id));
+        api.customers.list().then(r => r?.data && setCustomers(r.data)).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete customer' };
@@ -872,7 +993,13 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customers.updatePayment(id, data);
       if (res?.success) {
-        await refreshData();
+        Promise.allSettled([
+          api.customers.list(),
+          api.customers.listPayments()
+        ]).then(([custRes, payRes]) => {
+          if (custRes.status === 'fulfilled' && custRes.value?.data) setCustomers(custRes.value.data);
+          if (payRes.status === 'fulfilled' && payRes.value?.data) setCustomerPayments(payRes.value.data);
+        }).catch(() => {});
         return { success: true, payment: res.data };
       }
       return { success: false, message: res?.message || 'Failed to update customer payment' };
@@ -885,7 +1012,14 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customers.deletePayment(id);
       if (res?.success) {
-        await refreshData();
+        setCustomerPayments(prev => (prev || []).filter(p => p.id !== id));
+        Promise.allSettled([
+          api.customers.list(),
+          api.customers.listPayments()
+        ]).then(([custRes, payRes]) => {
+          if (custRes.status === 'fulfilled' && custRes.value?.data) setCustomers(custRes.value.data);
+          if (payRes.status === 'fulfilled' && payRes.value?.data) setCustomerPayments(payRes.value.data);
+        }).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete customer payment' };
@@ -898,8 +1032,20 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customerReturns.create(returnData);
       if (res?.success) {
-        await refreshData();
-        return { success: true, returnRecord: res.data?.returnRecord };
+        const returnRecord = res.data?.returnRecord;
+        if (returnRecord) {
+          setCustomerReturns(prev => [returnRecord, ...(prev || [])]);
+        }
+        Promise.allSettled([
+          api.customerReturns.list(),
+          api.customers.list(),
+          api.articles.list()
+        ]).then(([retRes, custRes, artRes]) => {
+          if (retRes.status === 'fulfilled' && retRes.value?.data) setCustomerReturns(retRes.value.data);
+          if (custRes.status === 'fulfilled' && custRes.value?.data) setCustomers(custRes.value.data);
+          if (artRes.status === 'fulfilled' && artRes.value?.data) setArticles(artRes.value.data);
+        }).catch(() => {});
+        return { success: true, returnRecord };
       }
       return { success: false, message: res?.message || 'Failed to record sales return' };
     } catch (err) {
@@ -911,7 +1057,16 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.customerReturns.delete(id);
       if (res?.success) {
-        await refreshData();
+        setCustomerReturns(prev => (prev || []).filter(r => r.id !== id));
+        Promise.allSettled([
+          api.customerReturns.list(),
+          api.customers.list(),
+          api.articles.list()
+        ]).then(([retRes, custRes, artRes]) => {
+          if (retRes.status === 'fulfilled' && retRes.value?.data) setCustomerReturns(retRes.value.data);
+          if (custRes.status === 'fulfilled' && custRes.value?.data) setCustomers(custRes.value.data);
+          if (artRes.status === 'fulfilled' && artRes.value?.data) setArticles(artRes.value.data);
+        }).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete return entry' };
@@ -1038,7 +1193,7 @@ export const AppProvider = ({ children }) => {
       const res = await api.stuffs.updateCategory(trimmedOld, trimmedNew);
       if (res?.success) {
         setCategories(prev => prev.map(c => c === trimmedOld ? trimmedNew : c).sort());
-        await refreshData();
+        api.stuffs.listCategories().then(r => r?.data && setCategories(r.data)).catch(() => {});
         return { success: true, category: trimmedNew };
       }
       return { success: false, message: res?.message || 'Failed to update category' };
@@ -1053,7 +1208,7 @@ export const AppProvider = ({ children }) => {
       const res = await api.stuffs.deleteCategory(trimmed);
       if (res?.success) {
         setCategories(prev => prev.filter(c => c !== trimmed));
-        await refreshData();
+        api.stuffs.listCategories().then(r => r?.data && setCategories(r.data)).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete category' };
@@ -1086,7 +1241,7 @@ export const AppProvider = ({ children }) => {
       const res = await api.locations.delete(trimmed);
       if (res?.success) {
         setWarehouseLocations(prev => prev.filter(l => l !== trimmed));
-        await refreshData();
+        api.locations.list().then(r => r?.data && setWarehouseLocations(r.data)).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to delete warehouse location' };

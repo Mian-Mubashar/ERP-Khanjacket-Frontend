@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Truck, AlertCircle, CheckCircle2, Search, User, Package, CreditCard, FileText } from 'lucide-react';
+import { X, Truck, AlertCircle, CheckCircle2, Search, User, Package, CreditCard, FileText, Loader2 } from 'lucide-react';
 import { showToast, showError, showWarning } from '../../utils/sweetalert';
 import { formatLakhCrore, formatCustomerDisplayName } from '../../utils/formatters';
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
-const generateBillNo = () => `${Date.now().toString().slice(-4)}`;
+const generateBillNo = () => `${Date.now().toString().slice(-5)}${Math.floor(10 + Math.random() * 90)}`;
 const generateGatePass = () => `GP-${Date.now().toString().slice(-4)}`;
 
 export const NewOutwardModal = () => {
@@ -46,6 +46,8 @@ export const NewOutwardModal = () => {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Top Customer Quick Search Bar State
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
@@ -64,6 +66,8 @@ export const NewOutwardModal = () => {
       setItemDescription('');
       setError('');
       setSuccess('');
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
 
       if (selectedCustomerForBill) {
         if (selectedCustomerForBill.city) setSelectedCity(selectedCustomerForBill.city);
@@ -188,11 +192,14 @@ export const NewOutwardModal = () => {
   };
 
   const handleClose = () => {
+    if (isSubmitting) return;
     setIsNewOutwardOpen(false);
     if (setSelectedCustomerForBill) setSelectedCustomerForBill(null);
     if (setSelectedArticleForOutward) setSelectedArticleForOutward(null);
     setError('');
     setSuccess('');
+    setIsSubmitting(false);
+    isSubmittingRef.current = false;
   };
 
   const activeArticleCode = isCustomArticle ? customArticleNo.trim().toUpperCase() : selectedArticleNo;
@@ -201,7 +208,13 @@ export const NewOutwardModal = () => {
     : ((Number(quantity) || 0) * (Number(unitSalePrice) || 0));
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+
+    // Prevent duplicate multi-clicks immediately (in-memory mutex lock)
+    if (isSubmittingRef.current || isSubmitting) {
+      return;
+    }
+
     setError('');
     setSuccess('');
 
@@ -212,25 +225,76 @@ export const NewOutwardModal = () => {
       return;
     }
 
-    // DIRECT BILL (WITHOUT STOCK) FLOW
-    if (isWithoutStock) {
-      const amount = Number(directBillAmount);
-      if (!amount || amount <= 0) {
-        showError('Total Bill Amount Required', 'Please enter a valid Total Bill Amount.');
-        setError('Please enter a valid Total Bill Amount.');
-        return;
-      }
-      if (!challanNo.trim()) {
-        showError('Bill # Required', 'Please enter Bill # (Parcha / Invoice #).');
-        setError('Please enter Bill # (Parcha / Invoice #).');
+    try {
+      isSubmittingRef.current = true;
+      setIsSubmitting(true);
+
+      // DIRECT BILL (WITHOUT STOCK) FLOW
+      if (isWithoutStock) {
+        const amount = Number(directBillAmount);
+        if (!amount || amount <= 0) {
+          showError('Total Bill Amount Required', 'Please enter a valid Total Bill Amount.');
+          setError('Please enter a valid Total Bill Amount.');
+          return;
+        }
+        if (!challanNo.trim()) {
+          showError('Bill # Required', 'Please enter Bill # (Parcha / Invoice #).');
+          setError('Please enter Bill # (Parcha / Invoice #).');
+          return;
+        }
+
+        const res = await addOutward({
+          articleNo: 'DIRECT-SALE',
+          articleName: maalSource,
+          quantity: 1,
+          unitSalePrice: amount,
+          challanNo: challanNo.trim(),
+          date,
+          city: selectedCity,
+          customerId: selectedCustomerId || null,
+          customerName: finalCustomerName,
+          customerPhone: customerPhone.trim(),
+          destination: destination.trim() || selectedCity,
+          paidAmount: 0,
+          paymentMethod: 'CASH',
+          gatePassNo: 'DIRECT',
+          notes: `Maal Source: ${maalSource}`,
+          isWithoutStock: true
+        });
+
+        if (!res || !res.success) {
+          showError('Dispatch Failed', res?.message || 'Error recording outward dispatch');
+          setError(res?.message || 'Error recording outward dispatch');
+          return;
+        }
+
+        showToast(`Bill #${challanNo}: Rs. ${amount.toLocaleString()} (${maalSource}) billed to ${finalCustomerName}!`, 'success');
+        handleClose();
         return;
       }
 
+      // STANDARD INVENTORY WITH-STOCK FLOW
+      if (!activeArticleCode) {
+        showError('Article Required', 'Please select or enter an Article Code to dispatch.');
+        setError('Please select or enter an Article Code to dispatch.');
+        return;
+      }
+
+      const numQty = Number(quantity);
+      if (!numQty || numQty <= 0) {
+        showError('Invalid Quantity', 'Quantity must be greater than zero.');
+        setError('Quantity must be greater than zero.');
+        return;
+      }
+
+      if (!isCustomArticle && numQty > availableStock) {
+        showWarning('Stock Alert', `Dispatching ${numQty} pcs. Warehouse recorded stock is ${availableStock} pcs.`);
+      }
+
       const res = await addOutward({
-        articleNo: 'DIRECT-SALE',
-        articleName: maalSource,
-        quantity: 1,
-        unitSalePrice: amount,
+        articleNo: activeArticleCode,
+        articleName: undefined,
+        quantity: numQty,
         challanNo: challanNo.trim(),
         date,
         city: selectedCity,
@@ -238,11 +302,12 @@ export const NewOutwardModal = () => {
         customerName: finalCustomerName,
         customerPhone: customerPhone.trim(),
         destination: destination.trim() || selectedCity,
-        paidAmount: 0,
-        paymentMethod: 'CASH',
-        gatePassNo: 'DIRECT',
-        notes: `Maal Source: ${maalSource}`,
-        isWithoutStock: true
+        unitSalePrice: Number(unitSalePrice) || 0,
+        paidAmount: Number(paidAmount) || 0,
+        paymentMethod,
+        gatePassNo: gatePassNo.trim(),
+        notes: notes.trim(),
+        isWithoutStock: false
       });
 
       if (!res || !res.success) {
@@ -251,57 +316,13 @@ export const NewOutwardModal = () => {
         return;
       }
 
-      showToast(`Bill #${challanNo}: Rs. ${amount.toLocaleString()} (${maalSource}) billed to ${finalCustomerName}!`, 'success');
+      const paidNotice = Number(paidAmount) > 0 ? ` [Wasooli Rs. ${Number(paidAmount).toLocaleString()}]` : '';
+      showToast(`Bill #${challanNo}: ${numQty} pcs dispatched to ${finalCustomerName}!${paidNotice}`, 'success');
       handleClose();
-      return;
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
-
-    // STANDARD INVENTORY WITH-STOCK FLOW
-    if (!activeArticleCode) {
-      showError('Article Required', 'Please select or enter an Article Code to dispatch.');
-      setError('Please select or enter an Article Code to dispatch.');
-      return;
-    }
-
-    const numQty = Number(quantity);
-    if (!numQty || numQty <= 0) {
-      showError('Invalid Quantity', 'Quantity must be greater than zero.');
-      setError('Quantity must be greater than zero.');
-      return;
-    }
-
-    if (!isCustomArticle && numQty > availableStock) {
-      showWarning('Stock Alert', `Dispatching ${numQty} pcs. Warehouse recorded stock is ${availableStock} pcs.`);
-    }
-
-    const res = await addOutward({
-      articleNo: activeArticleCode,
-      articleName: undefined,
-      quantity: numQty,
-      challanNo: challanNo.trim(),
-      date,
-      city: selectedCity,
-      customerId: selectedCustomerId || null,
-      customerName: finalCustomerName,
-      customerPhone: customerPhone.trim(),
-      destination: destination.trim() || selectedCity,
-      unitSalePrice: Number(unitSalePrice) || 0,
-      paidAmount: Number(paidAmount) || 0,
-      paymentMethod,
-      gatePassNo: gatePassNo.trim(),
-      notes: notes.trim(),
-      isWithoutStock: false
-    });
-
-    if (!res || !res.success) {
-      showError('Dispatch Failed', res?.message || 'Error recording outward dispatch');
-      setError(res?.message || 'Error recording outward dispatch');
-      return;
-    }
-
-    const paidNotice = Number(paidAmount) > 0 ? ` [Wasooli Rs. ${Number(paidAmount).toLocaleString()}]` : '';
-    showToast(`Bill #${challanNo}: ${numQty} pcs dispatched to ${finalCustomerName}!${paidNotice}`, 'success');
-    handleClose();
   };
 
   return (
@@ -1001,22 +1022,35 @@ export const NewOutwardModal = () => {
           <div className="flex items-center gap-3">
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={handleClose}
-              className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={handleSubmit}
-              className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-2 ${
+              className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-xs transition-all flex items-center gap-2 ${
+                isSubmitting ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
+              } ${
                 isWithoutStock
                   ? 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800 shadow-amber-600/25'
                   : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-blue-600/25'
               }`}
             >
-              <Truck className="w-4 h-4" />
-              <span>{isWithoutStock ? 'Dispatch Bill (Without Stock)' : 'Dispatch & Generate Bill'}</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Recording Dispatch...</span>
+                </>
+              ) : (
+                <>
+                  <Truck className="w-4 h-4" />
+                  <span>{isWithoutStock ? 'Dispatch Bill (Without Stock)' : 'Dispatch & Generate Bill'}</span>
+                </>
+              )}
             </button>
           </div>
         </div>

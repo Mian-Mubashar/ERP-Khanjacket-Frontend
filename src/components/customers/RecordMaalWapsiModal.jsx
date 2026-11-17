@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   X, 
   Package, 
   AlertCircle,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { showToast } from '../../utils/sweetalert';
 import { SearchableSelect } from '../common/SearchableSelect';
@@ -34,6 +35,7 @@ export const RecordMaalWapsiModal = () => {
   const [returnSlipNo, setReturnSlipNo] = useState(generateReturnSlipNo);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Sync when modal opens or customer is preselected
@@ -93,6 +95,7 @@ export const RecordMaalWapsiModal = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setErrorMsg('');
 
     if (!customerId) {
@@ -110,8 +113,10 @@ export const RecordMaalWapsiModal = () => {
       return;
     }
 
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+
     try {
-      setIsSubmitting(true);
       const res = await recordCustomerReturn({
         customerId,
         articleNo,
@@ -136,11 +141,13 @@ export const RecordMaalWapsiModal = () => {
     } catch (err) {
       setErrorMsg(err.message || 'An error occurred while saving sales return');
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
+    if (isSubmitting) return;
     setIsRecordMaalWapsiOpen(false);
     setSelectedCustomerForWapsi(null);
   };
@@ -160,7 +167,8 @@ export const RecordMaalWapsiModal = () => {
           <button
             type="button"
             onClick={handleClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            disabled={isSubmitting}
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             title="Close"
           >
             <X className="w-4 h-4" />
@@ -400,10 +408,19 @@ export const RecordMaalWapsiModal = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl transition-colors shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl transition-colors shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{isSubmitting ? 'Saving Return...' : 'Save Sales Return'}</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Saving Return...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Save Sales Return</span>
+                </>
+              )}
             </button>
           </div>
 

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, CheckCircle2, AlertCircle, ReceiptText, MapPin } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, ReceiptText, MapPin, Loader2 } from 'lucide-react';
 import { showToast, showError } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
 
@@ -22,13 +22,21 @@ export const AddCustomerModal = () => {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const cityAreas = areas.filter(a => (a.cityName || '').toLowerCase() === (city || '').toLowerCase());
 
   if (!isAddCustomerOpen) return null;
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    setIsAddCustomerOpen(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setError('');
     setSuccess('');
 
@@ -44,39 +52,51 @@ export const AddCustomerModal = () => {
       return;
     }
 
-    const res = await addCustomer({
-      shopName: shopName.trim(),
-      shopkeeperName: shopkeeperName.trim() || '',
-      city,
-      area: area.trim(),
-      phone: phone.trim(),
-      phone2: phone2.trim(),
-      marketAddress: marketAddress.trim(),
-      openingBalance: Number(openingBalance) || 0,
-      notes: notes.trim(),
-      inUgrahi,
-      ugrahiRoute: inUgrahi ? ugrahiRoute : null
-    });
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
-    if (!res || !res.success) {
-      showError('Cannot Add Customer', res?.message || 'Error registering customer in MySQL');
-      setError(res?.message || 'Error registering customer in MySQL');
-      return;
+    try {
+      const res = await addCustomer({
+        shopName: shopName.trim(),
+        shopkeeperName: shopkeeperName.trim() || '',
+        city,
+        area: area.trim(),
+        phone: phone.trim(),
+        phone2: phone2.trim(),
+        marketAddress: marketAddress.trim(),
+        openingBalance: Number(openingBalance) || 0,
+        notes: notes.trim(),
+        inUgrahi,
+        ugrahiRoute: inUgrahi ? ugrahiRoute : null
+      });
+
+      if (!res || !res.success) {
+        showError('Cannot Add Customer', res?.message || 'Error registering customer in MySQL');
+        setError(res?.message || 'Error registering customer in MySQL');
+        return;
+      }
+
+      showToast(`Shopkeeper "${shopName}" registered successfully!${inUgrahi ? ` Added to Payment Collection (${ugrahiRoute}).` : ''}`, 'success');
+      setIsAddCustomerOpen(false);
+      setShopName('');
+      setShopkeeperName('');
+      setArea('');
+      setPhone('');
+      setPhone2('');
+      setMarketAddress('');
+      setOpeningBalance('');
+      setNotes('');
+      setInUgrahi(false);
+      setUgrahiRoute(cities[0]?.name || 'Lahore');
+      setSuccess('');
+    } catch (err) {
+      console.error('Error adding customer:', err);
+      showError('Cannot Add Customer', err?.message || 'Error registering customer');
+      setError(err?.message || 'Error registering customer');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
-
-    showToast(`Shopkeeper "${shopName}" registered successfully!${inUgrahi ? ` Added to Payment Collection (${ugrahiRoute}).` : ''}`, 'success');
-    setIsAddCustomerOpen(false);
-    setShopName('');
-    setShopkeeperName('');
-    setArea('');
-    setPhone('');
-    setPhone2('');
-    setMarketAddress('');
-    setOpeningBalance('');
-    setNotes('');
-    setInUgrahi(false);
-    setUgrahiRoute(cities[0]?.name || 'Lahore');
-    setSuccess('');
   };
 
   return (
@@ -93,8 +113,9 @@ export const AddCustomerModal = () => {
           </div>
           <button
             type="button"
-            onClick={() => setIsAddCustomerOpen(false)}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            onClick={handleClose}
+            disabled={isSubmitting}
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             title="Close"
           >
             <X className="w-4 h-4" />
@@ -360,17 +381,28 @@ export const AddCustomerModal = () => {
           <div className="shrink-0 px-6 py-3.5 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
             <button
               type="button"
-              onClick={() => setIsAddCustomerOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl transition-colors shadow-xs cursor-pointer flex items-center gap-1.5"
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl transition-colors shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Save Customer</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Saving Customer...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Save Customer</span>
+                </>
+              )}
             </button>
           </div>
 

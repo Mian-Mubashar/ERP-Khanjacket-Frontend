@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, AlertCircle, CheckCircle2, Boxes, Plus } from 'lucide-react';
+import { X, AlertCircle, CheckCircle2, Boxes, Plus, Loader2 } from 'lucide-react';
 import { showToast, showError } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
 
@@ -31,6 +31,8 @@ export const AddArticleModal = () => {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Auto-select latest category if newly added
   const prevCatCount = useRef(categories.length);
@@ -89,6 +91,7 @@ export const AddArticleModal = () => {
   if (!isAddArticleOpen) return null;
 
   const handleClose = () => {
+    if (isSubmitting) return;
     setIsAddArticleOpen(false);
     setError('');
     setSuccess('');
@@ -96,6 +99,7 @@ export const AddArticleModal = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setError('');
     setSuccess('');
 
@@ -111,28 +115,40 @@ export const AddArticleModal = () => {
       return;
     }
 
-    const payload = {
-      ...formData,
-      articleNo: formData.articleNo.trim().toUpperCase(),
-      name: formData.name.trim(),
-      category: formData.category || 'Jacket',
-      stuff: formData.stuff || 'Parachute (Waterproof)',
-      initialStock: Number(formData.initialStock) || 0,
-      unitCost: Number(formData.unitCost) || 0,
-      minAlertStock: Number(formData.minAlertStock) || 150,
-      warehouseLocation: formData.warehouseLocation?.trim() || '',
-      description: formData.description.trim()
-    };
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
-    const res = await addArticle(payload);
-    if (!res || !res.success) {
-      showError('Cannot Add Article', res?.message || 'Error creating article in MySQL');
-      setError(res?.message || 'Error creating article in MySQL');
-      return;
+    try {
+      const payload = {
+        ...formData,
+        articleNo: formData.articleNo.trim().toUpperCase(),
+        name: formData.name.trim(),
+        category: formData.category || 'Jacket',
+        stuff: formData.stuff || 'Parachute (Waterproof)',
+        initialStock: Number(formData.initialStock) || 0,
+        unitCost: Number(formData.unitCost) || 0,
+        minAlertStock: Number(formData.minAlertStock) || 150,
+        warehouseLocation: formData.warehouseLocation?.trim() || '',
+        description: formData.description.trim()
+      };
+
+      const res = await addArticle(payload);
+      if (!res || !res.success) {
+        showError('Cannot Add Article', res?.message || 'Error creating article in MySQL');
+        setError(res?.message || 'Error creating article in MySQL');
+        return;
+      }
+
+      showToast(`Article ${formData.articleNo.toUpperCase()} created successfully!`, 'success');
+      handleClose();
+    } catch (err) {
+      console.error('Error adding article:', err);
+      showError('Cannot Add Article', err?.message || 'Error creating article');
+      setError(err?.message || 'Error creating article');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
-
-    showToast(`Article ${formData.articleNo.toUpperCase()} created successfully!`, 'success');
-    handleClose();
   };
 
   const costNum = Number(formData.unitCost) || 0;
@@ -155,7 +171,8 @@ export const AddArticleModal = () => {
           <button
             type="button"
             onClick={handleClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            disabled={isSubmitting}
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             title="Close Modal"
           >
             <X className="w-4 h-4" />
@@ -378,16 +395,27 @@ export const AddArticleModal = () => {
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              disabled={isSubmitting}
+              className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Boxes className="w-3.5 h-3.5" />
-              <span>Register Article</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Registering...</span>
+                </>
+              ) : (
+                <>
+                  <Boxes className="w-3.5 h-3.5" />
+                  <span>Register Article</span>
+                </>
+              )}
             </button>
           </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Plus, Trash2, AlertCircle, CheckCircle2, ShoppingBag, Shirt, Search } from 'lucide-react';
+import { X, Plus, Trash2, AlertCircle, CheckCircle2, ShoppingBag, Shirt, Search, Loader2 } from 'lucide-react';
 import Swal, { showToast, showError } from '../../utils/sweetalert';
 import { formatLakhCrore } from '../../utils/formatters';
 
@@ -24,7 +24,7 @@ export const NewPurchaseModal = () => {
   const availableCategories = categories && categories.length > 0 ? categories : defaultCategories;
 
   const [supplierId, setSupplierId] = useState('');
-  const [invoiceNo, setInvoiceNo] = useState(`CN-${Date.now().toString().slice(-4)}`);
+  const [invoiceNo, setInvoiceNo] = useState(`CN-${Date.now().toString().slice(-5)}${Math.floor(10 + Math.random() * 90)}`);
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
   const [containerNo, setContainerNo] = useState('');
   const [extraExpenses, setExtraExpenses] = useState(0);
@@ -34,6 +34,8 @@ export const NewPurchaseModal = () => {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Top China Supplier Quick Search State
   const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
@@ -260,6 +262,7 @@ export const NewPurchaseModal = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setError('');
     setSuccess('');
 
@@ -301,43 +304,56 @@ export const NewPurchaseModal = () => {
       }
     }
 
-    const cleanedItems = items.map(it => ({
-      articleNo: it.articleNo.trim().toUpperCase(),
-      articleName: it.articleName.trim(),
-      category: it.category || categories[0] || 'Jacket',
-      quantity: Number(it.quantity) || 1,
-      unitCost: Number(it.unitCost) || 0
-    }));
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
-    const newPurchaseData = {
-      invoiceNo: invoiceNo.trim().toUpperCase(),
-      supplierId,
-      supplierName: selSupplier.company,
-      purchaseDate,
-      containerNo: containerNo.trim() || 'N/A',
-      items: cleanedItems,
-      extraExpenses: Number(extraExpenses) || 0,
-      expenseNote: expenseNote.trim() || 'Freight & Clearing',
-      paidAmount: Number(paidAmount) || 0,
-      paymentMethod,
-      notes: notes.trim()
-    };
+    try {
+      const cleanedItems = items.map(it => ({
+        articleNo: it.articleNo.trim().toUpperCase(),
+        articleName: it.articleName.trim(),
+        category: it.category || categories[0] || 'Jacket',
+        quantity: Number(it.quantity) || 1,
+        unitCost: Number(it.unitCost) || 0
+      }));
 
-    const res = await addPurchase(newPurchaseData);
-    if (!res || !res.success) {
-      showError('Purchase Failed', res?.message || 'Error recording purchase bill');
-      setError(res?.message || 'Error recording purchase bill');
-      return;
+      const newPurchaseData = {
+        invoiceNo: invoiceNo.trim().toUpperCase(),
+        supplierId,
+        supplierName: selSupplier.company,
+        purchaseDate,
+        containerNo: containerNo.trim() || 'N/A',
+        items: cleanedItems,
+        extraExpenses: Number(extraExpenses) || 0,
+        expenseNote: expenseNote.trim() || 'Freight & Clearing',
+        paidAmount: Number(paidAmount) || 0,
+        paymentMethod,
+        notes: notes.trim()
+      };
+
+      const res = await addPurchase(newPurchaseData);
+      if (!res || !res.success) {
+        showError('Purchase Failed', res?.message || 'Error recording purchase bill');
+        setError(res?.message || 'Error recording purchase bill');
+        return;
+      }
+
+      showToast(`Purchase Bill #${invoiceNo.toUpperCase()} recorded successfully!`, 'success');
+      setIsNewPurchaseOpen(false);
+      if (setSelectedSupplierForBill) setSelectedSupplierForBill(null);
+      setInvoiceNo(`CN-${Date.now().toString().slice(-4)}`);
+      setSuccess('');
+    } catch (err) {
+      console.error('Error recording purchase:', err);
+      showError('Purchase Failed', err?.message || 'An unexpected error occurred.');
+      setError(err?.message || 'An unexpected error occurred.');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
-
-    showToast(`Purchase Bill #${invoiceNo.toUpperCase()} recorded successfully!`, 'success');
-    setIsNewPurchaseOpen(false);
-    if (setSelectedSupplierForBill) setSelectedSupplierForBill(null);
-    setInvoiceNo(`CN-${Date.now().toString().slice(-4)}`);
-    setSuccess('');
   };
 
   const handleClose = () => {
+    if (isSubmitting) return;
     setIsNewPurchaseOpen(false);
     if (setSelectedSupplierForBill) setSelectedSupplierForBill(null);
   };
@@ -364,7 +380,8 @@ export const NewPurchaseModal = () => {
           <button
             type="button"
             onClick={handleClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            disabled={isSubmitting}
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-4 h-4" />
           </button>
@@ -879,17 +896,28 @@ export const NewPurchaseModal = () => {
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
-              onClick={() => setIsNewPurchaseOpen(false)}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+              disabled={isSubmitting}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              Save Purchase Bill
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Saving Purchase Bill...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Save Purchase Bill</span>
+                </>
+              )}
             </button>
           </div>
 
