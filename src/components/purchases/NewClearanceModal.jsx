@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   X, 
@@ -11,12 +11,14 @@ import {
   CheckCircle2, 
   AlertCircle,
   Ship,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { showToast, showError } from '../../utils/sweetalert';
 
 export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) => {
-  const { addClearance, updateClearance, purchases = [] } = useApp();
+  const { addClearance, updateClearance } = useApp();
+  const isSubmittingRef = useRef(false);
 
   const getDefaultForm = (item) => ({
     invoiceNo: item?.invoiceNo || '',
@@ -33,8 +35,6 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
     openDate: item?.openDate || '',
     goDate: item?.goDate || '',
     billDate: item?.billDate || new Date().toISOString().split('T')[0],
-    purchaseId: item?.purchaseId || '',
-    applyToPurchaseCost: item?.applyToPurchaseCost !== undefined ? item.applyToPurchaseCost : true,
 
     // Itemized charges
     customDuty: item ? Number(item.customDuty || 0) : 0,
@@ -98,6 +98,7 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setErrorMsg('');
 
     if (!form.containerNumber?.trim()) {
@@ -109,15 +110,17 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
       return;
     }
 
-    try {
-      setIsSubmitting(true);
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
+    try {
       const payload = {
         ...form,
         invoiceNo: (form.invoiceNo || '').trim(),
         clearingAgent: (form.clearingAgent || 'BARCA TRADERS').trim(),
         containerNumber: (form.containerNumber || '').trim(),
-        purchaseId: form.purchaseId && String(form.purchaseId).trim() ? String(form.purchaseId).trim() : null,
+        purchaseId: null,
+        applyToPurchaseCost: false,
         openDate: form.openDate && String(form.openDate).trim() ? String(form.openDate).trim() : null,
         goDate: form.goDate && String(form.goDate).trim() ? String(form.goDate).trim() : null,
         customDuty: Math.max(0, Number(form.customDuty) || 0),
@@ -163,6 +166,7 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
       setErrorMsg(msg);
       showError('Error Saving Clearance', msg);
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -605,28 +609,10 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
             </div>
           </div>
 
-          {/* 3. Link to China Purchase & Financial Summary */}
+          {/* 3. Clearing Agent Info & Financial Summary */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-            {/* Left: Link & Notes */}
+            {/* Left: Contact & Notes */}
             <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Link to China Purchase Consignment (Optional)
-                </label>
-                <select
-                  value={form.purchaseId}
-                  onChange={e => handleChange('purchaseId', e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:border-amber-500 outline-hidden cursor-pointer"
-                >
-                  <option value="">None (Independent Container Voucher)</option>
-                  {purchases.map(p => (
-                    <option key={p.id} value={p.id}>
-                      Inv #{p.invoiceNo} • {p.supplierName} (Container: {p.containerNo || 'N/A'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Agent Contact / Whatsapp #
@@ -645,7 +631,7 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
                   Notes / Extra Remarks
                 </label>
                 <textarea
-                  rows="2"
+                  rows="3"
                   value={form.notes}
                   onChange={e => handleChange('notes', e.target.value)}
                   placeholder="e.g. Accounts Dept Whatsapp only 03349191961..."
@@ -726,10 +712,19 @@ export const NewClearanceModal = ({ isOpen, onClose, editingClearance = null }) 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{isSubmitting ? 'Saving...' : (editingClearance ? 'Update Bill' : 'Save Clearance Bill')}</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Saving Bill...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{editingClearance ? 'Update Bill' : 'Save Clearance Bill'}</span>
+                </>
+              )}
             </button>
           </div>
         </form>
