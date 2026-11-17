@@ -127,8 +127,8 @@ export const LoginView = () => {
                 <Smartphone className="w-3.5 h-3.5 text-purple-400" />
                 <span>Security</span>
               </div>
-              <div className="text-lg font-bold text-white font-mono">4-5 Units</div>
-              <div className="text-[10px] text-slate-500">Hardware auth limit</div>
+              <div className="text-lg font-bold text-white font-mono">Unlimited</div>
+              <div className="text-[10px] text-slate-500">Device access enabled</div>
             </div>
           </div>
 
@@ -263,7 +263,7 @@ export const LoginView = () => {
               </label>
 
               <span className="text-[11px] text-emerald-400 font-medium">
-                Hardware policy: 4-5 limit
+                Device access: Unlimited
               </span>
             </div>
 

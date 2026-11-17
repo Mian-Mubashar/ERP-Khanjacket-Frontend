@@ -144,7 +144,7 @@ export const SecurityView = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                4-5 Mobile phone authorization, access revocation, user roles, audit trail & cloud security
+                Mobile phone authorization, access revocation, user roles, audit trail & cloud security
               </p>
             </div>
           </div>
@@ -179,7 +179,7 @@ export const SecurityView = () => {
               <Smartphone className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xs text-slate-400 mb-1 font-medium">4-5 Devices limit control</div>
+          <div className="text-xs text-slate-400 mb-1 font-medium">Unlimited devices access control</div>
           <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
             {authorizedDevicesCount} Active
           </div>
@@ -260,7 +260,7 @@ export const SecurityView = () => {
         {/* Navigation Tabs Bar */}
         <div className="px-6 pt-3 border-b border-slate-200 dark:border-slate-800 flex flex-wrap gap-2">
           {[
-            { id: 'devices', label: 'Authorized Mobiles (4-5 Devices)', count: devices.length, icon: Smartphone },
+            { id: 'devices', label: 'Authorized Mobiles (Device Access)', count: devices.length, icon: Smartphone },
             { id: 'audit', label: 'System Audit Trail & Log', count: auditLogs.length, icon: History },
             { id: 'roles', label: 'User Roles & Permissions', count: 3, icon: UserCheck },
             { id: 'backup', label: 'Cloud Backup & 2FA', count: null, icon: CloudCheck }
@@ -296,7 +296,7 @@ export const SecurityView = () => {
         {/* Tab Content Body */}
         <div className="p-6">
           
-          {/* TAB 1: AUTHORIZED MOBILES (4-5 DEVICES) */}
+          {/* TAB 1: AUTHORIZED MOBILES (DEVICE ACCESS) */}
           {activeTab === 'devices' && (
             <div className="space-y-6">
               
@@ -304,9 +304,9 @@ export const SecurityView = () => {
               <div className="p-4 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-300 flex items-start gap-3">
                 <Smartphone className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <div className="font-bold text-sm">Strict Device Access Control (Khan Clothes Warehouse Policy):</div>
+                  <div className="font-bold text-sm">Device Access Control & Security:</div>
                   <p className="leading-relaxed">
-                    Only 4 to 5 authorized mobile phones or scanner tablets can access your central warehouse database. 
+                    Authorized mobile phones and scanner tablets can connect to your warehouse database. 
                     If any employee's mobile phone is lost, stolen, or staff is relieved, <strong>immediately click "Revoke Access" below</strong> to instantly block all purchase bills, customer ledgers, and stock data from that device.
                   </p>
                 </div>
@@ -316,7 +316,7 @@ export const SecurityView = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
                   <span>Authorized Hardware Registry ({devices.length} Devices Registered)</span>
-                  <span className="text-[11px]">Maximum Limit: 5 Hardware Units</span>
+                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Access: Unlimited Mobiles & Devices</span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">

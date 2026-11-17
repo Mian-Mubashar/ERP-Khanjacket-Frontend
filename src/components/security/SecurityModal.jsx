@@ -59,7 +59,7 @@ export const SecurityModal = () => {
                 Authorized Mobiles & Access Control
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                4-5 Mobile phone authorization, access revocation, user roles & cloud security
+                Mobile phone authorization, access revocation, user roles & cloud security
               </p>
             </div>
           </div>
@@ -75,7 +75,7 @@ export const SecurityModal = () => {
         {/* Navigation Tabs */}
         <div className="px-6 pt-4 border-b border-slate-200 dark:border-slate-800 flex space-x-2">
           {[
-            { id: 'devices', label: 'Authorized Mobiles (4-5 Devices)', count: devices.length },
+            { id: 'devices', label: 'Authorized Mobiles (Device Access)', count: devices.length },
             { id: 'roles', label: 'User Roles & Permissions', count: 3 },
             { id: 'backup', label: 'Cloud Backup & 2FA', count: null }
           ].map(tab => (
@@ -107,7 +107,7 @@ export const SecurityModal = () => {
               <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-300 flex items-start gap-2.5">
                 <Smartphone className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                 <div>
-                  <strong>Device Access Control:</strong> Only 4-5 authorized devices can access your warehouse database. If any mobile phone is lost or misplaced, revoke access immediately below to protect your financial and stock data.
+                  <strong>Device Access Control:</strong> Authorized mobile phones and tablets can access your warehouse database. If any mobile phone is lost or misplaced, revoke access immediately below to protect your financial and stock data.
                 </div>
               </div>
 
