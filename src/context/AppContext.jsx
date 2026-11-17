@@ -1279,19 +1279,24 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Switch User Role
+  // Switch User Role (for previewing role permissions)
   const switchRole = async (newRole) => {
     try {
       const res = await api.auth.switchRole(newRole);
+      if (res?.data?.token) {
+        setAuthToken(res.data.token);
+        setToken(res.data.token);
+      }
       if (res?.data?.user) {
         setCurrentUser(res.data.user);
         localStorage.setItem('kc_user', JSON.stringify(res.data.user));
       }
     } catch (err) {
+      console.warn('Switch role error:', err);
       setCurrentUser(prev => ({
         ...prev,
         role: newRole,
-        name: newRole === 'Admin' ? 'Admin Khan' : newRole === 'Staff' ? 'Tariq Mehmood (Staff)' : 'Auditor (Viewer)'
+        isOriginalAdmin: true
       }));
     }
   };

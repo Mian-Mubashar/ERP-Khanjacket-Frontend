@@ -22,6 +22,13 @@ export const SecurityModal = () => {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('devices');
+  const isOriginalAdmin = Boolean(
+    currentUser?.isOriginalAdmin || 
+    currentUser?.baseRole?.toLowerCase() === 'admin' ||
+    currentUser?.email?.toLowerCase() === 'admin@khanclothes.com' ||
+    currentUser?.role?.toLowerCase() === 'admin'
+  );
+  const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
   const [newDeviceName, setNewDeviceName] = useState('');
   const [newDeviceModel, setNewDeviceModel] = useState('');
   const [newDeviceOwner, setNewDeviceOwner] = useState('');
@@ -272,16 +279,28 @@ export const SecurityModal = () => {
                       )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{item.desc}</p>
-                    <button
-                      onClick={() => switchRole(item.role)}
-                      className={`w-full py-1.5 text-xs font-bold rounded-lg transition-colors ${
-                        currentUser.role === item.role
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {currentUser.role === item.role ? 'Current Role' : `Switch to ${item.role}`}
-                    </button>
+                    {isOriginalAdmin ? (
+                      <button
+                        onClick={() => switchRole(item.role)}
+                        className={`w-full py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                          currentUser.role === item.role
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {currentUser.role === item.role ? 'Current Role' : `Switch to ${item.role}`}
+                      </button>
+                    ) : (
+                      <div
+                        className={`w-full py-1.5 text-center text-xs font-bold rounded-lg ${
+                          currentUser.role === item.role
+                            ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
+                            : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400'
+                        }`}
+                      >
+                        {currentUser.role === item.role ? 'Current Role' : 'Managed by Admin'}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

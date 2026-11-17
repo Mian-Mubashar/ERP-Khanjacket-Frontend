@@ -71,6 +71,14 @@ export const Navbar = () => {
   const [notifTab, setNotifTab] = useState('ALL'); // 'ALL' | 'STOCK' | 'TRANSACTIONS'
   const [selectedIndex, setSelectedIndex] = useState(0);
 
+  const isOriginalAdmin = Boolean(
+    currentUser?.isOriginalAdmin || 
+    currentUser?.baseRole?.toLowerCase() === 'admin' ||
+    currentUser?.email?.toLowerCase() === 'admin@khanclothes.com' ||
+    currentUser?.role?.toLowerCase() === 'admin'
+  );
+  const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
+
   // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
@@ -1088,12 +1096,25 @@ export const Navbar = () => {
               onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
               className="flex items-center gap-2.5 pl-3 pr-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs cursor-pointer"
             >
-              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                currentUser?.role === 'Admin'
+                  ? 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                  : currentUser?.role === 'Staff'
+                  ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                  : 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+              }`}>
                 {currentUser?.role || 'User'}
+                {isOriginalAdmin && currentUser?.role !== 'Admin' && ' (Demo)'}
               </span>
               
               <div className="relative">
-                <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs overflow-hidden">
+                <div className={`w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-2xs overflow-hidden ${
+                  currentUser?.role === 'Admin'
+                    ? 'bg-blue-600'
+                    : currentUser?.role === 'Staff'
+                    ? 'bg-amber-600'
+                    : 'bg-emerald-600'
+                }`}>
                   {currentUser?.avatar ? (
                     <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover rounded-full" />
                   ) : (
@@ -1109,31 +1130,48 @@ export const Navbar = () => {
             {isRoleMenuOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2.5 z-50">
                 <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">{currentUser?.name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Role: <span className="font-bold text-blue-600 dark:text-blue-400">{currentUser?.role}</span></p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{currentUser?.name}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Role: <span className="font-bold text-blue-600 dark:text-blue-400">{currentUser?.role}</span>
+                    {isOriginalAdmin && currentUser?.role !== 'Admin' && (
+                      <span className="ml-1.5 text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded-sm">
+                        Preview
+                      </span>
+                    )}
+                  </p>
                 </div>
-                <div className="py-1.5">
-                  <div className="px-3 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    Switch Role
+                {isOriginalAdmin && (
+                  <div className="py-1.5">
+                    <div className="px-3 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>Switch Role (Preview)</span>
+                      {currentUser?.role !== 'Admin' && (
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">Admin Active</span>
+                      )}
+                    </div>
+                    {['Admin', 'Staff', 'Viewer'].map(role => (
+                      <button
+                        key={role}
+                        onClick={() => {
+                          switchRole(role);
+                          setIsRoleMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
+                          currentUser?.role === role 
+                            ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold' 
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>{role}</span>
+                          <span className="text-[10px] text-slate-400">
+                            ({role === 'Admin' ? 'Full Access' : role === 'Staff' ? 'Stock Entries' : 'Read Only'})
+                          </span>
+                        </span>
+                        {currentUser?.role === role && <span className="w-2 h-2 rounded-full bg-blue-600"></span>}
+                      </button>
+                    ))}
                   </div>
-                  {['Admin', 'Staff', 'Viewer'].map(role => (
-                    <button
-                      key={role}
-                      onClick={() => {
-                        switchRole(role);
-                        setIsRoleMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-xs rounded-lg flex items-center justify-between transition-colors ${
-                        currentUser?.role === role 
-                          ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold' 
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      <span>{role} ({role === 'Admin' ? 'Full Access' : role === 'Staff' ? 'Stock Entries' : 'Read Only'})</span>
-                      {currentUser?.role === role && <span className="w-2 h-2 rounded-full bg-blue-600"></span>}
-                    </button>
-                  ))}
-                </div>
+                )}
                 <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 mt-1 space-y-1">
                   <button
                     onClick={() => {
@@ -1146,17 +1184,19 @@ export const Navbar = () => {
                     <span>My Profile</span>
                   </button>
 
-                  <button
-                    onClick={() => {
-                      setSecuritySubTab('devices');
-                      setActiveTab('security');
-                      setIsRoleMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg flex items-center gap-2"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    <span>Authorized Mobiles & Access</span>
-                  </button>
+                  {isOriginalAdmin && (
+                    <button
+                      onClick={() => {
+                        setSecuritySubTab('devices');
+                        setActiveTab('security');
+                        setIsRoleMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg flex items-center gap-2 cursor-pointer"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Authorized Mobiles & Access</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => {

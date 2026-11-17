@@ -42,6 +42,13 @@ export const SecurityView = () => {
 
   const activeTab = securitySubTab || 'devices';
   const setActiveTab = setSecuritySubTab;
+  const isOriginalAdmin = Boolean(
+    currentUser?.isOriginalAdmin || 
+    currentUser?.baseRole?.toLowerCase() === 'admin' ||
+    currentUser?.email?.toLowerCase() === 'admin@khanclothes.com' ||
+    currentUser?.role?.toLowerCase() === 'admin'
+  );
+  const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
 
   // New device form state
   const [newDeviceName, setNewDeviceName] = useState('');
@@ -637,16 +644,28 @@ export const SecurityView = () => {
                         </p>
                       </div>
 
-                      <button
-                        onClick={() => switchRole(item.role)}
-                        className={`w-full py-2 text-xs font-semibold rounded-xl transition-all ${
-                          isCurrent
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        {isCurrent ? 'Current Active Role' : `Switch Role to ${item.role}`}
-                      </button>
+                      {isOriginalAdmin ? (
+                        <button
+                          onClick={() => switchRole(item.role)}
+                          className={`w-full py-2 text-xs font-semibold rounded-xl transition-all ${
+                            isCurrent
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer'
+                          }`}
+                        >
+                          {isCurrent ? 'Current Active Role' : `Switch Role to ${item.role}`}
+                        </button>
+                      ) : (
+                        <div
+                          className={`w-full py-2 text-center text-xs font-semibold rounded-xl ${
+                            isCurrent
+                              ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900'
+                              : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400'
+                          }`}
+                        >
+                          {isCurrent ? 'Assigned Active Role' : 'Role Managed by Admin'}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
