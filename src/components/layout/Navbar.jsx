@@ -25,7 +25,8 @@ import {
   Wallet,
   Clock,
   CheckCircle2,
-  Trash2
+  Trash2,
+  ShoppingBag
 } from 'lucide-react';
 import { showToast } from '../../utils/sweetalert';
 import { getOverdueCustomerReminders } from '../../utils/paymentReminders';
@@ -41,6 +42,7 @@ export const Navbar = () => {
     articles,
     customers,
     suppliers,
+    purchases = [],
     outward,
     customerPayments,
     setSelectedArticleDetail,
@@ -432,8 +434,30 @@ export const Navbar = () => {
       });
     }
 
+    // 5. China Purchases (Import Invoices) - NOTE: Clearance is strictly excluded from global search
+    if (selectedCategory === 'ALL' || selectedCategory === 'PURCHASES') {
+      (purchases || []).forEach(pur => {
+        if (
+          pur.invoiceNo?.toLowerCase().includes(q) ||
+          pur.supplierName?.toLowerCase().includes(q) ||
+          pur.containerNo?.toLowerCase().includes(q)
+        ) {
+          results.push({
+            type: 'PURCHASE',
+            id: `pur-${pur.id}`,
+            title: `China Invoice #${pur.invoiceNo}`,
+            subtitle: `Vendor: ${pur.supplierName} • Container: ${pur.containerNo || 'N/A'}`,
+            extra: `Bill: Rs. ${Math.round(Number(pur.totalBill || 0)).toLocaleString()}`,
+            badge: `Purchase Bill`,
+            badgeColor: 'blue',
+            data: pur
+          });
+        }
+      });
+    }
+
     return results.slice(0, 20); // Cap at 20 quick matches
-  }, [searchInput, selectedCategory, articles, customers, suppliers, outward]);
+  }, [searchInput, selectedCategory, articles, customers, suppliers, purchases, outward]);
 
   const handleSelectResult = (item) => {
     if (!item) return;
@@ -446,6 +470,8 @@ export const Navbar = () => {
       setSelectedSupplierDetail(item.data);
     } else if (item.type === 'DISPATCH') {
       navigate('/outward');
+    } else if (item.type === 'PURCHASE') {
+      navigate('/purchases');
     }
 
     setIsDropdownOpen(false);
@@ -519,7 +545,7 @@ export const Navbar = () => {
                 if (searchInput.trim()) setIsDropdownOpen(true);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search Article, Shopkeeper / Khata, Vendor, Challan # (Ctrl+K)..."
+              placeholder="Search Article, Shopkeeper / Khata, China Purchase, Vendor, Challan # (Ctrl+K)..."
               className="w-full pl-10 pr-12 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 transition-all shadow-2xs"
             />
             
@@ -558,6 +584,7 @@ export const Navbar = () => {
                     { id: 'ARTICLES', label: 'Articles' },
                     { id: 'CUSTOMERS', label: 'Shopkeepers' },
                     { id: 'SUPPLIERS', label: 'Vendors' },
+                    { id: 'PURCHASES', label: 'China Purchases' },
                     { id: 'DISPATCHES', label: 'Challans' }
                   ].map(cat => (
                     <button
@@ -607,11 +634,14 @@ export const Navbar = () => {
                             ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400'
                             : item.type === 'SUPPLIER'
                             ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'
+                            : item.type === 'PURCHASE'
+                            ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400'
                             : 'bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400'
                         }`}>
                           {item.type === 'ARTICLE' && <Tag className="w-4 h-4" />}
                           {item.type === 'CUSTOMER' && <Store className="w-4 h-4" />}
                           {item.type === 'SUPPLIER' && <Globe className="w-4 h-4" />}
+                          {item.type === 'PURCHASE' && <ShoppingBag className="w-4 h-4" />}
                           {item.type === 'DISPATCH' && <Truck className="w-4 h-4" />}
                         </div>
 
