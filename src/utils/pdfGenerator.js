@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { KHAN_ICON_BASE64 } from './pdfLogo';
+import { formatCustomerDisplayName } from './formatters';
 
 // Helper for professional currency format
 const formatPKR = (num) => {
@@ -3099,7 +3100,7 @@ export const downloadAnnouncementsPDF = ({
         const isWasooli = item.type === 'WASOOLI';
         const typeLabel = isWasooli ? 'Wasooli Recv.' : 'Dispatch Bill';
         const refNo = item.challanNo ? `#${item.challanNo}` : (item.refNo || '—');
-        const custName = item.customerName || '—';
+        const custName = formatCustomerDisplayName(item.customerName) || '—';
         const city = item.city || '—';
         const dateStr = item.date || '—';
         const detailStr = item.paymentMethod || item.articleName || item.notes || '—';
@@ -3184,7 +3185,7 @@ export const downloadAnnouncementsPDF = ({
       tableBody = dataList.map((item, idx) => {
         const cat = item.eventCategory || item.type || 'EVENT';
         const titleText = item.title || item.articleName || 'Notification';
-        const refText = item.customerName || item.articleNo || '—';
+        const refText = item.customerName ? formatCustomerDisplayName(item.customerName) : (item.articleNo || '—');
         const cityText = item.city || item.location || '—';
         const timeText = item.date || item.time || 'Recent';
         const statusText = item.urgency || item.tierLabel || item.notes || 'Normal';

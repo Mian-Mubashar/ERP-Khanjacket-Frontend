@@ -50,11 +50,17 @@ export const formatCustomerDisplayName = (custOrShop, maybeOwner) => {
   let owner = '';
 
   if (typeof custOrShop === 'object' && custOrShop !== null) {
-    shop = (custOrShop.shopName || custOrShop.name || '').trim();
+    shop = (custOrShop.shopName || custOrShop.customerName || custOrShop.name || '').trim();
     owner = (custOrShop.shopkeeperName || custOrShop.ownerName || '').trim();
   } else {
     shop = (custOrShop || '').trim();
     owner = (maybeOwner || '').trim();
+  }
+
+  // Strip any empty parentheses like "()", "( )", "(-)" anywhere
+  shop = shop.replace(/\s*\(\s*[-—]?\s*\)/g, '').trim();
+  if (owner) {
+    owner = owner.replace(/\s*\(\s*[-—]?\s*\)/g, '').trim();
   }
 
   // If already formatted with brackets e.g. "Mubashar shop (mubashar)"
@@ -73,7 +79,7 @@ export const formatCustomerDisplayName = (custOrShop, maybeOwner) => {
     }
   }
 
-  if (!shop && !owner) return '';
+  if (!shop && !owner) return 'Customer';
   if (shop && !owner) return shop;
   if (!shop && owner) return owner;
 
