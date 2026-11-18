@@ -82,7 +82,7 @@ const SrNoInput = ({ rowId, currentSrNo, totalRows, onMove }) => {
 };
 
 export const UgrahiView = () => {
-  const { customers = [], cities = [], areas = [], currentUser } = useApp();
+  const { customers = [], cities = [], areas = [], currentUser, canEdit } = useApp();
 
   // Only customers explicitly marked for Ugrahi (Payment Collection)
   const ugrahiCustomers = useMemo(() => {
@@ -1718,14 +1718,16 @@ export const UgrahiView = () => {
               <span className="text-[11px] text-slate-400 font-medium mr-1">
                 Showing {displayedRows.length === 0 ? 0 : `${(page - 1) * pageSize + 1} - ${Math.min(displayedRows.length, page * pageSize)}`} of {displayedRows.length} accounts
               </span>
-              <button
-                type="button"
-                onClick={handleAddRow}
-                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Add Row</span>
-              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={handleAddRow}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Row</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -1862,14 +1864,16 @@ export const UgrahiView = () => {
 
                       {/* Delete Row Button */}
                       <td className="py-1.5 px-2 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRow(row.id)}
-                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:text-rose-300 dark:hover:bg-rose-950/50 rounded-lg transition-all cursor-pointer inline-flex items-center justify-center"
-                          title="Delete row from sheet"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRow(row.id)}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:text-rose-300 dark:hover:bg-rose-950/50 rounded-lg transition-all cursor-pointer inline-flex items-center justify-center"
+                            title="Delete row from sheet"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1910,14 +1914,16 @@ export const UgrahiView = () => {
               Print this sheet for your field recovery agent, or click Export &gt; Download PDF for records.
             </span>
 
-            <button
-              type="button"
-              onClick={handleAddRow}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Another Customer</span>
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleAddRow}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Another Customer</span>
+              </button>
+            )}
           </div>
 
         </div>

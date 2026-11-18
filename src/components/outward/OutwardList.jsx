@@ -22,7 +22,18 @@ import { formatLakhCrore } from '../../utils/formatters';
 import { confirmDelete, showToast, showError } from '../../utils/sweetalert';
 
 export const OutwardList = () => {
-  const { outward, setIsNewOutwardOpen, setSelectedArticleDetail, setSelectedDispatchForBill, articles, updateOutward, deleteOutward } = useApp();
+  const { 
+    outward, 
+    setIsNewOutwardOpen, 
+    setSelectedArticleDetail, 
+    setSelectedDispatchForBill, 
+    articles, 
+    updateOutward, 
+    deleteOutward,
+    isAdmin,
+    canEdit,
+    canDelete
+  } = useApp();
 
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -229,13 +240,15 @@ export const OutwardList = () => {
             <span>Export CSV</span>
           </button>
 
-          <button
-            onClick={() => setIsNewOutwardOpen(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-medium rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Record Stock Outward</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setIsNewOutwardOpen(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-medium rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Record Stock Outward</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -330,7 +343,7 @@ export const OutwardList = () => {
       {/* Outward Table */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[900px] text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-4">Date</th>
@@ -358,12 +371,12 @@ export const OutwardList = () => {
                     className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
                   >
                     {/* Date */}
-                    <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400">
+                    <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">
                       {item.date}
                     </td>
 
                     {/* Bill & Gate Pass */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
                           Bill #{formatCleanBillNo(item.challanNo)}
@@ -378,9 +391,9 @@ export const OutwardList = () => {
                     </td>
 
                     {/* Article Code */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
                       {item.isWithoutStock ? (
-                        <span className="font-mono font-semibold text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700">
+                        <span className="font-mono font-semibold text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 whitespace-nowrap">
                           {item.articleNo || 'DIRECT'}
                         </span>
                       ) : (
@@ -408,7 +421,7 @@ export const OutwardList = () => {
                     </td>
 
                     {/* Quantity Out */}
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       {item.isWithoutStock ? (
                         <span className="inline-block px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/80 whitespace-nowrap">
                           Stock Unchanged
@@ -427,12 +440,12 @@ export const OutwardList = () => {
                     </td>
 
                     {/* Unit Rate */}
-                    <td className="py-3.5 px-4 text-right font-mono text-slate-700 dark:text-slate-300 font-medium">
+                    <td className="py-3.5 px-4 text-right font-mono text-slate-700 dark:text-slate-300 font-medium whitespace-nowrap">
                       {item.unitSalePrice ? `Rs. ${item.unitSalePrice.toLocaleString()}` : '—'}
                     </td>
 
                     {/* Recorded By */}
-                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-medium">
+                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">
                       {item.recordedBy}
                     </td>
 
@@ -496,23 +509,27 @@ export const OutwardList = () => {
             <span>Show Bill (Parcha)</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => handleStartEdit(activeDropdown.item)}
-            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2 transition-colors cursor-pointer"
-          >
-            <Edit3 className="w-3.5 h-3.5 text-blue-500" />
-            <span>Edit Dispatch</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => handleStartEdit(activeDropdown.item)}
+              className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-blue-500" />
+              <span>Edit Dispatch</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => handleDelete(activeDropdown.item)}
-            className="w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-            <span>Delete Dispatch</span>
-          </button>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => handleDelete(activeDropdown.item)}
+              className="w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <span>Delete Dispatch</span>
+            </button>
+          )}
         </div>
       )}
 

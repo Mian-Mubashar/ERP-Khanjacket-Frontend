@@ -47,10 +47,11 @@ export const PurchasesList = ({ defaultTab }) => {
     isNewClearanceOpen,
     setIsNewClearanceOpen,
     setSelectedArticleDetail, 
-    articles = [] 
+    articles = [],
+    isAdmin,
+    canEdit,
+    canDelete
   } = useApp();
-
-  const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
 
   if (isClearance && !isAdmin) {
     return <Navigate to="/dashboard" replace />;
@@ -415,25 +416,27 @@ export const PurchasesList = ({ defaultTab }) => {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {isClearance ? (
-              <button
-                onClick={() => {
-                  setEditingClearance(null);
-                  setIsNewClearanceOpen(true);
-                }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Clearance Bill</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => setIsNewPurchaseOpen(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>New Purchase Bill</span>
-              </button>
+            {canEdit && (
+              isClearance ? (
+                <button
+                  onClick={() => {
+                    setEditingClearance(null);
+                    setIsNewClearanceOpen(true);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Clearance Bill</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsNewPurchaseOpen(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Purchase Bill</span>
+                </button>
+              )
             )}
           </div>
         </div>
@@ -1086,25 +1089,30 @@ export const PurchasesList = ({ defaultTab }) => {
             <span>Download PDF</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => handleStartEdit(activeDropdown.item)}
-            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-2 transition-colors cursor-pointer"
-          >
-            <Pencil className="w-3.5 h-3.5 text-amber-500" />
-            <span>Edit Invoice</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => handleStartEdit(activeDropdown.item)}
+              className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5 text-amber-500" />
+              <span>Edit Invoice</span>
+            </button>
+          )}
 
-          <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-          <button
-            type="button"
-            onClick={() => handleDelete(activeDropdown.item)}
-            className="w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-            <span>Delete Invoice</span>
-          </button>
+          {canDelete && (
+            <>
+              <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+              <button
+                type="button"
+                onClick={() => handleDelete(activeDropdown.item)}
+                className="w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                <span>Delete Invoice</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 

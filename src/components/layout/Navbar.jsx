@@ -74,8 +74,7 @@ export const Navbar = () => {
   const isOriginalAdmin = Boolean(
     currentUser?.isOriginalAdmin || 
     currentUser?.baseRole?.toLowerCase() === 'admin' ||
-    currentUser?.email?.toLowerCase() === 'admin@khanclothes.com' ||
-    currentUser?.role?.toLowerCase() === 'admin'
+    currentUser?.email?.toLowerCase() === 'admin@khanclothes.com'
   );
   const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
 

@@ -26,7 +26,11 @@ export const ArticleDetailModal = () => {
     setSelectedArticleForOutward,
     setEditingArticle,
     setIsEditArticleOpen,
-    deleteArticle
+    deleteArticle,
+    canEdit,
+    canDelete,
+    isViewer,
+    isAdmin
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState('summary'); // 'summary' | 'purchases' | 'outward'
@@ -142,24 +146,28 @@ export const ArticleDetailModal = () => {
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
-            <button
-              type="button"
-              onClick={handleOpenEdit}
-              className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
-              title="Edit Article Details"
-            >
-              <Pencil className="w-3.5 h-3.5 text-slate-500" />
-              <span>Edit</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDeleteArticle}
-              className="px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
-              title="Delete Article"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleOpenEdit}
+                className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
+                title="Edit Article Details"
+              >
+                <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                <span>Edit</span>
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={handleDeleteArticle}
+                className="px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
+                title="Delete Article"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => downloadArticleStockPDF(art, articlePurchases, articleOutward)}
@@ -249,14 +257,16 @@ export const ArticleDetailModal = () => {
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenDispatch}
-            className="mb-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <Truck className="w-3.5 h-3.5" />
-            <span>Dispatch Outward</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleOpenDispatch}
+              className="mb-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>Dispatch Outward</span>
+            </button>
+          )}
         </div>
 
         {/* Tab Content Body - Flexible Scrollable Area */}

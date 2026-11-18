@@ -35,7 +35,10 @@ export const ArticlesList = () => {
     stuffs = [],
     setIsAddStuffOpen,
     setIsAddLocationOpen,
-    deleteArticle
+    deleteArticle,
+    isAdmin,
+    canEdit,
+    canDelete
   } = useApp();
 
   const [search, setSearch] = useState('');
@@ -201,23 +204,27 @@ export const ArticlesList = () => {
 
         {/* Top Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsAddLocationOpen(true)}
-            className="px-3 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <Warehouse className="w-4 h-4 text-slate-400" />
-            <span>Manage Locations</span>
-          </button>
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsAddLocationOpen(true)}
+                className="px-3 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Warehouse className="w-4 h-4 text-slate-400" />
+                <span>Manage Locations</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setIsAddStuffOpen(true)}
-            className="px-3 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <Layers className="w-4 h-4 text-slate-400" />
-            <span>Manage Stuffs</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => setIsAddStuffOpen(true)}
+                className="px-3 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Layers className="w-4 h-4 text-slate-400" />
+                <span>Manage Stuffs</span>
+              </button>
+            </>
+          )}
 
           <button
             type="button"
@@ -229,14 +236,16 @@ export const ArticlesList = () => {
             <span>Export CSV</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setIsAddArticleOpen(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-medium rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Article</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setIsAddArticleOpen(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-medium rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Article</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -593,18 +602,20 @@ export const ArticlesList = () => {
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              const a = activeDropdown.art;
-              setActiveDropdown(null);
-              handleOpenDispatch(a);
-            }}
-            className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <Truck className="w-3.5 h-3.5" />
-            <span>Dispatch Outward (Challan)</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                const a = activeDropdown.art;
+                setActiveDropdown(null);
+                handleOpenDispatch(a);
+              }}
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>Dispatch Outward (Challan)</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -619,33 +630,38 @@ export const ArticlesList = () => {
             <span>View Stock History</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              const a = activeDropdown.art;
-              setActiveDropdown(null);
-              handleOpenEdit(a);
-            }}
-            className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5 text-amber-500" />
-            <span>Edit Article Details</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                const a = activeDropdown.art;
+                setActiveDropdown(null);
+                handleOpenEdit(a);
+              }}
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5 text-amber-500" />
+              <span>Edit Article Details</span>
+            </button>
+          )}
 
-          <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-          <button
-            type="button"
-            onClick={() => {
-              const a = activeDropdown.art;
-              setActiveDropdown(null);
-              handleDeleteArticle(a);
-            }}
-            className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Delete Article</span>
-          </button>
+          {canDelete && (
+            <>
+              <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+              <button
+                type="button"
+                onClick={() => {
+                  const a = activeDropdown.art;
+                  setActiveDropdown(null);
+                  handleDeleteArticle(a);
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Article</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 

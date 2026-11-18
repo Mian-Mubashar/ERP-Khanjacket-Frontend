@@ -57,7 +57,8 @@ export const AnnouncementsView = () => {
     setIsNewOutwardOpen,
     setSelectedCustomerForBill,
     announcementsSubTab,
-    setAnnouncementsSubTab
+    setAnnouncementsSubTab,
+    canEdit
   } = useApp();
 
   // Primary Toggle Tabs: Wasooli & Bills | Stock | Customers | All (Synced with Sidebar Submenu)
@@ -588,29 +589,33 @@ export const AnnouncementsView = () => {
             <span>Refresh</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedCustomerForBill(null);
-              setIsNewOutwardOpen(true);
-            }}
-            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <Truck className="w-3.5 h-3.5" />
-            <span>+ New Bill</span>
-          </button>
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCustomerForBill(null);
+                  setIsNewOutwardOpen(true);
+                }}
+                className="px-3.5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Truck className="w-3.5 h-3.5" />
+                <span>+ New Bill</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedCustomerForPayment(null);
-              setIsRecordCustomerPaymentOpen(true);
-            }}
-            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <Wallet className="w-3.5 h-3.5" />
-            <span>Receive Payment</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCustomerForPayment(null);
+                  setIsRecordCustomerPaymentOpen(true);
+                }}
+                className="px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Wallet className="w-3.5 h-3.5" />
+                <span>Receive Payment</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import {
@@ -17,6 +17,8 @@ import {
   FileSpreadsheet,
   RotateCcw
 } from 'lucide-react';
+import { WasooliBreakdownModal } from './WasooliBreakdownModal';
+import { ChallansBreakdownModal } from './ChallansBreakdownModal';
 
 export const DashboardOverview = ({ setActiveTab }) => {
   const navigate = useNavigate();
@@ -43,8 +45,14 @@ export const DashboardOverview = ({ setActiveTab }) => {
     setIsNewOutwardOpen,
     setIsAddArticleOpen,
     setIsRecordCustomerPaymentOpen,
-    setSelectedArticleDetail
+    setSelectedArticleDetail,
+    setSelectedCustomerKhata,
+    setSelectedDispatchForBill
   } = useApp();
+
+  // Breakdown Modals State (Wasooli / Income and Outward Challans)
+  const [isWasooliModalOpen, setIsWasooliModalOpen] = useState(false);
+  const [isChallansModalOpen, setIsChallansModalOpen] = useState(false);
 
   // Helper to format clean numeric values
   const formatNumber = (val) => {
@@ -247,6 +255,48 @@ export const DashboardOverview = ({ setActiveTab }) => {
     return alreadyInPayments ? sum : sum + amt;
   }, 0);
   const totalPeriodIncome = periodCustomerCashReceived + periodOutwardUpfrontCash;
+
+  // Combined Wasooli & Upfront Income entries for Wasooli Breakdown Modal
+  const allIncomeEntries = useMemo(() => {
+    const list = (filteredCustomerPayments || []).map(cp => ({
+      id: `cp-${cp.id}`,
+      rawId: cp.id,
+      date: cp.date || (cp.createdAt ? cp.createdAt.split('T')[0] : ''),
+      customerId: cp.customerId,
+      customerName: cp.customerName,
+      city: cp.city,
+      amount: Number(cp.amount) || 0,
+      paymentMethod: cp.paymentMethod || 'Cash Receipt',
+      refNo: cp.refNo || `REC-${cp.id}`,
+      notes: cp.notes || '',
+      type: 'Direct Wasooli'
+    }));
+
+    (filteredOutward || []).forEach(o => {
+      const amt = Number(o.paidAmount) || 0;
+      if (amt <= 0) return;
+      const alreadyIn = (filteredCustomerPayments || []).some(cp =>
+        cp.refNo === `REC-${o.challanNo}` || (cp.customerId && cp.customerId === o.customerId && Number(cp.amount) === amt)
+      );
+      if (!alreadyIn) {
+        list.push({
+          id: `out-upfront-${o.id}`,
+          rawId: o.id,
+          date: o.date,
+          customerId: o.customerId,
+          customerName: o.customerName,
+          city: o.city || o.destination,
+          amount: amt,
+          paymentMethod: o.paymentMethod || 'Cash (On Challan)',
+          refNo: o.challanNo ? `CH-${o.challanNo}` : `DISP-${o.id}`,
+          notes: o.notes ? `Challan Upfront: ${o.notes}` : `Upfront cash on Challan #${o.challanNo || o.id}`,
+          type: 'Challan Advance'
+        });
+      }
+    });
+
+    return list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  }, [filteredCustomerPayments, filteredOutward]);
 
   // 5. Remaining Balance generated in Period
   const relevantCustomers = customers.filter(c => {
@@ -515,10 +565,14 @@ export const DashboardOverview = ({ setActiveTab }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
           {/* Card 1: TOTAL INCOME */}
-          <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-blue-400 transition-colors">
+          <div 
+            onClick={() => setIsWasooliModalOpen(true)}
+            className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
+            title="Click to view Wasooli breakdown by customer and list"
+          >
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600 rounded-l-xl" />
             <div className="flex items-center gap-3.5 pl-1">
-              <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                 <Wallet className="w-5.5 h-5.5 stroke-[1.8]" />
               </div>
               <div>
@@ -532,6 +586,10 @@ export const DashboardOverview = ({ setActiveTab }) => {
                   {filteredCustomerPayments.length} Wasooli Entries
                 </span>
               </div>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 px-2.5 py-1.5 rounded-lg border border-blue-200/60 dark:border-blue-800/60 transition-colors shrink-0">
+              <span>View List</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </div>
           </div>
 
@@ -557,10 +615,14 @@ export const DashboardOverview = ({ setActiveTab }) => {
           </div>
 
           {/* Card 3: MAAL SENT */}
-          <div className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-indigo-400 transition-colors">
+          <div 
+            onClick={() => setIsChallansModalOpen(true)}
+            className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer"
+            title="Click to view Challans breakdown and list"
+          >
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-600 rounded-l-xl" />
             <div className="flex items-center gap-3.5 pl-1">
-              <div className="w-12 h-12 rounded-full border-2 border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-full border-2 border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                 <Truck className="w-5.5 h-5.5 stroke-[1.8]" />
               </div>
               <div>
@@ -574,6 +636,10 @@ export const DashboardOverview = ({ setActiveTab }) => {
                   Total Billed: Rs. {formatNumber(periodWholesaleSale)}
                 </span>
               </div>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 px-2.5 py-1.5 rounded-lg border border-indigo-200/60 dark:border-indigo-800/60 transition-colors shrink-0">
+              <span>View Challans</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </div>
           </div>
 
@@ -1103,6 +1169,27 @@ export const DashboardOverview = ({ setActiveTab }) => {
         </div>
 
       </div>
+
+      {/* Wasooli & Income Breakdown Modal */}
+      <WasooliBreakdownModal
+        isOpen={isWasooliModalOpen}
+        onClose={() => setIsWasooliModalOpen(false)}
+        timeframeLabel={timeframeLabel}
+        incomeEntries={allIncomeEntries}
+        customers={customers}
+        onSelectCustomerKhata={setSelectedCustomerKhata}
+      />
+
+      {/* Challans Breakdown Modal */}
+      <ChallansBreakdownModal
+        isOpen={isChallansModalOpen}
+        onClose={() => setIsChallansModalOpen(false)}
+        timeframeLabel={timeframeLabel}
+        challansList={filteredOutward}
+        customers={customers}
+        onSelectDispatchForBill={setSelectedDispatchForBill}
+        onSelectCustomerKhata={setSelectedCustomerKhata}
+      />
 
     </div>
   );

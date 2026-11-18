@@ -32,7 +32,11 @@ export const SupplierStatementModal = () => {
     updateSupplierPayment,
     deleteSupplierPayment,
     updatePurchase,
-    deletePurchase
+    deletePurchase,
+    canEdit,
+    canDelete,
+    isViewer,
+    isAdmin
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('statement'); // 'statement' | 'purchases' | 'payments'
@@ -141,6 +145,7 @@ export const SupplierStatementModal = () => {
   // Toggle 3-dots action dropdown
   const handleToggleDropdown = (e, type, item) => {
     e.stopPropagation();
+    if (!canEdit && !canDelete) return;
     if (activeDropdown?.id === item.id && activeDropdown?.type === type) {
       setActiveDropdown(null);
       return;
@@ -306,15 +311,17 @@ export const SupplierStatementModal = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={handleOpenEdit}
-              className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
-              title="Edit Vendor Details"
-            >
-              <Pencil className="w-3.5 h-3.5 text-slate-500" />
-              <span>Edit</span>
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleOpenEdit}
+                className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 rounded-lg transition-colors flex items-center gap-1.5 font-medium cursor-pointer"
+                title="Edit Vendor Details"
+              >
+                <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                <span>Edit</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -409,25 +416,27 @@ export const SupplierStatementModal = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 mb-2">
-            <button
-              type="button"
-              onClick={handleOpenNewBill}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Ship className="w-3.5 h-3.5" />
-              <span>+ New Bill</span>
-            </button>
+          {canEdit && (
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                type="button"
+                onClick={handleOpenNewBill}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Ship className="w-3.5 h-3.5" />
+                <span>+ New Bill</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={handleOpenPayment}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              <span>Record Payment</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleOpenPayment}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Record Payment</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Tab Content Body */}
@@ -491,14 +500,18 @@ export const SupplierStatementModal = () => {
                             Rs. {Math.round(row.balanceAfter).toLocaleString()}
                           </td>
                           <td className="py-2.5 px-4 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={(e) => handleToggleDropdown(e, row.type, row.originalItem)}
-                              className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              title="Khata Actions"
-                            >
-                              <MoreVertical className="w-3.5 h-3.5" />
-                            </button>
+                            {!canEdit && !canDelete ? (
+                              <span className="text-slate-300 dark:text-slate-600 font-mono">—</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleDropdown(e, row.type, row.originalItem)}
+                                className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Khata Actions"
+                              >
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -564,14 +577,18 @@ export const SupplierStatementModal = () => {
                             Rs. {Math.round(Number(p.remainingAmount || 0)).toLocaleString()}
                           </td>
                           <td className="py-2.5 px-4 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={(e) => handleToggleDropdown(e, 'PURCHASE', p)}
-                              className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              title="Purchase Actions"
-                            >
-                              <MoreVertical className="w-3.5 h-3.5" />
-                            </button>
+                            {!canEdit && !canDelete ? (
+                              <span className="text-slate-300 dark:text-slate-600 font-mono">—</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleDropdown(e, 'PURCHASE', p)}
+                                className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Purchase Actions"
+                              >
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -637,14 +654,18 @@ export const SupplierStatementModal = () => {
                             {pay.notes || '—'}
                           </td>
                           <td className="py-2.5 px-4 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={(e) => handleToggleDropdown(e, 'PAYMENT', pay)}
-                              className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              title="Payment Actions"
-                            >
-                              <MoreVertical className="w-3.5 h-3.5" />
-                            </button>
+                            {!canEdit && !canDelete ? (
+                              <span className="text-slate-300 dark:text-slate-600 font-mono">—</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleDropdown(e, 'PAYMENT', pay)}
+                                className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Payment Actions"
+                              >
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -690,23 +711,27 @@ export const SupplierStatementModal = () => {
           style={{ top: `${activeDropdown.top}px`, left: `${activeDropdown.left}px` }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            type="button"
-            onClick={() => handleStartEdit(activeDropdown.type, activeDropdown.item)}
-            className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5 text-blue-500" />
-            <span>Edit Entry</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => handleStartEdit(activeDropdown.type, activeDropdown.item)}
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5 text-blue-500" />
+              <span>Edit Entry</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => handleStartDelete(activeDropdown.type, activeDropdown.item)}
-            className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-            <span>Delete Entry</span>
-          </button>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => handleStartDelete(activeDropdown.type, activeDropdown.item)}
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <span>Delete Entry</span>
+            </button>
+          )}
         </div>
       )}
 

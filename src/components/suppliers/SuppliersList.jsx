@@ -34,7 +34,9 @@ export const SuppliersList = () => {
     setEditingSupplier,
     setIsEditSupplierOpen,
     setIsNewPurchaseOpen,
-    setSelectedSupplierForBill
+    setSelectedSupplierForBill,
+    canEdit,
+    canDelete
   } = useApp();
 
   const [search, setSearch] = useState('');
@@ -177,39 +179,43 @@ export const SuppliersList = () => {
           </button>
 
           {/* New Purchase Bill / Inward Shipment Button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (setSelectedSupplierForBill) setSelectedSupplierForBill(null);
-              setIsNewPurchaseOpen(true);
-            }}
-            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            title="Create a new purchase bill / import consignment"
-          >
-            <Ship className="w-4 h-4" />
-            <span>+ New Bill</span>
-          </button>
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  if (setSelectedSupplierForBill) setSelectedSupplierForBill(null);
+                  setIsNewPurchaseOpen(true);
+                }}
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Create a new purchase bill / import consignment"
+              >
+                <Ship className="w-4 h-4" />
+                <span>+ New Bill</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (setSelectedSupplierForPayment) setSelectedSupplierForPayment(null);
-              setIsRecordPaymentOpen(true);
-            }}
-            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-xs font-medium rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Record Payment</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (setSelectedSupplierForPayment) setSelectedSupplierForPayment(null);
+                  setIsRecordPaymentOpen(true);
+                }}
+                className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-xs font-medium rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Record Payment</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setIsAddSupplierOpen(true)}
-            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Supplier</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => setIsAddSupplierOpen(true)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Supplier</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -520,39 +526,44 @@ export const SuppliersList = () => {
             </span>
           </div>
 
-          {/* 1. Create New Purchase Bill (Prominent Blue) */}
-          <button
-            type="button"
-            onClick={() => {
-              const s = activeDropdown.sup;
-              setActiveDropdown(null);
-              if (setSelectedSupplierForBill) setSelectedSupplierForBill(s);
-              setIsNewPurchaseOpen(true);
-            }}
-            className="w-full px-3 py-2 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center justify-between font-semibold transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Ship className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Naya Bill (Purchase)</span>
-            </div>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
-              + Bill
-            </span>
-          </button>
+          {/* 1. Create New Purchase Bill */}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                const s = activeDropdown.sup;
+                setActiveDropdown(null);
+                if (setSelectedSupplierForBill) setSelectedSupplierForBill(s);
+                setIsNewPurchaseOpen(true);
+              }}
+              className="w-full px-3 py-2 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center justify-between font-semibold transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Ship className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Naya Bill (Purchase)</span>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
+                + Bill
+              </span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => {
-              const s = activeDropdown.sup;
-              setActiveDropdown(null);
-              handleOpenPayment(s);
-            }}
-            className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <CreditCard className="w-3.5 h-3.5" />
-            <span>Record Payment / TT</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                const s = activeDropdown.sup;
+                setActiveDropdown(null);
+                handleOpenPayment(s);
+              }}
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Record Payment / TT</span>
+            </button>
+          )}
 
+          {/* View Statement is always allowed */}
           <button
             type="button"
             onClick={() => {
@@ -566,45 +577,50 @@ export const SuppliersList = () => {
             <span>View Full Ledger</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              const s = activeDropdown.sup;
-              setActiveDropdown(null);
-              handleOpenEdit(s);
-            }}
-            className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5 text-amber-500" />
-            <span>Edit Vendor Details</span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                const s = activeDropdown.sup;
+                setActiveDropdown(null);
+                handleOpenEdit(s);
+              }}
+              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5 text-amber-500" />
+              <span>Edit Vendor Details</span>
+            </button>
+          )}
 
-          <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-          <button
-            type="button"
-            onClick={async () => {
-              const s = activeDropdown.sup;
-              setActiveDropdown(null);
-              const isConfirmed = await confirmDelete({
-                title: `Delete "${s.name}"?`,
-                text: `Are you sure you want to delete vendor "${s.name}" (${s.company || 'China Supplier'})? Remaining balance is Rs. ${(Number(s.remainingBalance) || 0).toLocaleString()}.`,
-                confirmButtonText: 'Yes, Delete Vendor'
-              });
-              if (isConfirmed) {
-                const res = await deleteSupplier(s.id);
-                if (res?.success) {
-                  showToast(`Vendor "${s.name}" deleted successfully!`, 'success');
-                } else {
-                  showError('Cannot Delete Vendor', res?.message || 'Failed to delete supplier');
-                }
-              }
-            }}
-            className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Delete Vendor</span>
-          </button>
+          {canDelete && (
+            <>
+              <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+              <button
+                type="button"
+                onClick={async () => {
+                  const s = activeDropdown.sup;
+                  setActiveDropdown(null);
+                  const isConfirmed = await confirmDelete({
+                    title: `Delete "${s.name}"?`,
+                    text: `Are you sure you want to delete vendor "${s.name}" (${s.company || 'China Supplier'})? Remaining balance is Rs. ${(Number(s.remainingBalance) || 0).toLocaleString()}.`,
+                    confirmButtonText: 'Yes, Delete Vendor'
+                  });
+                  if (isConfirmed) {
+                    const res = await deleteSupplier(s.id);
+                    if (res?.success) {
+                      showToast(`Vendor "${s.name}" deleted successfully!`, 'success');
+                    } else {
+                      showError('Cannot Delete Vendor', res?.message || 'Failed to delete supplier');
+                    }
+                  }
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Vendor</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 

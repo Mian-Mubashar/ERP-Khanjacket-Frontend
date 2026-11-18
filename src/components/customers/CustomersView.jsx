@@ -44,7 +44,12 @@ export const CustomersView = () => {
     setSelectedCustomerKhata,
     setIsNewOutwardOpen,
     setSelectedCustomerForBill,
-    customerFilterKey
+    customerFilterKey,
+    isAdmin,
+    isStaff,
+    isViewer,
+    canEdit,
+    canDelete
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -234,58 +239,63 @@ export const CustomersView = () => {
             <span>Download PDF</span>
           </button>
 
-          {/* 2. Secondary: Sales Return */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedCustomerForWapsi(null);
-              setIsRecordMaalWapsiOpen(true);
-            }}
-            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-purple-50/70 dark:hover:bg-purple-950/30 text-slate-700 dark:text-slate-200 hover:text-purple-700 dark:hover:text-purple-300 border border-slate-200 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-800/60 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
-            title="Record Customer Sales Return"
-          >
-            <RotateCcw className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-            <span>Sales Return</span>
-          </button>
+          {/* Action buttons (Hidden for Viewer - Read-only role) */}
+          {canEdit && (
+            <>
+              {/* 2. Secondary: Sales Return */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCustomerForWapsi(null);
+                  setIsRecordMaalWapsiOpen(true);
+                }}
+                className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-purple-50/70 dark:hover:bg-purple-950/30 text-slate-700 dark:text-slate-200 hover:text-purple-700 dark:hover:text-purple-300 border border-slate-200 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-800/60 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
+                title="Record Customer Sales Return"
+              >
+                <RotateCcw className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <span>Sales Return</span>
+              </button>
 
-          {/* 3. Secondary: Receive Payment */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedCustomerForPayment(null);
-              setIsRecordCustomerPaymentOpen(true);
-            }}
-            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/30 text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800/60 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
-            title="Receive Customer Payment (Wasooli)"
-          >
-            <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Receive Payment</span>
-          </button>
+              {/* 3. Secondary: Receive Payment */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCustomerForPayment(null);
+                  setIsRecordCustomerPaymentOpen(true);
+                }}
+                className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/30 text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800/60 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
+                title="Receive Customer Payment (Wasooli)"
+              >
+                <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Receive Payment</span>
+              </button>
 
-          {/* 4. Secondary: Add Shopkeeper */}
-          <button
-            type="button"
-            onClick={() => setIsAddCustomerOpen(true)}
-            className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
-            title="Register a new wholesale customer / shopkeeper"
-          >
-            <Plus className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-            <span>Add Shopkeeper</span>
-          </button>
+              {/* 4. Secondary: Add Shopkeeper */}
+              <button
+                type="button"
+                onClick={() => setIsAddCustomerOpen(true)}
+                className="px-3.5 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-medium shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
+                title="Register a new wholesale customer / shopkeeper"
+              >
+                <Plus className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                <span>Add Shopkeeper</span>
+              </button>
 
-          {/* 5. Primary Action: + New Bill */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedCustomerForBill(null);
-              setIsNewOutwardOpen(true);
-            }}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-sm font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
-            title="Create a new customer bill / dispatch goods"
-          >
-            <Truck className="w-4 h-4" />
-            <span>+ New Bill</span>
-          </button>
+              {/* 5. Primary Action: + New Bill */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCustomerForBill(null);
+                  setIsNewOutwardOpen(true);
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-sm font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                title="Create a new customer bill / dispatch goods"
+              >
+                <Truck className="w-4 h-4" />
+                <span>+ New Bill</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -701,26 +711,28 @@ export const CustomersView = () => {
           </div>
 
           {/* 1. Create New Bill / Maal Rawangi (Prominent Blue) */}
-          <button
-            type="button"
-            onClick={() => {
-              const c = activeDropdown.cust;
-              setActiveDropdown(null);
-              setSelectedCustomerForBill(c);
-              setIsNewOutwardOpen(true);
-            }}
-            className="w-full px-3 py-2 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center justify-between font-semibold transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5">
-              <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>New Bill (Maal)</span>
-            </div>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
-              + Bill
-            </span>
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                const c = activeDropdown.cust;
+                setActiveDropdown(null);
+                setSelectedCustomerForBill(c);
+                setIsNewOutwardOpen(true);
+              }}
+              className="w-full px-3 py-2 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center justify-between font-semibold transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>New Bill (Maal)</span>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
+                + Bill
+              </span>
+            </button>
+          )}
 
-          {/* 2. View Khata Statement */}
+          {/* 2. View Khata Statement (Available for Admin, Staff & Viewer) */}
           <button
             type="button"
             onClick={() => {
@@ -734,107 +746,115 @@ export const CustomersView = () => {
             <span>Khata Statement</span>
           </button>
 
-          {/* 3. Receive Payment */}
-          <button
-            type="button"
-            onClick={() => {
-              const c = activeDropdown.cust;
-              setActiveDropdown(null);
-              handleOpenPayment(c);
-            }}
-            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
-          >
-            <Wallet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Receive Payment</span>
-          </button>
+          {/* Operational Actions (Staff & Admin only) */}
+          {canEdit && (
+            <>
+              {/* 3. Receive Payment */}
+              <button
+                type="button"
+                onClick={() => {
+                  const c = activeDropdown.cust;
+                  setActiveDropdown(null);
+                  handleOpenPayment(c);
+                }}
+                className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <Wallet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Receive Payment</span>
+              </button>
 
-          {/* 4. Sales Return */}
-          <button
-            type="button"
-            onClick={() => {
-              const c = activeDropdown.cust;
-              setActiveDropdown(null);
-              setSelectedCustomerForWapsi(c);
-              setIsRecordMaalWapsiOpen(true);
-            }}
-            className="w-full px-3 py-2 text-xs font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center gap-2.5 transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-            <span>Sales Return</span>
-          </button>
+              {/* 4. Sales Return */}
+              <button
+                type="button"
+                onClick={() => {
+                  const c = activeDropdown.cust;
+                  setActiveDropdown(null);
+                  setSelectedCustomerForWapsi(c);
+                  setIsRecordMaalWapsiOpen(true);
+                }}
+                className="w-full px-3 py-2 text-xs font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                <span>Sales Return</span>
+              </button>
 
-          {/* 5. Edit Details */}
-          <button
-            type="button"
-            onClick={() => {
-              const c = activeDropdown.cust;
-              setActiveDropdown(null);
-              handleOpenEdit(c);
-            }}
-            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
-          >
-            <Pencil className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Edit Shopkeeper</span>
-          </button>
+              {/* 5. Edit Details */}
+              <button
+                type="button"
+                onClick={() => {
+                  const c = activeDropdown.cust;
+                  setActiveDropdown(null);
+                  handleOpenEdit(c);
+                }}
+                className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Edit Shopkeeper</span>
+              </button>
 
-          {/* Quick Toggle Ugrahi Action */}
-          <button
-            type="button"
-            onClick={async () => {
-              const c = activeDropdown.cust;
-              setActiveDropdown(null);
-              const nextInUgrahi = !c.inUgrahi;
-              const nextRoute = nextInUgrahi
-                ? (c.ugrahiRoute || (UGRAHI_ROUTES.includes(c.city) ? c.city : 'Lahore'))
-                : null;
-              const res = await updateCustomer(c.id, {
-                inUgrahi: nextInUgrahi,
-                ugrahiRoute: nextRoute
-              });
-              if (res?.success) {
-                showToast(
-                  nextInUgrahi
-                    ? `"${c.shopName}" added to Payment Collection (${nextRoute})!`
-                    : `"${c.shopName}" removed from Payment Collection!`,
-                  'success'
-                );
-              } else {
-                showError('Error', res?.message || 'Could not update Payment Collection status');
-              }
-            }}
-            className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
-          >
-            <ReceiptText className={`w-3.5 h-3.5 ${activeDropdown.cust.inUgrahi ? 'text-amber-500' : 'text-blue-500'}`} />
-            <span>{activeDropdown.cust.inUgrahi ? 'Remove from Collection' : 'Add to Payment Collection'}</span>
-          </button>
+              {/* Quick Toggle Ugrahi Action */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const c = activeDropdown.cust;
+                  setActiveDropdown(null);
+                  const nextInUgrahi = !c.inUgrahi;
+                  const nextRoute = nextInUgrahi
+                    ? (c.ugrahiRoute || (UGRAHI_ROUTES.includes(c.city) ? c.city : 'Lahore'))
+                    : null;
+                  const res = await updateCustomer(c.id, {
+                    inUgrahi: nextInUgrahi,
+                    ugrahiRoute: nextRoute
+                  });
+                  if (res?.success) {
+                    showToast(
+                      nextInUgrahi
+                        ? `"${c.shopName}" added to Payment Collection (${nextRoute})!`
+                        : `"${c.shopName}" removed from Payment Collection!`,
+                      'success'
+                    );
+                  } else {
+                    showError('Error', res?.message || 'Could not update Payment Collection status');
+                  }
+                }}
+                className="w-full px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <ReceiptText className={`w-3.5 h-3.5 ${activeDropdown.cust.inUgrahi ? 'text-amber-500' : 'text-blue-500'}`} />
+                <span>{activeDropdown.cust.inUgrahi ? 'Remove from Collection' : 'Add to Payment Collection'}</span>
+              </button>
+            </>
+          )}
 
-          <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-          {/* 5. Delete Customer */}
-          <button
-            type="button"
-            onClick={async () => {
-              const c = activeDropdown.cust;
-              setActiveDropdown(null);
-              const isConfirmed = await confirmDelete({
-                title: `Delete "${c.shopName}"?`,
-                text: `Are you sure you want to delete customer ${c.shopName} (${c.shopkeeperName}, ${c.city})? Their remaining balance is Rs. ${(c.remainingBalance || 0).toLocaleString()}.`,
-                confirmButtonText: 'Yes, Delete Customer'
-              });
-              if (isConfirmed) {
-                const res = await deleteCustomer(c.id);
-                if (res?.success) {
-                  showToast(`Customer "${c.shopName}" removed!`, 'success');
-                } else {
-                  showError('Cannot Delete Customer', res?.message || 'Failed to delete customer');
-                }
-              }
-            }}
-            className="w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 transition-colors cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Delete Shopkeeper</span>
-          </button>
+          {/* 6. Delete Customer (Admin Only) */}
+          {canDelete && (
+            <>
+              <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+              <button
+                type="button"
+                onClick={async () => {
+                  const c = activeDropdown.cust;
+                  setActiveDropdown(null);
+                  const isConfirmed = await confirmDelete({
+                    title: `Delete "${c.shopName}"?`,
+                    text: `Are you sure you want to delete customer ${c.shopName} (${c.shopkeeperName}, ${c.city})? Their remaining balance is Rs. ${(c.remainingBalance || 0).toLocaleString()}.`,
+                    confirmButtonText: 'Yes, Delete Customer'
+                  });
+                  if (isConfirmed) {
+                    const res = await deleteCustomer(c.id);
+                    if (res?.success) {
+                      showToast(`Customer "${c.shopName}" removed!`, 'success');
+                    } else {
+                      showError('Cannot Delete Customer', res?.message || 'Failed to delete customer');
+                    }
+                  }
+                }}
+                className="w-full px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Customer</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 

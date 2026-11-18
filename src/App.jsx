@@ -110,7 +110,7 @@ const PublicOnlyRoute = ({ children }) => {
  * Main Authenticated Warehouse Layout with Navbar, Sidebar, and Global Modals
  */
 const DashboardLayout = () => {
-  const { activeTab, setActiveTab } = useApp();
+  const { activeTab, setActiveTab, canEdit } = useApp();
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
@@ -154,30 +154,32 @@ const DashboardLayout = () => {
       </div>
 
       {/* Global Interactive Modals */}
-      {/* 1. Base Ledger and Action Modals (z-50) */}
+      {/* 1. Base Ledger and Read-Only View Modals (Always available for Admin, Staff, Viewer) */}
       <ArticleDetailModal />
       <CustomerStatementModal />
       <SupplierStatementModal />
-      <AddArticleModal />
-      <AddCustomerModal />
-      <AddSupplierModal />
-      <NewPurchaseModal />
-      <NewOutwardModal />
       <QuickArticleSearchModal />
-
-      {/* 2. Secondary & Edit Modals (z-[60]) */}
-      <EditArticleModal />
-      <EditCustomerModal />
-      <EditSupplierModal />
-      <RecordCustomerPaymentModal />
-      <RecordMaalWapsiModal />
-      <AddPaymentModal />
-
-      {/* 3. Nested Dialogs (z-[70] / z-[80]) */}
       <BillDetailModal />
-      <AddStuffModal />
-      <AddCategoryModal />
-      <AddLocationModal />
+
+      {/* 2. Action, Add & Edit Modals (Protected: Hidden for Viewer role) */}
+      {canEdit && (
+        <>
+          <AddArticleModal />
+          <AddCustomerModal />
+          <AddSupplierModal />
+          <NewPurchaseModal />
+          <NewOutwardModal />
+          <EditArticleModal />
+          <EditCustomerModal />
+          <EditSupplierModal />
+          <RecordCustomerPaymentModal />
+          <RecordMaalWapsiModal />
+          <AddPaymentModal />
+          <AddStuffModal />
+          <AddCategoryModal />
+          <AddLocationModal />
+        </>
+      )}
     </div>
   );
 };
@@ -226,7 +228,10 @@ const AppRoutes = () => {
         <Route path="/payment-collection" element={<UgrahiView />} />
         <Route path="/ugrahi" element={<Navigate to="/payment-collection" replace />} />
         <Route path="/reports" element={<ReportsView />} />
-        <Route path="/security" element={<SecurityView />} />
+        <Route 
+          path="/security" 
+          element={isAdmin ? <SecurityView /> : <Navigate to="/dashboard" replace />} 
+        />
         <Route path="/profile" element={<ProfileView />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>

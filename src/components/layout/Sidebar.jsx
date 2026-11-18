@@ -230,17 +230,19 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           )}
         </button>
 
-        <button
-          onClick={() => setActiveTab('security')}
-          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'security' 
-              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-medium shadow-xs' 
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-          title="Security & Mobile Devices"
-        >
-          <ShieldCheck className="w-5 h-5" />
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              activeTab === 'security' 
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-medium shadow-xs' 
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+            title="Security & Mobile Devices"
+          >
+            <ShieldCheck className="w-5 h-5" />
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('profile')}
@@ -777,67 +779,69 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           )}
         </div>
 
-        {/* 10. Security & Access */}
-        <div>
-          <button
-            onClick={() => {
-              toggleSection('security');
-              setActiveTab('security');
-            }}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer group ${
-              activeTab === 'security'
-                ? 'text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50/50 dark:bg-emerald-950/30'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <ShieldCheck className={`w-4.5 h-4.5 ${activeTab === 'security' ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400 group-hover:text-emerald-500'}`} />
-              <span>Security (Mobiles)</span>
-            </div>
-            {expandedSections.security ? (
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            )}
-          </button>
+        {/* 10. Security & Access (Admin Only) */}
+        {isAdmin && (
+          <div>
+            <button
+              onClick={() => {
+                toggleSection('security');
+                setActiveTab('security');
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer group ${
+                activeTab === 'security'
+                  ? 'text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50/50 dark:bg-emerald-950/30'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className={`w-4.5 h-4.5 ${activeTab === 'security' ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400 group-hover:text-emerald-500'}`} />
+                <span>Security (Mobiles)</span>
+              </div>
+              {expandedSections.security ? (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
 
-          {expandedSections.security && (
-            <div className="pl-9 pr-2 py-1 space-y-0.5">
-              <button
-                onClick={() => {
-                  setSecuritySubTab('devices');
-                  setActiveTab('security');
-                }}
-                className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                  activeTab === 'security' && securitySubTab === 'devices'
-                    ? 'text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/40'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-emerald-600 font-normal'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'security' && securitySubTab === 'devices' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
-                  <span>Authorized Mobiles</span>
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  setSecuritySubTab('audit');
-                  setActiveTab('security');
-                }}
-                className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                  activeTab === 'security' && securitySubTab === 'audit'
-                    ? 'text-purple-600 dark:text-purple-400 font-medium bg-purple-50 dark:bg-purple-950/40'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 font-normal'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'security' && securitySubTab === 'audit' ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
-                  <span>Audit Trail</span>
-                </div>
-              </button>
-            </div>
-          )}
-        </div>
+            {expandedSections.security && (
+              <div className="pl-9 pr-2 py-1 space-y-0.5">
+                <button
+                  onClick={() => {
+                    setSecuritySubTab('devices');
+                    setActiveTab('security');
+                  }}
+                  className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                    activeTab === 'security' && securitySubTab === 'devices'
+                      ? 'text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/40'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-emerald-600 font-normal'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'security' && securitySubTab === 'devices' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                    <span>Authorized Mobiles</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setSecuritySubTab('audit');
+                    setActiveTab('security');
+                  }}
+                  className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                    activeTab === 'security' && securitySubTab === 'audit'
+                      ? 'text-purple-600 dark:text-purple-400 font-medium bg-purple-50 dark:bg-purple-950/40'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 font-normal'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'security' && securitySubTab === 'audit' ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                    <span>Audit Trail</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 13. Profile */}
         <div>

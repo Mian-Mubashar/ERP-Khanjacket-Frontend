@@ -25,15 +25,14 @@ export const SecurityModal = () => {
   const isOriginalAdmin = Boolean(
     currentUser?.isOriginalAdmin || 
     currentUser?.baseRole?.toLowerCase() === 'admin' ||
-    currentUser?.email?.toLowerCase() === 'admin@khanclothes.com' ||
-    currentUser?.role?.toLowerCase() === 'admin'
+    currentUser?.email?.toLowerCase() === 'admin@khanclothes.com'
   );
   const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
   const [newDeviceName, setNewDeviceName] = useState('');
   const [newDeviceModel, setNewDeviceModel] = useState('');
   const [newDeviceOwner, setNewDeviceOwner] = useState('');
 
-  if (!isSecurityModalOpen) return null;
+  if (!isSecurityModalOpen || !isAdmin) return null;
 
   const handleAddDevice = (e) => {
     e.preventDefault();

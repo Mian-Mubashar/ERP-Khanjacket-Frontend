@@ -1332,12 +1332,28 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // Role-Based Access Control Flags
+  const userRole = (currentUser?.role || 'Admin').toLowerCase();
+  const isAdmin = userRole === 'admin';
+  const isStaff = userRole === 'staff';
+  const isViewer = userRole === 'viewer';
+  const canEdit = !isViewer;
+  const canDelete = isAdmin;
+
   return (
     <AppContext.Provider
       value={{
         // Theme
         theme,
         toggleTheme,
+
+        // Role-Based Access Control (RBAC)
+        isAdmin,
+        isStaff,
+        isViewer,
+        canEdit,
+        canDelete,
+        userRole,
 
         // Sidebar
         sidebarCollapsed,

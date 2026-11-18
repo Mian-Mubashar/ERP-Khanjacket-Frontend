@@ -38,7 +38,11 @@ export const CustomerStatementModal = () => {
     customerReturns = [],
     deleteCustomerReturn,
     setIsRecordMaalWapsiOpen,
-    setSelectedCustomerForWapsi 
+    setSelectedCustomerForWapsi,
+    canEdit,
+    canDelete,
+    isViewer,
+    isAdmin
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('LEDGER'); // 'LEDGER' | 'DISPATCHES' | 'PAYMENTS'
@@ -231,6 +235,9 @@ export const CustomerStatementModal = () => {
   // Toggle 3-dots action dropdown
   const handleToggleDropdown = (e, type, item) => {
     e.stopPropagation();
+    if (!canEdit && !canDelete && type !== 'DISPATCH') {
+      return;
+    }
     if (activeDropdown?.id === item.id && activeDropdown?.type === type) {
       setActiveDropdown(null);
       return;
@@ -424,46 +431,50 @@ export const CustomerStatementModal = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleOpenEdit}
-              className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5 shadow-2xs"
-              title="Edit Khata & Shopkeeper Details"
-            >
-              <Pencil className="w-3.5 h-3.5 text-slate-500" />
-              <span>Edit</span>
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleOpenEdit}
+                  className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  title="Edit Khata & Shopkeeper Details"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Edit</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={handleOpenPayment}
-              className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
-            >
-              <Wallet className="w-3.5 h-3.5 text-slate-500" />
-              <span>Receive Payment</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handleOpenPayment}
+                  className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
+                >
+                  <Wallet className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Receive Payment</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCustomerForWapsi(selectedCustomerKhata);
-                setIsRecordMaalWapsiOpen(true);
-              }}
-              className="px-3 py-1.5 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
-              title="Record Sales Return for this shopkeeper"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Sales Return</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCustomerForWapsi(selectedCustomerKhata);
+                    setIsRecordMaalWapsiOpen(true);
+                  }}
+                  className="px-3 py-1.5 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
+                  title="Record Sales Return for this shopkeeper"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                  <span>Sales Return</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={handleOpenOutward}
-              className="px-3 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors font-semibold cursor-pointer flex items-center gap-1.5 shadow-2xs"
-            >
-              <Truck className="w-3.5 h-3.5" />
-              <span>+ New Bill</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handleOpenOutward}
+                  className="px-3 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors font-semibold cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                >
+                  <Truck className="w-3.5 h-3.5" />
+                  <span>+ New Bill</span>
+                </button>
+              </>
+            )}
 
             <button
               type="button"
@@ -622,14 +633,27 @@ export const CustomerStatementModal = () => {
                             Rs. {row.runningBalance.toLocaleString()}
                           </td>
                           <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={(e) => handleToggleDropdown(e, row.type, row.originalItem)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              title="Entry Actions"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
+                            {!canEdit && !canDelete && row.type !== 'DISPATCH' ? (
+                              <span className="text-slate-300 dark:text-slate-600 font-mono">—</span>
+                            ) : !canEdit && !canDelete && row.type === 'DISPATCH' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleShowBill(row.originalItem)}
+                                className="p-1 rounded-lg text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                                title="Show Bill (Parcha)"
+                              >
+                                <ReceiptText className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleDropdown(e, row.type, row.originalItem)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Entry Actions"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -707,14 +731,25 @@ export const CustomerStatementModal = () => {
                             Rs. {d.totalSaleAmount?.toLocaleString()}
                           </td>
                           <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={(e) => handleToggleDropdown(e, 'DISPATCH', d)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              title="Bill Actions"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
+                            {!canEdit && !canDelete ? (
+                              <button
+                                type="button"
+                                onClick={() => handleShowBill(d)}
+                                className="p-1 rounded-lg text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                                title="Show Bill (Parcha)"
+                              >
+                                <ReceiptText className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleDropdown(e, 'DISPATCH', d)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Bill Actions"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -766,14 +801,18 @@ export const CustomerStatementModal = () => {
                             Rs. {p.amount?.toLocaleString()}
                           </td>
                           <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={(e) => handleToggleDropdown(e, 'PAYMENT', p)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              title="Payment Actions"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
+                            {!canEdit && !canDelete ? (
+                              <span className="text-slate-300 dark:text-slate-600 font-mono">—</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleDropdown(e, 'PAYMENT', p)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Payment Actions"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -828,7 +867,7 @@ export const CustomerStatementModal = () => {
             </button>
           )}
 
-          {activeDropdown.type !== 'RETURN' && (
+          {canEdit && activeDropdown.type !== 'RETURN' && (
             <button
               type="button"
               onClick={() => handleStartEdit(activeDropdown.type, activeDropdown.item)}
@@ -839,7 +878,7 @@ export const CustomerStatementModal = () => {
             </button>
           )}
 
-          {activeDropdown.type !== 'OPENING' && (
+          {canDelete && activeDropdown.type !== 'OPENING' && (
             <button
               type="button"
               onClick={() => handleStartDelete(activeDropdown.type, activeDropdown.item)}
