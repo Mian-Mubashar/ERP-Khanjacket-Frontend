@@ -55,9 +55,10 @@ export const AppProvider = ({ children }) => {
   // Derive active tab dynamically from current URL pathname
   const getTabFromPath = useCallback((pathname) => {
     const segment = pathname.replace(/^\//, '').split('/')[0];
-    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'clearance', 'outward', 'suppliers', 'reports', 'security', 'payment-collection', 'announcements', 'profile'];
+    const validTabs = ['dashboard', 'branches', 'customers', 'articles', 'purchases', 'clearance', 'outward', 'shops', 'suppliers', 'reports', 'security', 'payment-collection', 'announcements', 'profile'];
     if (segment === 'ugrahi') return 'payment-collection';
     if (segment === 'clearances') return 'clearance';
+    if (segment === 'shop-flow' || segment === 'shopflow') return 'shops';
     return validTabs.includes(segment) ? segment : 'dashboard';
   }, []);
 

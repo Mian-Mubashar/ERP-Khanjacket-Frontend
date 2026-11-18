@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Truck, AlertCircle, CheckCircle2, Search, User, Package, CreditCard, FileText, Loader2 } from 'lucide-react';
+import { X, Truck, AlertCircle, CheckCircle2, Search, User, Package, CreditCard, FileText, Loader2, Store, Building2 } from 'lucide-react';
 import { showToast, showError, showWarning } from '../../utils/sweetalert';
 import { formatLakhCrore, formatCustomerDisplayName } from '../../utils/formatters';
 
@@ -44,6 +44,10 @@ export const NewOutwardModal = () => {
   const [directBillAmount, setDirectBillAmount] = useState('');
   const [maalSource, setMaalSource] = useState('MK Collection');
 
+  // Shop Transfer Dispatch Mode ('CUSTOMER' | 'SHOP')
+  const [dispatchTargetType, setDispatchTargetType] = useState('CUSTOMER'); // 'CUSTOMER' | 'SHOP'
+  const [selectedOwnShop, setSelectedOwnShop] = useState('MK Collection'); // 'MK Collection' | 'Khan Jacket House'
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +67,8 @@ export const NewOutwardModal = () => {
       setIsWithoutStock(false);
       setDirectBillAmount('');
       setMaalSource('MK Collection');
+      setDispatchTargetType('CUSTOMER');
+      setSelectedOwnShop('MK Collection');
       setItemDescription('');
       setError('');
       setSuccess('');
@@ -218,7 +224,7 @@ export const NewOutwardModal = () => {
     setError('');
     setSuccess('');
 
-    const finalCustomerName = customerName.trim();
+    const finalCustomerName = dispatchTargetType === 'SHOP' ? selectedOwnShop : customerName.trim();
     if (!finalCustomerName) {
       showError('Customer Required', 'Customer / Shop Name is required.');
       setError('Customer / Shop Name is required.');
@@ -291,6 +297,14 @@ export const NewOutwardModal = () => {
         showWarning('Stock Alert', `Dispatching ${numQty} pcs. Warehouse recorded stock is ${availableStock} pcs.`);
       }
 
+      const finalDestination = dispatchTargetType === 'SHOP' 
+        ? `${selectedOwnShop} Outlet` 
+        : (destination.trim() || selectedCity);
+
+      const finalNotes = dispatchTargetType === 'SHOP'
+        ? `Warehouse to ${selectedOwnShop} Stock Transfer${notes.trim() ? ` • ${notes.trim()}` : ''}`
+        : notes.trim();
+
       const res = await addOutward({
         articleNo: activeArticleCode,
         articleName: undefined,
@@ -298,15 +312,15 @@ export const NewOutwardModal = () => {
         challanNo: challanNo.trim(),
         date,
         city: selectedCity,
-        customerId: selectedCustomerId || null,
+        customerId: dispatchTargetType === 'SHOP' ? null : (selectedCustomerId || null),
         customerName: finalCustomerName,
-        customerPhone: customerPhone.trim(),
-        destination: destination.trim() || selectedCity,
+        customerPhone: dispatchTargetType === 'SHOP' ? '' : customerPhone.trim(),
+        destination: finalDestination,
         unitSalePrice: Number(unitSalePrice) || 0,
         paidAmount: Number(paidAmount) || 0,
         paymentMethod,
         gatePassNo: gatePassNo.trim(),
-        notes: notes.trim(),
+        notes: finalNotes,
         isWithoutStock: false
       });
 
@@ -472,19 +486,109 @@ export const NewOutwardModal = () => {
 
           {/* Section 1: Customer & Destination Card */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3 gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                   <User className="w-3.5 h-3.5" />
                 </div>
                 <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                  Customer & Destination
+                  Dispatch Destination / Maal Rawangi Manzil
                 </h3>
               </div>
-              <span className="text-[11px] text-slate-400 font-medium">Select city & shopkeeper</span>
+
+              {/* Target Type Switcher: External Customer vs Own Shop Transfer */}
+              <div className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setDispatchTargetType('CUSTOMER')}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    dispatchTargetType === 'CUSTOMER'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <User className="w-3 h-3" />
+                  <span>External Customer</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDispatchTargetType('SHOP');
+                    setSelectedCustomerId('');
+                    setCustomerName('');
+                    setCustomerPhone('');
+                    setSelectedCustomerForBill(null);
+                  }}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    dispatchTargetType === 'SHOP'
+                      ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Store className="w-3 h-3" />
+                  <span>Own Shop Transfer</span>
+                </button>
+              </div>
             </div>
 
-            {selectedCustomerForBill ? (
+            {/* If Dispatch Target is OWN SHOP TRANSFER */}
+            {dispatchTargetType === 'SHOP' ? (
+              <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-900 dark:text-blue-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <Store className="w-4 h-4 text-blue-600" />
+                    Select Own Shop (Apni Dukan Chunein)
+                  </span>
+                  <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 rounded">
+                    Warehouse ➔ Shop
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label
+                    onClick={() => setSelectedOwnShop('MK Collection')}
+                    className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none ${
+                      selectedOwnShop === 'MK Collection'
+                        ? 'border-blue-600 bg-white dark:bg-slate-900 shadow-xs'
+                        : 'border-blue-200/80 dark:border-blue-900/40 bg-white/60 dark:bg-slate-900/60 hover:border-blue-400'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="own_shop_dest"
+                      checked={selectedOwnShop === 'MK Collection'}
+                      onChange={() => setSelectedOwnShop('MK Collection')}
+                      className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer"
+                    />
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 dark:text-white">MK Collection</div>
+                      <div className="text-[11px] text-slate-500">Stock will be added to MK Collection Shop Flow</div>
+                    </div>
+                  </label>
+
+                  <label
+                    onClick={() => setSelectedOwnShop('Khan Jacket House')}
+                    className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer select-none ${
+                      selectedOwnShop === 'Khan Jacket House'
+                        ? 'border-blue-600 bg-white dark:bg-slate-900 shadow-xs'
+                        : 'border-blue-200/80 dark:border-blue-900/40 bg-white/60 dark:bg-slate-900/60 hover:border-blue-400'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="own_shop_dest"
+                      checked={selectedOwnShop === 'Khan Jacket House'}
+                      onChange={() => setSelectedOwnShop('Khan Jacket House')}
+                      className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer"
+                    />
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 dark:text-white">Khan Jacket House</div>
+                      <div className="text-[11px] text-slate-500">Stock will be added to Khan Jacket House Shop Flow</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            ) : selectedCustomerForBill ? (
               <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700">
                 <div className="flex items-center gap-3">
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">

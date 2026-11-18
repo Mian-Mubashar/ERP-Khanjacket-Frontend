@@ -343,18 +343,18 @@ export const OutwardList = () => {
       {/* Outward Table */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left border-collapse">
+          <table className="w-full min-w-[1100px] text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4">Date</th>
-                <th className="py-3 px-4">Bill # / Gate Pass</th>
-                <th className="py-3 px-4">Article Code</th>
-                <th className="py-3 px-4">Article Description</th>
-                <th className="py-3 px-4 text-right">Quantity Out</th>
-                <th className="py-3 px-4">Customer & Market</th>
-                <th className="py-3 px-4 text-right">Unit Rate</th>
-                <th className="py-3 px-4">Recorded By</th>
-                <th className="py-3 px-4 text-center">Actions</th>
+                <th className="py-3 px-4 whitespace-nowrap min-w-[100px]">Date</th>
+                <th className="py-3 px-4 whitespace-nowrap min-w-[140px]">Bill # / Gate Pass</th>
+                <th className="py-3 px-4 whitespace-nowrap min-w-[130px]">Article Code</th>
+                <th className="py-3 px-4 min-w-[180px]">Article Description</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap min-w-[130px]">Quantity Out</th>
+                <th className="py-3 px-4 min-w-[180px]">Customer & Market</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">Unit Rate</th>
+                <th className="py-3 px-4 whitespace-nowrap min-w-[120px]">Recorded By</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap min-w-[80px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
@@ -377,23 +377,23 @@ export const OutwardList = () => {
 
                     {/* Bill & Gate Pass */}
                     <td className="py-3.5 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                      <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        <span className="font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                           Bill #{formatCleanBillNo(item.challanNo)}
                         </span>
                         {item.isWithoutStock && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/80" title="Direct bill without deducting warehouse stock">
+                          <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/80 whitespace-nowrap" title="Direct bill without deducting warehouse stock">
                             Without Stock
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-slate-400">Gate Pass: {item.gatePassNo}</div>
+                      <div className="text-[10px] text-slate-400 whitespace-nowrap">Gate Pass: {item.gatePassNo}</div>
                     </td>
 
                     {/* Article Code */}
-                    <td className="py-3.5 px-4 whitespace-nowrap">
+                    <td className="py-3.5 px-4 whitespace-nowrap min-w-[130px]">
                       {item.isWithoutStock ? (
-                        <span className="font-mono font-semibold text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                        <span className="inline-block font-mono font-semibold text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 whitespace-nowrap tracking-wider">
                           {item.articleNo || 'DIRECT'}
                         </span>
                       ) : (
@@ -402,7 +402,7 @@ export const OutwardList = () => {
                             const art = articles.find(a => a.articleNo === item.articleNo);
                             if (art) setSelectedArticleDetail(art);
                           }}
-                          className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-1 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"
+                          className="inline-block font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
                           title="Click to view full article ledger"
                         >
                           {item.articleNo}

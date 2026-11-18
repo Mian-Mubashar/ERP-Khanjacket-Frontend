@@ -9,6 +9,7 @@ import { CustomersView } from './components/customers/CustomersView';
 import { ArticlesList } from './components/articles/ArticlesList';
 import { PurchasesList } from './components/purchases/PurchasesList';
 import { OutwardList } from './components/outward/OutwardList';
+import { ShopStockFlowView } from './components/shops/ShopStockFlowView';
 import { SuppliersList } from './components/suppliers/SuppliersList';
 import { ReportsView } from './components/reports/ReportsView';
 import { SecurityView } from './components/security/SecurityView';
@@ -224,6 +225,8 @@ const AppRoutes = () => {
           element={<Navigate to={isAdmin ? "/clearance" : "/dashboard"} replace />} 
         />
         <Route path="/outward" element={<OutwardList />} />
+        <Route path="/shops" element={<ShopStockFlowView />} />
+        <Route path="/shop-flow" element={<Navigate to="/shops" replace />} />
         <Route path="/suppliers" element={<SuppliersList />} />
         <Route path="/payment-collection" element={<UgrahiView />} />
         <Route path="/ugrahi" element={<Navigate to="/payment-collection" replace />} />

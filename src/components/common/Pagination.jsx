@@ -14,12 +14,33 @@ export const Pagination = ({
 
   if (totalItems <= pageSize && totalPages <= 1) {
     return (
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
         <div>
-          Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{from}</span> to <span className="font-semibold text-slate-700 dark:text-slate-200">{to}</span> of <span className="font-semibold text-slate-700 dark:text-slate-200">{totalItems}</span> {itemLabel}
+          Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{from}</span> to <span className="font-semibold text-slate-700 dark:text-slate-200">{to}</span> of <span className="font-semibold text-slate-700 dark:text-slate-200">{totalItems}</span> {itemLabel} ({pageSize} per page)
         </div>
-        <div className="text-[11px] text-slate-400">
-          Page 1 of 1 ({pageSize} / page)
+        <div className="flex items-center gap-1.5 self-end sm:self-auto">
+          <button
+            type="button"
+            disabled
+            className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 opacity-40 cursor-not-allowed flex items-center gap-1 font-medium text-xs shadow-2xs"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span>Prev</span>
+          </button>
+          <button
+            type="button"
+            className="w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center bg-blue-600 text-white border border-blue-600 shadow-xs"
+          >
+            1
+          </button>
+          <button
+            type="button"
+            disabled
+            className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 opacity-40 cursor-not-allowed flex items-center gap-1 font-medium text-xs shadow-2xs"
+          >
+            <span>Next</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     );

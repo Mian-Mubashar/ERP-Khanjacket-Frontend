@@ -1094,6 +1094,88 @@ export const downloadWarehouseReportPDF = (articles = [], totalVal = 0) => {
 // -------------------------------------------------------------
 // 6. OUTWARD DISPATCH LOG PDF
 // -------------------------------------------------------------
+export const downloadShopStockFlowPDF = ({ shopName = 'Shop', shopCode = '', records = [], kpis = {} }) => {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  let currentY = drawHeader(
+    doc,
+    `${shopName} — Stock Flow Register`,
+    `Warehouse Stock Inward & Customer Sales Distribution Report`,
+    `${shopCode || 'SHOP'} Log`
+  );
+
+  // Summary row
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, currentY, 182, 16, 2, 2, 'FD');
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Total Records: ${records.length} Entries`, 18, currentY + 6);
+  doc.text(`Warehouse Stock In: ${(kpis.inwardPcs || 0).toLocaleString()} pcs (Rs. ${Math.round(kpis.inwardAmount || 0).toLocaleString()})`, 18, currentY + 11);
+
+  doc.text(`Customer Sales: Rs. ${Math.round(kpis.saleAmount || 0).toLocaleString()}`, 90, currentY + 6);
+  doc.text(`Active Customers: ${kpis.totalCustomers || 0} Parties`, 90, currentY + 11);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(37, 99, 235); // blue-600
+  doc.text('Total Volume Value:', 145, currentY + 6);
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(9.5);
+  doc.text(formatPKR(kpis.totalAmount || 0), 145, currentY + 12);
+
+  currentY += 22;
+
+  // Table
+  const rows = records.map((r, i) => {
+    const isCustMatching = (r.customerName || '').toLowerCase().includes((shopCode || '').toLowerCase()) ||
+      (r.customerName || '').toLowerCase().includes(shopName.toLowerCase());
+    const movType = isCustMatching ? 'Warehouse Inward' : 'Customer Sale';
+    const dateStr = r.date ? String(r.date).substring(0, 10) : '—';
+    const cleanChallan = formatCleanBillNo(r.challanNo);
+    const qtyStr = r.isWithoutStock && (!r.quantity || Number(r.quantity) === 0) ? 'Direct Bill' : `${Number(r.quantity || 0).toLocaleString()} pcs`;
+
+    return [
+      i + 1,
+      dateStr,
+      movType,
+      `#${cleanChallan}`,
+      r.articleNo || 'DIRECT',
+      r.articleName || 'Garment',
+      qtyStr,
+      `${r.customerName || '—'}${r.destination ? ` (${r.destination})` : ''}`,
+      formatPKR(r.unitSalePrice || 0),
+      formatPKR(r.totalSaleAmount || 0)
+    ];
+  });
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['#', 'Date', 'Type', 'Bill #', 'Article', 'Description', 'Qty', 'Customer / Market', 'Rate', 'Total Amount']],
+    body: rows.length ? rows : [['-', '-', '-', '-', '-', 'No records found for this shop', '-', '-', '-', '-']],
+    theme: 'grid',
+    headStyles: { fillColor: [37, 99, 235], fontSize: 7, fontStyle: 'bold' },
+    styles: { fontSize: 6.5, cellPadding: 1.8 },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 6 },
+      1: { cellWidth: 16 },
+      2: { cellWidth: 20, fontStyle: 'bold' },
+      3: { font: 'courier', fontStyle: 'bold', cellWidth: 15 },
+      4: { font: 'courier', fontStyle: 'bold', textColor: [37, 99, 235], cellWidth: 15 },
+      5: { cellWidth: 26 },
+      6: { halign: 'right', fontStyle: 'bold', cellWidth: 15 },
+      7: { cellWidth: 32 },
+      8: { halign: 'right', cellWidth: 16 },
+      9: { halign: 'right', fontStyle: 'bold', cellWidth: 21 }
+    }
+  });
+
+  const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : currentY + 30;
+  drawFooter(doc, finalY + 15);
+
+  doc.save(`${shopName.replace(/\s+/g, '_')}_Stock_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+};
+
 export const downloadOutwardLogPDF = (outwardList = []) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   let currentY = drawHeader(
@@ -2719,6 +2801,92 @@ export const downloadClearanceKhataPDF = ({
 };
 
 // -------------------------------------------------------------
+// CLEARANCE REGISTER LIST PDF EXPORT
+// -------------------------------------------------------------
+export const downloadClearanceListPDF = ({ clearances = [], title = 'Clearance Bills Register' }) => {
+  try {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    let currentY = drawHeader(
+      doc,
+      'Khan Traders Clearance Register',
+      'Port Duty, Logistics, Clearing Agent Bills & Payments Statement',
+      'Clearance Register'
+    );
+
+    const totalGrand = clearances.reduce((s, c) => s + (Number(c.grandTotal) || 0), 0);
+    const totalPaid = clearances.reduce((s, c) => s + (Number(c.paidAmount) || 0), 0);
+    const totalRemaining = clearances.reduce((s, c) => {
+      const g = Number(c.grandTotal) || 0;
+      const p = Number(c.paidAmount) || 0;
+      return s + (c.remainingAmount !== undefined ? Number(c.remainingAmount) : Math.max(0, g - p));
+    }, 0);
+
+    // Summary Card
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(14, currentY, 182, 16, 2, 2, 'FD');
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Total Records: ${clearances.length} Bills`, 18, currentY + 6);
+    doc.text(`Total Landed Bill: ${formatPKR(totalGrand)}`, 18, currentY + 11);
+
+    doc.text(`Paid to Agents: ${formatPKR(totalPaid)}`, 90, currentY + 6);
+    doc.text(`Outstanding Due: ${formatPKR(totalRemaining)}`, 90, currentY + 11);
+
+    currentY += 22;
+
+    const rows = clearances.map((c, idx) => {
+      const grand = Number(c.grandTotal || 0);
+      const paid = Number(c.paidAmount || 0);
+      const rem = c.remainingAmount !== undefined ? Number(c.remainingAmount) : Math.max(0, grand - paid);
+      const status = rem <= 0 ? 'Cleared' : (paid > 0 ? 'Partial' : 'Unpaid');
+
+      return [
+        idx + 1,
+        c.billDate || '—',
+        `#${c.invoiceNo || '—'}`,
+        c.clearingAgent || 'BARCA TRADERS',
+        c.containerNumber || '—',
+        formatPKR(grand),
+        formatPKR(paid),
+        formatPKR(rem),
+        status
+      ];
+    });
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['#', 'Date', 'Bill #', 'Clearing Agent', 'Container', 'Grand Total', 'Paid', 'Balance Due', 'Status']],
+      body: rows.length ? rows : [['-', '-', '-', 'No records found', '-', '-', '-', '-', '-']],
+      theme: 'grid',
+      headStyles: { fillColor: [15, 23, 42], fontSize: 7.5, fontStyle: 'bold' },
+      styles: { fontSize: 7, cellPadding: 2 },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 8 },
+        1: { cellWidth: 18 },
+        2: { font: 'courier', fontStyle: 'bold', cellWidth: 18 },
+        3: { cellWidth: 38 },
+        4: { font: 'courier', cellWidth: 24 },
+        5: { halign: 'right', fontStyle: 'bold', cellWidth: 20 },
+        6: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 20 },
+        7: { halign: 'right', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 20 },
+        8: { halign: 'center', fontStyle: 'bold', cellWidth: 16 }
+      }
+    });
+
+    const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : currentY + 30;
+    drawFooter(doc, finalY + 10);
+    doc.save(`Clearance_Register_${new Date().toISOString().slice(0, 10)}.pdf`);
+    return true;
+  } catch (err) {
+    console.error('[downloadClearanceListPDF Error]:', err);
+    throw err;
+  }
+};
+
+// -------------------------------------------------------------
 // ANNOUNCEMENTS & ALERTS REGISTER PDF EXPORT
 // -------------------------------------------------------------
 export const downloadAnnouncementsPDF = ({
@@ -2728,7 +2896,7 @@ export const downloadAnnouncementsPDF = ({
   filters = {}
 }) => {
   try {
-    const doc = new jsPDF('l', 'mm', 'a4');
+    const doc = new jsPDF('p', 'mm', 'a4');
     const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const printTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
@@ -2737,19 +2905,19 @@ export const downloadAnnouncementsPDF = ({
     let docIdentifier = 'Announcements';
 
     if (mainTab === 'WASOOLI_BILLS') {
-      title = 'ANNOUNCEMENTS: WASOOLI RECEIPTS & DISPATCH BILLS';
+      title = 'ANNOUNCEMENTS: WASOOLI RECEIPTS & BILLS';
       subtitle = `10-Day Real-Time Transactions Log • Audit Date: ${printDate} ${printTime}`;
       docIdentifier = 'Wasooli & Bills';
     } else if (mainTab === 'STOCK') {
-      title = 'ANNOUNCEMENTS: GARMENTS LOW STOCK ALERTS';
+      title = 'ANNOUNCEMENTS: LOW STOCK ALERTS';
       subtitle = `Inventory Depletion Warnings (50% to 0% Level) • Audit Date: ${printDate}`;
       docIdentifier = 'Stock Alerts';
     } else if (mainTab === 'CUSTOMERS') {
-      title = 'ANNOUNCEMENTS: CUSTOMER KHATA & OVERDUE WASOOLI';
-      subtitle = `Customer Khata Balances & Overdue Payment Reminders • Audit Date: ${printDate}`;
+      title = 'ANNOUNCEMENTS: KHATA & OVERDUE WASOOLI';
+      subtitle = `Customer Balances & Overdue Payment Reminders • Audit Date: ${printDate}`;
       docIdentifier = 'Customer Khata';
     } else if (mainTab === 'ALL') {
-      title = 'ANNOUNCEMENTS: REAL-TIME ACTIVITY TIMELINE';
+      title = 'ANNOUNCEMENTS: ACTIVITY TIMELINE';
       subtitle = `Complete Warehouse Events & Notifications Feed • Audit Date: ${printDate}`;
       docIdentifier = 'Activity Feed';
     }
@@ -2758,15 +2926,15 @@ export const downloadAnnouncementsPDF = ({
       subtitle = `City: ${filters.selectedCity} | ${subtitle}`;
     }
 
-    // Draw Brand Header
+    // Draw Brand Header (Portrait: 210mm wide)
     let currentY = drawHeader(doc, title, subtitle, docIdentifier);
 
-    // KPI Executive Summary Box (Landscape: width 269mm)
+    // KPI Executive Summary Box (Portrait: width 182mm)
     doc.setFillColor(248, 250, 252);
     doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(14, currentY, 269, 18, 2, 2, 'FD');
+    doc.roundedRect(14, currentY, 182, 14, 2, 2, 'FD');
 
-    // KPI Details by Tab
+    // KPI Details by Tab (Portrait: 182mm usable box)
     if (mainTab === 'WASOOLI_BILLS') {
       const wasooliItems = dataList.filter(d => d.type === 'WASOOLI');
       const billItems = dataList.filter(d => d.type === 'BILL');
@@ -2774,159 +2942,159 @@ export const downloadAnnouncementsPDF = ({
       const billsSum = billItems.reduce((s, b) => s + (Number(b.amount) || 0), 0);
 
       // Col 1: Counts
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
-      doc.text('Total Entries:', 18, currentY + 6.5);
+      doc.text('Total Entries:', 18, currentY + 5.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text(`${dataList.length} Transactions (${wasooliItems.length} Wasooli / ${billItems.length} Bills)`, 42, currentY + 6.5);
+      doc.text(`${dataList.length} Entries (${wasooliItems.length} Wasooli / ${billItems.length} Bills)`, 38, currentY + 5.5);
 
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
-      doc.text('Active Scope:', 18, currentY + 13);
+      doc.text('Active Scope:', 18, currentY + 10.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(59, 130, 246);
-      doc.text(filters?.retentionScope === 'ALL' ? 'Full Archive (All Time)' : 'Active (Last 10 Days)', 42, currentY + 13);
+      doc.text(filters?.retentionScope === 'ALL' ? 'Full Archive (All Time)' : 'Active (Last 10 Days)', 38, currentY + 10.5);
 
-      // Col 2: Total Wasooli
+      // Col 2: Total Wasooli & Bills
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
-      doc.text('Total Wasooli Received:', 125, currentY + 6.5);
+      doc.text('Wasooli Recv:', 105, currentY + 5.5);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(16, 185, 129); // emerald-600
-      doc.text(formatPKR(wasooliSum), 195, currentY + 6.5);
-
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text('Total Bills Dispatched:', 125, currentY + 13);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(37, 99, 235); // blue-600
-      doc.text(formatPKR(billsSum), 195, currentY + 13);
-
-      // Col 3: Net Cash Inflow
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text('Net Balance Difference:', 220, currentY + 6.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(15, 23, 42);
-      doc.text(formatPKR(billsSum - wasooliSum), 278, currentY + 6.5, { align: 'right' });
+      doc.setTextColor(16, 185, 129);
+      doc.text(formatPKR(wasooliSum), 130, currentY + 5.5);
 
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Bills Dispatched:', 105, currentY + 10.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(37, 99, 235);
+      doc.text(formatPKR(billsSum), 130, currentY + 10.5);
+
+      // Col 3: Net Cash Inflow
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Net Diff:', 155, currentY + 5.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      doc.text(formatPKR(billsSum - wasooliSum), 192, currentY + 5.5, { align: 'right' });
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(148, 163, 184);
-      doc.text('Auto-Purge 10-Day Retention Active', 278, currentY + 13, { align: 'right' });
+      doc.text('10-Day Auto Retention', 192, currentY + 10.5, { align: 'right' });
 
     } else if (mainTab === 'STOCK') {
       const outCount = dataList.filter(s => s.tier === 'TIER_0' || s.currentStock <= 0).length;
       const criticalCount = dataList.filter(s => s.tier === 'TIER_10' || s.tier === 'TIER_20').length;
       const totalStockPcs = dataList.reduce((s, item) => s + (Number(item.currentStock) || 0), 0);
 
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
-      doc.text('Articles with Low Stock:', 18, currentY + 6.5);
+      doc.text('Articles Low Stock:', 18, currentY + 5.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text(`${dataList.length} Garment Articles`, 56, currentY + 6.5);
+      doc.text(`${dataList.length} Garment Articles`, 48, currentY + 5.5);
 
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
-      doc.text('Current Remaining Stock:', 18, currentY + 13);
+      doc.text('Total Remaining:', 18, currentY + 10.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(59, 130, 246);
-      doc.text(`${totalStockPcs.toLocaleString()} Pieces Total`, 56, currentY + 13);
+      doc.text(`${totalStockPcs.toLocaleString()} Pieces Total`, 48, currentY + 10.5);
 
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
-      doc.text('Out of Stock (0%):', 130, currentY + 6.5);
+      doc.text('Out of Stock (0%):', 105, currentY + 5.5);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(225, 29, 72); // rose-600
-      doc.text(`${outCount} Articles Empty`, 185, currentY + 6.5);
-
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text('Critical Level (<= 20%):', 130, currentY + 13);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(245, 158, 11); // amber-500
-      doc.text(`${criticalCount} Articles Critical`, 185, currentY + 13);
+      doc.setTextColor(225, 29, 72);
+      doc.text(`${outCount} Empty`, 138, currentY + 5.5);
 
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Critical (<=20%):', 105, currentY + 10.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(245, 158, 11);
+      doc.text(`${criticalCount} Critical`, 138, currentY + 10.5);
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(148, 163, 184);
-      doc.text('Threshold: <= 50% of Initial Inward Pcs', 278, currentY + 10, { align: 'right' });
+      doc.text('Threshold: <=50% of Inward', 192, currentY + 8, { align: 'right' });
 
     } else if (mainTab === 'CUSTOMERS') {
       const overdueCount = dataList.filter(c => c.isOverdue).length;
       const totalDue = dataList.reduce((s, c) => s + (Number(c.remainingBalance) || 0), 0);
 
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text('Customer Khata Count:', 18, currentY + 6.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(15, 23, 42);
-      doc.text(`${dataList.length} Wholesale Buyers`, 54, currentY + 6.5);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text('Payment Overdue (10d+):', 18, currentY + 13);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(225, 29, 72);
-      doc.text(`${overdueCount} Shops Overdue`, 54, currentY + 13);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text('Total Outstanding Due:', 140, currentY + 9);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(225, 29, 72);
-      doc.text(formatPKR(totalDue), 205, currentY + 9);
-
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Customer Count:', 18, currentY + 5.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${dataList.length} Wholesale Buyers`, 48, currentY + 5.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Overdue (10d+):', 18, currentY + 10.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(225, 29, 72);
+      doc.text(`${overdueCount} Shops Overdue`, 48, currentY + 10.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Outstanding Due:', 105, currentY + 8);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(225, 29, 72);
+      doc.text(formatPKR(totalDue), 148, currentY + 8);
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(148, 163, 184);
-      doc.text('Overdue Rule: No Wasooli in 10+ Days', 278, currentY + 10, { align: 'right' });
+      doc.text('Overdue: No Wasooli in 10d+', 192, currentY + 8, { align: 'right' });
 
     } else {
       // ALL Timeline
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text('Total Events & Alerts:', 18, currentY + 9.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(15, 23, 42);
-      doc.text(`${dataList.length} Recorded Notifications`, 56, currentY + 9.5);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text('Active City Filter:', 140, currentY + 9.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(59, 130, 246);
-      doc.text(filters?.selectedCity || 'All Cities', 170, currentY + 9.5);
-
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Total Events & Alerts:', 18, currentY + 8);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${dataList.length} Recorded Notifications`, 50, currentY + 8);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Active City Filter:', 110, currentY + 8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(59, 130, 246);
+      doc.text(filters?.selectedCity || 'All Cities', 138, currentY + 8);
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(148, 163, 184);
-      doc.text('Real-time Central Warehouse Event Stream', 278, currentY + 9.5, { align: 'right' });
+      doc.text('Real-time Central Warehouse Feed', 192, currentY + 8, { align: 'right' });
     }
 
-    // AutoTable Generation
+    // AutoTable Generation (Portrait A4: 182mm printable width)
     let tableHead = [];
     let tableBody = [];
     let colStyles = {};
 
     if (mainTab === 'WASOOLI_BILLS') {
-      tableHead = [['#', 'Type (Qisam)', 'Challan / Bill #', 'Customer / Shop Name', 'City / Branch', 'Date', 'Details / Note', 'Amount (PKR)']];
+      tableHead = [['#', 'Type', 'Challan / Bill #', 'Customer / Shop Name', 'City / Branch', 'Date', 'Details / Note', 'Amount (PKR)']];
       tableBody = dataList.map((item, idx) => {
         const isWasooli = item.type === 'WASOOLI';
         const typeLabel = isWasooli ? 'Wasooli Recv.' : 'Dispatch Bill';
@@ -2940,19 +3108,20 @@ export const downloadAnnouncementsPDF = ({
         return [idx + 1, typeLabel, refNo, custName, city, dateStr, detailStr, amtStr];
       });
 
+      // Sum: 8 + 18 + 22 + 38 + 20 + 18 + 34 + 24 = 182 mm
       colStyles = {
-        0: { halign: 'center', cellWidth: 10 },
-        1: { halign: 'center', cellWidth: 26, fontStyle: 'bold' },
-        2: { font: 'courier', fontStyle: 'bold', cellWidth: 32 },
-        3: { cellWidth: 55, fontStyle: 'bold' },
-        4: { cellWidth: 30 },
-        5: { halign: 'center', cellWidth: 24 },
-        6: { cellWidth: 54 },
-        7: { halign: 'right', fontStyle: 'bold', cellWidth: 38 }
+        0: { halign: 'center', cellWidth: 8 },
+        1: { halign: 'center', cellWidth: 18, fontStyle: 'bold' },
+        2: { font: 'courier', fontStyle: 'bold', cellWidth: 22 },
+        3: { cellWidth: 38, fontStyle: 'bold' },
+        4: { cellWidth: 20 },
+        5: { halign: 'center', cellWidth: 18 },
+        6: { cellWidth: 34 },
+        7: { halign: 'right', fontStyle: 'bold', cellWidth: 24 }
       };
 
     } else if (mainTab === 'STOCK') {
-      tableHead = [['#', 'Article #', 'Article Name', 'Category', 'Fabric / Stuff', 'Location', 'Current Pcs', 'Initial Pcs', 'Stock %', 'Urgency Status']];
+      tableHead = [['#', 'Article #', 'Article Name', 'Category', 'Stuff', 'Location', 'Current', 'Initial', 'Stock %', 'Urgency Status']];
       tableBody = dataList.map((s, idx) => {
         return [
           idx + 1,
@@ -2968,17 +3137,18 @@ export const downloadAnnouncementsPDF = ({
         ];
       });
 
+      // Sum: 8 + 18 + 32 + 18 + 18 + 16 + 18 + 16 + 14 + 24 = 182 mm
       colStyles = {
-        0: { halign: 'center', cellWidth: 10 },
-        1: { font: 'courier', fontStyle: 'bold', cellWidth: 26 },
-        2: { cellWidth: 50, fontStyle: 'bold' },
-        3: { cellWidth: 28 },
-        4: { cellWidth: 30 },
-        5: { cellWidth: 26 },
-        6: { halign: 'right', fontStyle: 'bold', cellWidth: 24 },
-        7: { halign: 'right', cellWidth: 22 },
-        8: { halign: 'center', fontStyle: 'bold', cellWidth: 20 },
-        9: { halign: 'center', fontStyle: 'bold', cellWidth: 33 }
+        0: { halign: 'center', cellWidth: 8 },
+        1: { font: 'courier', fontStyle: 'bold', cellWidth: 18 },
+        2: { cellWidth: 32, fontStyle: 'bold' },
+        3: { cellWidth: 18 },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 16 },
+        6: { halign: 'right', fontStyle: 'bold', cellWidth: 18 },
+        7: { halign: 'right', cellWidth: 16 },
+        8: { halign: 'center', fontStyle: 'bold', cellWidth: 14 },
+        9: { halign: 'center', fontStyle: 'bold', cellWidth: 24 }
       };
 
     } else if (mainTab === 'CUSTOMERS') {
@@ -2996,15 +3166,16 @@ export const downloadAnnouncementsPDF = ({
         ];
       });
 
+      // Sum: 8 + 38 + 26 + 20 + 22 + 20 + 20 + 28 = 182 mm
       colStyles = {
-        0: { halign: 'center', cellWidth: 10 },
-        1: { cellWidth: 58, fontStyle: 'bold' },
-        2: { cellWidth: 42 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 32 },
-        5: { halign: 'center', cellWidth: 28 },
-        6: { halign: 'center', fontStyle: 'bold', cellWidth: 30 },
-        7: { halign: 'right', fontStyle: 'bold', cellWidth: 39 }
+        0: { halign: 'center', cellWidth: 8 },
+        1: { cellWidth: 38, fontStyle: 'bold' },
+        2: { cellWidth: 26 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 22 },
+        5: { halign: 'center', cellWidth: 20 },
+        6: { halign: 'center', fontStyle: 'bold', cellWidth: 20 },
+        7: { halign: 'right', fontStyle: 'bold', cellWidth: 28 }
       };
 
     } else {
@@ -3022,37 +3193,47 @@ export const downloadAnnouncementsPDF = ({
         return [idx + 1, timeText, cat, titleText, refText, cityText, statusText, valText];
       });
 
+      // Sum: 8 + 20 + 18 + 38 + 30 + 18 + 24 + 26 = 182 mm
       colStyles = {
-        0: { halign: 'center', cellWidth: 10 },
-        1: { halign: 'center', cellWidth: 26 },
-        2: { halign: 'center', fontStyle: 'bold', cellWidth: 26 },
-        3: { cellWidth: 56, fontStyle: 'bold' },
-        4: { cellWidth: 46 },
-        5: { cellWidth: 28 },
-        6: { halign: 'center', cellWidth: 38 },
-        7: { halign: 'right', fontStyle: 'bold', cellWidth: 39 }
+        0: { halign: 'center', cellWidth: 8 },
+        1: { halign: 'center', cellWidth: 20 },
+        2: { halign: 'center', fontStyle: 'bold', cellWidth: 18 },
+        3: { cellWidth: 38, fontStyle: 'bold' },
+        4: { cellWidth: 30 },
+        5: { cellWidth: 18 },
+        6: { halign: 'center', cellWidth: 24 },
+        7: { halign: 'right', fontStyle: 'bold', cellWidth: 26 }
       };
     }
 
     autoTable(doc, {
-      startY: currentY + 22,
-      margin: { top: 46, bottom: 22, left: 14, right: 14 },
+      startY: currentY + 18,
+      margin: { top: 24, bottom: 18, left: 14, right: 14 },
       head: tableHead,
       body: tableBody.length ? tableBody : [['-', 'No announcements or records found for active filters', '', '', '', '', '', '']],
       theme: 'grid',
       headStyles: {
         fillColor: [15, 23, 42], // slate-900
         textColor: [255, 255, 255],
-        fontSize: 8.5,
+        fontSize: 7.2,
         fontStyle: 'bold',
         halign: 'center',
-        minCellHeight: 8.5,
-        cellPadding: 2.5
+        minCellHeight: 6.5,
+        cellPadding: 1.6,
+        lineColor: [30, 41, 59],
+        lineWidth: 0.15
       },
       styles: {
-        fontSize: 8,
-        cellPadding: 2.5,
-        textColor: [51, 65, 85]
+        fontSize: 6.8,
+        cellPadding: 1.6,
+        textColor: [51, 65, 85],
+        lineColor: [226, 232, 240],
+        lineWidth: 0.12,
+        valign: 'middle',
+        overflow: 'linebreak'
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
       },
       columnStyles: colStyles,
       didParseCell: (data) => {

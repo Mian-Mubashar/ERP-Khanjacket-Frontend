@@ -15,7 +15,10 @@ import {
   Receipt,
   Plus,
   FileSpreadsheet,
-  RotateCcw
+  RotateCcw,
+  Store,
+  ShoppingBag,
+  Boxes
 } from 'lucide-react';
 import { WasooliBreakdownModal } from './WasooliBreakdownModal';
 import { ChallansBreakdownModal } from './ChallansBreakdownModal';
@@ -325,6 +328,81 @@ export const DashboardOverview = ({ setActiveTab }) => {
   const filteredArticlesStock = filteredArticles.reduce((sum, a) => sum + (Number(a.currentStock) || 0), 0);
   const customerTotalAmount = (filteredStockValue > 0 ? filteredStockValue : totalStockValue) + periodCustomerPending;
   const comparisonAmount = customerTotalAmount - periodPayables;
+
+  // =========================================================================
+  // SHOP & WAREHOUSE DISPATCH DISTRIBUTION BREAKDOWN (4 Boxes)
+  // Total Warehouse Sent, Khan Jacket House, MK Collection & Direct Wholesale
+  // =========================================================================
+  const shopBreakdown = useMemo(() => {
+    const khanMatch = ['khan jacket', 'khan jacket house', 'khan jkt', 'khan jkt house', 'kj house', 'k.j house', 'k j house', 'khan jacket shop'];
+    const mkMatch = ['mk collection', 'mk-collection', 'mkcollection', 'mk coll'];
+
+    const matchesKeywords = (rec, keywords) => {
+      if (!rec) return false;
+      const combined = [
+        rec.customerName,
+        rec.articleName,
+        rec.articleNo,
+        rec.destination,
+        rec.notes,
+        rec.city
+      ].filter(Boolean).join(' ').toLowerCase();
+      return keywords.some(kw => combined.includes(kw));
+    };
+
+    let totalPcs = 0;
+    let totalAmount = 0;
+    let totalBills = filteredOutward.length;
+
+    let khanPcs = 0;
+    let khanAmount = 0;
+    let khanBills = 0;
+
+    let mkPcs = 0;
+    let mkAmount = 0;
+    let mkBills = 0;
+
+    let directPcs = 0;
+    let directAmount = 0;
+    let directBills = 0;
+
+    filteredOutward.forEach(item => {
+      const pcs = Number(item.quantity) || 0;
+      const amt = Number(item.totalSaleAmount) || 0;
+
+      totalPcs += pcs;
+      totalAmount += amt;
+
+      const isKhan = matchesKeywords(item, khanMatch);
+      const isMk = matchesKeywords(item, mkMatch);
+
+      if (isKhan) {
+        khanPcs += pcs;
+        khanAmount += amt;
+        khanBills += 1;
+      } else if (isMk) {
+        mkPcs += pcs;
+        mkAmount += amt;
+        mkBills += 1;
+      } else {
+        directPcs += pcs;
+        directAmount += amt;
+        directBills += 1;
+      }
+    });
+
+    const calcPercent = (val) => {
+      if (!totalAmount || totalAmount === 0) return '0.0';
+      return ((val / totalAmount) * 100).toFixed(1);
+    };
+
+    return {
+      total: { pcs: totalPcs, amount: totalAmount, bills: totalBills, percent: '100' },
+      khan: { pcs: khanPcs, amount: khanAmount, bills: khanBills, percent: calcPercent(khanAmount) },
+      mk: { pcs: mkPcs, amount: mkAmount, bills: mkBills, percent: calcPercent(mkAmount) },
+      direct: { pcs: directPcs, amount: directAmount, bills: directBills, percent: calcPercent(directAmount) }
+    };
+  }, [filteredOutward]);
 
   // =========================================================================
   // DYNAMIC SALES TREND GRAPH DATA (Adapts to DAY, WEEK, MONTH, or YEAR)
@@ -661,6 +739,166 @@ export const DashboardOverview = ({ setActiveTab }) => {
                   {periodChallansCount} Challans in {periodWholesaleCities || 1} Cities
                 </span>
               </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* OUTLET & SHOP DISPATCHES BREAKDOWN (4 BOXES)                              */}
+      {/* Total Warehouse Sent, Khan Jacket House, MK Collection & Direct Wholesale */}
+      {/* ========================================================================= */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-2xs transition-colors space-y-5">
+        
+        {/* Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40 flex items-center justify-center shrink-0">
+              <Boxes className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                  Shop & Warehouse Stock Dispatches
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900/40">
+                  {timeframeLabel}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Warehouse se kul maal aur MK Collection, Khan Jacket House aur Wholesale parties ki tafseel
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => handleNavigate('shops')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200/60 dark:border-purple-800/60 transition-colors cursor-pointer self-start sm:self-auto"
+          >
+            <span>Open Shop Stock Flow</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* 4 Metric Cards: 2 cards per row for maximum width & large amount visibility (Exact same style as above) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Card 1: TOTAL WAREHOUSE DISPATCH */}
+          <div 
+            onClick={() => handleNavigate('outward')}
+            className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
+            title="Click to view all outward dispatches"
+          >
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600 rounded-l-xl" />
+            <div className="flex items-center gap-3.5 pl-1">
+              <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Truck className="w-5.5 h-5.5 stroke-[1.8]" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                  TOTAL WAREHOUSE DISPATCH
+                </span>
+                <span className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-0.5 block tracking-tight">
+                  Rs. {formatNumber(shopBreakdown.total.amount)}
+                </span>
+                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold block mt-0.5">
+                  {shopBreakdown.total.pcs.toLocaleString()} pcs • {shopBreakdown.total.bills} Total Bills
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 px-2.5 py-1.5 rounded-lg border border-blue-200/60 dark:border-blue-800/60 transition-colors shrink-0">
+              <span>View All</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
+          {/* Card 2: KHAN JACKET HOUSE */}
+          <div 
+            onClick={() => handleNavigate('shops')}
+            className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-amber-500 hover:shadow-md transition-all cursor-pointer"
+            title="Click to view Khan Jacket House stock flow"
+          >
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500 rounded-l-xl" />
+            <div className="flex items-center gap-3.5 pl-1">
+              <div className="w-12 h-12 rounded-full border-2 border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Store className="w-5.5 h-5.5 stroke-[1.8]" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                  KHAN JACKET HOUSE
+                </span>
+                <span className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 mt-0.5 block tracking-tight">
+                  Rs. {formatNumber(shopBreakdown.khan.amount)}
+                </span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
+                  {shopBreakdown.khan.pcs.toLocaleString()} pcs • {shopBreakdown.khan.bills} Bills ({shopBreakdown.khan.percent}%)
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50/80 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-2.5 py-1.5 rounded-lg border border-amber-200/60 dark:border-amber-800/60 transition-colors shrink-0">
+              <span>View Shop</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
+          {/* Card 3: MK COLLECTION */}
+          <div 
+            onClick={() => handleNavigate('shops')}
+            className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-emerald-500 hover:shadow-md transition-all cursor-pointer"
+            title="Click to view MK Collection stock flow"
+          >
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500 rounded-l-xl" />
+            <div className="flex items-center gap-3.5 pl-1">
+              <div className="w-12 h-12 rounded-full border-2 border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <ShoppingBag className="w-5.5 h-5.5 stroke-[1.8]" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                  MK COLLECTION
+                </span>
+                <span className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 block tracking-tight">
+                  Rs. {formatNumber(shopBreakdown.mk.amount)}
+                </span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                  {shopBreakdown.mk.pcs.toLocaleString()} pcs • {shopBreakdown.mk.bills} Bills ({shopBreakdown.mk.percent}%)
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 px-2.5 py-1.5 rounded-lg border border-emerald-200/60 dark:border-emerald-800/60 transition-colors shrink-0">
+              <span>View Shop</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
+          {/* Card 4: DIRECT WHOLESALE CLIENTS */}
+          <div 
+            onClick={() => handleNavigate('customers')}
+            className="bg-slate-50/70 dark:bg-slate-800/50 rounded-xl p-4.5 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden flex items-center justify-between group hover:border-purple-500 hover:shadow-md transition-all cursor-pointer"
+            title="Click to view external customer accounts"
+          >
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-purple-600 rounded-l-xl" />
+            <div className="flex items-center gap-3.5 pl-1">
+              <div className="w-12 h-12 rounded-full border-2 border-purple-500/30 bg-purple-50/50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Warehouse className="w-5.5 h-5.5 stroke-[1.8]" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                  DIRECT WHOLESALE CLIENTS
+                </span>
+                <span className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 mt-0.5 block tracking-tight">
+                  Rs. {formatNumber(shopBreakdown.direct.amount)}
+                </span>
+                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold block mt-0.5">
+                  {shopBreakdown.direct.pcs.toLocaleString()} pcs • {shopBreakdown.direct.bills} Market Bills ({shopBreakdown.direct.percent}%)
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50/80 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/60 px-2.5 py-1.5 rounded-lg border border-purple-200/60 dark:border-purple-800/60 transition-colors shrink-0">
+              <span>View Ledger</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </div>
           </div>
 

@@ -235,7 +235,7 @@ export const CustomerStatementModal = () => {
   // Toggle 3-dots action dropdown
   const handleToggleDropdown = (e, type, item) => {
     e.stopPropagation();
-    if (!canEdit && !canDelete && type !== 'DISPATCH') {
+    if ((isViewer || (!canEdit && !canDelete) || (type === 'RETURN' && !canDelete)) && type !== 'DISPATCH') {
       return;
     }
     if (activeDropdown?.id === item.id && activeDropdown?.type === type) {
@@ -633,9 +633,9 @@ export const CustomerStatementModal = () => {
                             Rs. {row.runningBalance.toLocaleString()}
                           </td>
                           <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                            {!canEdit && !canDelete && row.type !== 'DISPATCH' ? (
+                            {(isViewer || (!canEdit && !canDelete) || (row.type === 'RETURN' && !canDelete)) && row.type !== 'DISPATCH' ? (
                               <span className="text-slate-300 dark:text-slate-600 font-mono">—</span>
-                            ) : !canEdit && !canDelete && row.type === 'DISPATCH' ? (
+                            ) : (isViewer || (!canEdit && !canDelete)) && row.type === 'DISPATCH' ? (
                               <button
                                 type="button"
                                 onClick={() => handleShowBill(row.originalItem)}
@@ -867,7 +867,7 @@ export const CustomerStatementModal = () => {
             </button>
           )}
 
-          {canEdit && activeDropdown.type !== 'RETURN' && (
+          {!isViewer && canEdit && activeDropdown.type !== 'RETURN' && (
             <button
               type="button"
               onClick={() => handleStartEdit(activeDropdown.type, activeDropdown.item)}
@@ -878,7 +878,7 @@ export const CustomerStatementModal = () => {
             </button>
           )}
 
-          {canDelete && activeDropdown.type !== 'OPENING' && (
+          {!isViewer && canDelete && activeDropdown.type !== 'OPENING' && (
             <button
               type="button"
               onClick={() => handleStartDelete(activeDropdown.type, activeDropdown.item)}
