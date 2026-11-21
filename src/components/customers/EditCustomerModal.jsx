@@ -50,15 +50,22 @@ export const EditCustomerModal = () => {
       setUgrahiRoute(editingCustomer.ugrahiRoute || (cities.some(c => c.name === editingCustomer.city) ? editingCustomer.city : (cities[0]?.name || 'Lahore')));
 
       // Calculate current opening balance
-      const currentShopLower = (editingCustomer.shopName || '').toLowerCase();
-      const customerDispatches = (outward || []).filter(o => 
-        (o.customerId && o.customerId === editingCustomer.id) ||
-        (o.customerName && currentShopLower && o.customerName.toLowerCase() === currentShopLower)
-      );
-      const totalBilled = customerDispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
-      const recordedTotalBill = Number(editingCustomer.totalBill) || 0;
-      const calcOpening = Math.max(0, recordedTotalBill - totalBilled);
-      setOpeningBalance(calcOpening > 0 ? calcOpening : '');
+      let currentOpening = '';
+      if (editingCustomer.openingBalance !== undefined && editingCustomer.openingBalance !== null && !isNaN(Number(editingCustomer.openingBalance))) {
+        const opVal = Number(editingCustomer.openingBalance);
+        currentOpening = opVal > 0 ? opVal : '';
+      } else {
+        const currentShopLower = (editingCustomer.shopName || '').toLowerCase();
+        const customerDispatches = (outward || []).filter(o => 
+          (o.customerId && o.customerId === editingCustomer.id) ||
+          (o.customerName && currentShopLower && o.customerName.toLowerCase() === currentShopLower)
+        );
+        const totalBilled = customerDispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
+        const recordedTotalBill = Number(editingCustomer.totalBill) || 0;
+        const calcOpening = Math.max(0, recordedTotalBill - totalBilled);
+        currentOpening = calcOpening > 0 ? calcOpening : '';
+      }
+      setOpeningBalance(currentOpening);
       setError('');
     }
   }, [editingCustomer, isEditCustomerOpen, cities, outward]);
@@ -121,6 +128,7 @@ export const EditCustomerModal = () => {
         const totalBilled = customerDispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
         const newTotalBill = totalBilled + numOpening;
         const totalPaid = Number(editingCustomer.totalPaid || 0);
+        const totalReturned = Number(editingCustomer.totalReturned || 0);
 
         setSelectedCustomerKhata(prev => ({
           ...prev,
@@ -131,8 +139,9 @@ export const EditCustomerModal = () => {
           phone2: phone2.trim(),
           marketAddress: marketAddress.trim(),
           notes: notes.trim(),
+          openingBalance: numOpening,
           totalBill: newTotalBill,
-          remainingBalance: newTotalBill - totalPaid
+          remainingBalance: newTotalBill - (totalPaid + totalReturned)
         }));
       }
 

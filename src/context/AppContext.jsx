@@ -635,21 +635,51 @@ export const AppProvider = ({ children }) => {
           }));
         }
 
+        // Accurately compute bill amount & net balance addition
+        const billAmt = Number(
+          newDispatch.totalSaleAmount ??
+          newDispatch.totalAmount ??
+          ((Number(newDispatch.quantity) || 0) * (Number(newDispatch.unitSalePrice) || 0)) ??
+          0
+        );
+        const paidAmt = Number(newDispatch.paidAmount) || 0;
+        const netAddition = billAmt - paidAmt;
+        const custId = newDispatch.customerId || outwardData.customerId;
+        const addPieces = Number(newDispatch.quantity || outwardData.quantity || 0);
+
         // Optimistic customer balance addition
-        if (newDispatch.customerId) {
+        if (custId) {
           setCustomers(prev => (prev || []).map(c => {
-            if (c.id === newDispatch.customerId) {
+            if (c.id === custId) {
               const prevBal = Number(c.remainingBalance || 0);
               const prevBill = Number(c.totalBill || 0);
-              const addedAmt = Number(newDispatch.totalAmount || 0);
+              const prevPaid = Number(c.totalPaid || 0);
+              const prevPieces = Number(c.totalPiecesReceived || 0);
               return {
                 ...c,
-                totalBill: prevBill + addedAmt,
-                remainingBalance: prevBal + addedAmt
+                totalPiecesReceived: prevPieces + addPieces,
+                totalBill: prevBill + billAmt,
+                totalPaid: prevPaid + paidAmt,
+                remainingBalance: prevBal + netAddition
               };
             }
             return c;
           }));
+
+          setSelectedCustomerKhata(prev => {
+            if (!prev || prev.id !== custId) return prev;
+            const prevBal = Number(prev.remainingBalance || 0);
+            const prevBill = Number(prev.totalBill || 0);
+            const prevPaid = Number(prev.totalPaid || 0);
+            const prevPieces = Number(prev.totalPiecesReceived || 0);
+            return {
+              ...prev,
+              totalPiecesReceived: prevPieces + addPieces,
+              totalBill: prevBill + billAmt,
+              totalPaid: prevPaid + paidAmt,
+              remainingBalance: prevBal + netAddition
+            };
+          });
         }
 
         // Targeted background sync
@@ -660,7 +690,16 @@ export const AppProvider = ({ children }) => {
         ]).then(([oRes, aRes, cRes]) => {
           if (oRes.status === 'fulfilled' && oRes.value?.data) setOutward(oRes.value.data);
           if (aRes.status === 'fulfilled' && aRes.value?.data) setArticles(aRes.value.data);
-          if (cRes.status === 'fulfilled' && cRes.value?.data) setCustomers(cRes.value.data);
+          if (cRes.status === 'fulfilled' && cRes.value?.data) {
+            const sorted = [...cRes.value.data].sort((a, b) => 
+              (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })
+            );
+            setCustomers(sorted);
+            setSelectedCustomerKhata(prev => {
+              if (!prev) return null;
+              return sorted.find(c => c.id === prev.id) || prev;
+            });
+          }
         }).catch(() => {});
 
         return { success: true, outward: newDispatch };
@@ -682,7 +721,16 @@ export const AppProvider = ({ children }) => {
         ]).then(([oRes, aRes, cRes]) => {
           if (oRes.status === 'fulfilled' && oRes.value?.data) setOutward(oRes.value.data);
           if (aRes.status === 'fulfilled' && aRes.value?.data) setArticles(aRes.value.data);
-          if (cRes.status === 'fulfilled' && cRes.value?.data) setCustomers(cRes.value.data);
+          if (cRes.status === 'fulfilled' && cRes.value?.data) {
+            const sorted = [...cRes.value.data].sort((a, b) => 
+              (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })
+            );
+            setCustomers(sorted);
+            setSelectedCustomerKhata(prev => {
+              if (!prev) return null;
+              return sorted.find(c => c.id === prev.id) || prev;
+            });
+          }
         }).catch(() => {});
         return { success: true, outward: res.data };
       }
@@ -704,7 +752,16 @@ export const AppProvider = ({ children }) => {
         ]).then(([oRes, aRes, cRes]) => {
           if (oRes.status === 'fulfilled' && oRes.value?.data) setOutward(oRes.value.data);
           if (aRes.status === 'fulfilled' && aRes.value?.data) setArticles(aRes.value.data);
-          if (cRes.status === 'fulfilled' && cRes.value?.data) setCustomers(cRes.value.data);
+          if (cRes.status === 'fulfilled' && cRes.value?.data) {
+            const sorted = [...cRes.value.data].sort((a, b) => 
+              (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })
+            );
+            setCustomers(sorted);
+            setSelectedCustomerKhata(prev => {
+              if (!prev) return null;
+              return sorted.find(c => c.id === prev.id) || prev;
+            });
+          }
         }).catch(() => {});
         return { success: true };
       }
@@ -899,7 +956,17 @@ export const AppProvider = ({ children }) => {
       const res = await api.customers.update(id, data);
       if (res?.success) {
         setCustomers(prev => (prev || []).map(c => c.id === id ? { ...c, ...(res.data || data) } : c));
-        api.customers.list().then(r => r?.data && setCustomers(r.data)).catch(() => {});
+        setSelectedCustomerKhata(prev => (prev && prev.id === id ? { ...prev, ...(res.data || data) } : prev));
+        api.customers.list().then(r => {
+          if (r?.data) {
+            setCustomers(r.data);
+            setSelectedCustomerKhata(prev => {
+              if (!prev || prev.id !== id) return prev;
+              const fresh = r.data.find(c => c.id === id);
+              return fresh || prev;
+            });
+          }
+        }).catch(() => {});
         return { success: true };
       }
       return { success: false, message: res?.message || 'Failed to update customer' };
@@ -937,7 +1004,7 @@ export const AppProvider = ({ children }) => {
             return {
               ...c,
               totalPaid: currentPaid + payAmt,
-              remainingBalance: Math.max(0, currentBal - payAmt)
+              remainingBalance: currentBal - payAmt
             };
           }
           return c;
@@ -956,7 +1023,7 @@ export const AppProvider = ({ children }) => {
           return {
             ...prev,
             totalPaid: currentPaid + payAmt,
-            remainingBalance: Math.max(0, currentBal - payAmt)
+            remainingBalance: currentBal - payAmt
           };
         });
 
@@ -970,6 +1037,11 @@ export const AppProvider = ({ children }) => {
               (a.shopName || '').localeCompare(b.shopName || '', undefined, { sensitivity: 'base' })
             );
             setCustomers(sortedCustomers);
+            setSelectedCustomerKhata(prev => {
+              if (!prev || prev.id !== paymentData.customerId) return prev;
+              const fresh = sortedCustomers.find(c => c.id === paymentData.customerId);
+              return fresh || prev;
+            });
           }
           if (payRes.status === 'fulfilled' && payRes.value?.data) {
             setCustomerPayments(payRes.value.data);
@@ -998,7 +1070,14 @@ export const AppProvider = ({ children }) => {
           api.customers.list(),
           api.customers.listPayments()
         ]).then(([custRes, payRes]) => {
-          if (custRes.status === 'fulfilled' && custRes.value?.data) setCustomers(custRes.value.data);
+          if (custRes.status === 'fulfilled' && custRes.value?.data) {
+            setCustomers(custRes.value.data);
+            setSelectedCustomerKhata(prev => {
+              if (!prev) return prev;
+              const fresh = custRes.value.data.find(c => c.id === prev.id);
+              return fresh || prev;
+            });
+          }
           if (payRes.status === 'fulfilled' && payRes.value?.data) setCustomerPayments(payRes.value.data);
         }).catch(() => {});
         return { success: true, payment: res.data };
@@ -1018,7 +1097,14 @@ export const AppProvider = ({ children }) => {
           api.customers.list(),
           api.customers.listPayments()
         ]).then(([custRes, payRes]) => {
-          if (custRes.status === 'fulfilled' && custRes.value?.data) setCustomers(custRes.value.data);
+          if (custRes.status === 'fulfilled' && custRes.value?.data) {
+            setCustomers(custRes.value.data);
+            setSelectedCustomerKhata(prev => {
+              if (!prev) return prev;
+              const fresh = custRes.value.data.find(c => c.id === prev.id);
+              return fresh || prev;
+            });
+          }
           if (payRes.status === 'fulfilled' && payRes.value?.data) setCustomerPayments(payRes.value.data);
         }).catch(() => {});
         return { success: true };
@@ -1043,7 +1129,14 @@ export const AppProvider = ({ children }) => {
           api.articles.list()
         ]).then(([retRes, custRes, artRes]) => {
           if (retRes.status === 'fulfilled' && retRes.value?.data) setCustomerReturns(retRes.value.data);
-          if (custRes.status === 'fulfilled' && custRes.value?.data) setCustomers(custRes.value.data);
+          if (custRes.status === 'fulfilled' && custRes.value?.data) {
+            setCustomers(custRes.value.data);
+            setSelectedCustomerKhata(prev => {
+              if (!prev) return prev;
+              const fresh = custRes.value.data.find(c => c.id === prev.id);
+              return fresh || prev;
+            });
+          }
           if (artRes.status === 'fulfilled' && artRes.value?.data) setArticles(artRes.value.data);
         }).catch(() => {});
         return { success: true, returnRecord };
@@ -1065,7 +1158,14 @@ export const AppProvider = ({ children }) => {
           api.articles.list()
         ]).then(([retRes, custRes, artRes]) => {
           if (retRes.status === 'fulfilled' && retRes.value?.data) setCustomerReturns(retRes.value.data);
-          if (custRes.status === 'fulfilled' && custRes.value?.data) setCustomers(custRes.value.data);
+          if (custRes.status === 'fulfilled' && custRes.value?.data) {
+            setCustomers(custRes.value.data);
+            setSelectedCustomerKhata(prev => {
+              if (!prev) return prev;
+              const fresh = custRes.value.data.find(c => c.id === prev.id);
+              return fresh || prev;
+            });
+          }
           if (artRes.status === 'fulfilled' && artRes.value?.data) setArticles(artRes.value.data);
         }).catch(() => {});
         return { success: true };

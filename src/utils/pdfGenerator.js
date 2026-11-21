@@ -307,8 +307,11 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
   const totalReturned = returns.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0);
   const totalPieces = dispatches.reduce((s, d) => s + (Number(d.quantity) || 0), 0);
   const recordedBill = Number(customer.totalBill) || 0;
-  const openingBalance = Math.max(0, recordedBill - totalBilled);
-  const currentNetBalance = Math.max(0, (openingBalance + totalBilled) - (totalPaid + totalReturned));
+  const rawOpening = customer.openingBalance !== undefined && customer.openingBalance !== null && !isNaN(Number(customer.openingBalance))
+    ? Number(customer.openingBalance)
+    : Math.max(0, recordedBill - totalBilled);
+  const openingBalance = isNaN(rawOpening) ? 0 : rawOpening;
+  const currentNetBalance = (openingBalance + totalBilled) - (totalPaid + totalReturned);
 
   // Customer Profile Banner
   doc.setFillColor(248, 250, 252);
@@ -328,17 +331,38 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
   doc.text(`Market Address: ${customer.marketAddress || customer.city}`, 18, currentY + 22);
 
   // Net Balance Display Pill (Right inside banner)
-  doc.setFillColor(254, 242, 242); // rose-50
-  doc.setDrawColor(254, 205, 211);
+  const isAdvance = currentNetBalance < 0;
+  const isZero = currentNetBalance === 0;
+
+  if (isAdvance) {
+    doc.setFillColor(236, 253, 245); // emerald-50
+    doc.setDrawColor(167, 243, 208); // emerald-200
+  } else if (isZero) {
+    doc.setFillColor(241, 245, 249); // slate-100
+    doc.setDrawColor(203, 213, 225); // slate-300
+  } else {
+    doc.setFillColor(254, 242, 242); // rose-50
+    doc.setDrawColor(254, 205, 211); // rose-200
+  }
   doc.roundedRect(122, currentY + 4, 69, 17, 2, 2, 'FD');
 
   doc.setFontSize(7);
-  doc.setTextColor(225, 29, 72);
-  doc.setFont('helvetica', 'bold');
-  doc.text('REMAINING BAQAYA / DUE BALANCE', 125, currentY + 9);
+  if (isAdvance) {
+    doc.setTextColor(5, 150, 105); // emerald-600
+    doc.setFont('helvetica', 'bold');
+    doc.text('ADVANCE / JAMA (CUSTOMER SURPLUS)', 125, currentY + 9);
+  } else if (isZero) {
+    doc.setTextColor(71, 85, 105); // slate-600
+    doc.setFont('helvetica', 'bold');
+    doc.text('ACCOUNT SETTLED / NIL (NO DUES)', 125, currentY + 9);
+  } else {
+    doc.setTextColor(225, 29, 72); // rose-600
+    doc.setFont('helvetica', 'bold');
+    doc.text('REMAINING BAQAYA / DUE BALANCE', 125, currentY + 9);
+  }
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(formatPKR(currentNetBalance), 125, currentY + 17);
+  doc.text(formatPKR(Math.abs(currentNetBalance)), 125, currentY + 17);
 
   currentY += 30;
 
@@ -374,9 +398,10 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
   const events = [];
 
   if (openingBalance > 0) {
+    const baseCreatedAt = new Date(customer.createdAt || 0).getTime();
     events.push({
       date: customer.createdAt ? customer.createdAt.split('T')[0] : 'Opening',
-      rawDate: new Date(customer.createdAt || 0).getTime(),
+      rawDate: baseCreatedAt > 1000 ? baseCreatedAt - 1000 : 1,
       desc: 'Sabqa Baqaya / Opening Balance',
       debit: openingBalance,
       credit: 0

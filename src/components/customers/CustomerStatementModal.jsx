@@ -19,6 +19,7 @@ import { Pagination } from '../common/Pagination';
 
 export const CustomerStatementModal = () => {
   const { 
+    customers = [],
     selectedCustomerKhata, 
     setSelectedCustomerKhata, 
     setSelectedCustomerForPayment,
@@ -89,30 +90,40 @@ export const CustomerStatementModal = () => {
 
   if (!selectedCustomerKhata) return null;
 
-  const currentShopName = selectedCustomerKhata.shopName || '';
+  // Live reactive customer record so that new bills, dispatches, payments, or edits reflect in real-time
+  const activeCustomer = (customers || []).find(c => c.id === selectedCustomerKhata.id) || selectedCustomerKhata;
+
+  const currentShopName = activeCustomer.shopName || '';
   const currentShopLower = currentShopName.toLowerCase();
 
   const customerDispatches = (outward || []).filter(o => 
-    (o.customerId && o.customerId === selectedCustomerKhata.id) ||
+    (o.customerId && o.customerId === activeCustomer.id) ||
     (o.customerName && currentShopLower && o.customerName.toLowerCase() === currentShopLower)
   );
 
   const customerPayHistory = (customerPayments || []).filter(p => 
-    p.customerId === selectedCustomerKhata.id ||
+    p.customerId === activeCustomer.id ||
     (p.customerName && currentShopLower && p.customerName.toLowerCase().includes(currentShopLower))
   );
 
   const customerReturnHistory = (customerReturns || []).filter(r => 
-    (r.customerId && r.customerId === selectedCustomerKhata.id) ||
+    (r.customerId && r.customerId === activeCustomer.id) ||
     (r.customerName && currentShopLower && r.customerName.toLowerCase().includes(currentShopLower))
   );
 
   const totalBilled = customerDispatches.reduce((s, d) => s + (Number(d.totalSaleAmount) || 0), 0);
   const totalPaid = customerPayHistory.reduce((s, p) => s + (Number(p.amount) || 0), 0);
   const totalReturned = customerReturnHistory.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0);
-  const recordedTotalBill = Number(selectedCustomerKhata.totalBill) || 0;
-  const openingBalance = Math.max(0, recordedTotalBill - totalBilled);
-  const currentNetBalance = Math.max(0, (openingBalance + totalBilled) - (totalPaid + totalReturned));
+  const recordedTotalBill = Number(activeCustomer.totalBill) || 0;
+  
+  // Prefer dedicated openingBalance column, otherwise fallback to recordedTotalBill - totalBilled
+  const rawOpening = activeCustomer.openingBalance !== undefined && activeCustomer.openingBalance !== null && !isNaN(Number(activeCustomer.openingBalance))
+    ? Number(activeCustomer.openingBalance)
+    : Math.max(0, recordedTotalBill - totalBilled);
+  const openingBalance = isNaN(rawOpening) ? 0 : rawOpening;
+  
+  // Real Net Balance (supports Baqaya Due if > 0, Advance / Jama if < 0, Settled if === 0)
+  const currentNetBalance = (openingBalance + totalBilled) - (totalPaid + totalReturned);
 
   // Build unified running ledger matching traditional physical Khata
   const events = [];
@@ -120,21 +131,25 @@ export const CustomerStatementModal = () => {
   // 1. Initial Opening Balance row (if exists)
   if (openingBalance > 0) {
     let createdDateStr = 'Pehla Hisab';
-    if (selectedCustomerKhata.createdAt) {
+    if (activeCustomer.createdAt) {
       try {
-        createdDateStr = typeof selectedCustomerKhata.createdAt === 'string'
-          ? selectedCustomerKhata.createdAt.split('T')[0]
-          : new Date(selectedCustomerKhata.createdAt).toISOString().split('T')[0];
+        createdDateStr = typeof activeCustomer.createdAt === 'string'
+          ? activeCustomer.createdAt.split('T')[0]
+          : new Date(activeCustomer.createdAt).toISOString().split('T')[0];
       } catch {
         createdDateStr = 'Opening';
       }
     }
 
+    // Give opening balance event an earlier timestamp so it stays first before any dispatches/payments
+    const baseCreatedAt = new Date(activeCustomer.createdAt || 0).getTime();
+    const openingTimestamp = baseCreatedAt > 1000 ? baseCreatedAt - 1000 : 1;
+
     events.push({
       id: 'opening-bal',
-      originalItem: { ...selectedCustomerKhata, openingBalance },
+      originalItem: { ...activeCustomer, openingBalance },
       date: createdDateStr,
-      rawDate: new Date(selectedCustomerKhata.createdAt || 0).getTime(),
+      rawDate: openingTimestamp,
       type: 'OPENING',
       ref: '—',
       desc: 'Sabqa Baqaya / Opening Balance',
@@ -213,17 +228,17 @@ export const CustomerStatementModal = () => {
   });
 
   const handleOpenPayment = () => {
-    setSelectedCustomerForPayment(selectedCustomerKhata);
+    setSelectedCustomerForPayment(activeCustomer);
     setIsRecordCustomerPaymentOpen(true);
   };
 
   const handleOpenOutward = () => {
-    setSelectedCustomerForBill(selectedCustomerKhata);
+    setSelectedCustomerForBill(activeCustomer);
     setIsNewOutwardOpen(true);
   };
 
   const handleOpenEdit = () => {
-    setEditingCustomer(selectedCustomerKhata);
+    setEditingCustomer(activeCustomer);
     setIsEditCustomerOpen(true);
   };
 
@@ -345,7 +360,7 @@ export const CustomerStatementModal = () => {
         }
       } else if (editingEntry.type === 'OPENING') {
         const newOpening = Math.max(0, Number(editForm.amount) || 0);
-        const res = await updateCustomer(selectedCustomerKhata.id, {
+        const res = await updateCustomer(activeCustomer.id, {
           openingBalance: newOpening
         });
 
@@ -422,11 +437,11 @@ export const CustomerStatementModal = () => {
               </h2>
               <span className="text-xs text-slate-400">•</span>
               <span className="text-base font-semibold text-slate-700 dark:text-slate-200">
-                {selectedCustomerKhata.shopName}
+                {activeCustomer.shopName}
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {selectedCustomerKhata.shopkeeperName} • {selectedCustomerKhata.city} {selectedCustomerKhata.phone ? `• ${selectedCustomerKhata.phone}` : ''} {selectedCustomerKhata.phone2 ? `• ${selectedCustomerKhata.phone2}` : ''}
+              {activeCustomer.shopkeeperName} • {activeCustomer.city} {activeCustomer.phone ? `• ${activeCustomer.phone}` : ''} {activeCustomer.phone2 ? `• ${activeCustomer.phone2}` : ''}
             </p>
           </div>
 
@@ -455,7 +470,7 @@ export const CustomerStatementModal = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedCustomerForWapsi(selectedCustomerKhata);
+                    setSelectedCustomerForWapsi(activeCustomer);
                     setIsRecordMaalWapsiOpen(true);
                   }}
                   className="px-3 py-1.5 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
@@ -478,7 +493,7 @@ export const CustomerStatementModal = () => {
 
             <button
               type="button"
-              onClick={() => downloadCustomerKhataPDF(selectedCustomerKhata, customerDispatches, customerPayHistory, customerReturnHistory)}
+              onClick={() => downloadCustomerKhataPDF(activeCustomer, customerDispatches, customerPayHistory, customerReturnHistory)}
               className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors font-medium cursor-pointer flex items-center gap-1.5"
               title="Download Statement PDF"
             >
@@ -521,9 +536,22 @@ export const CustomerStatementModal = () => {
             </div>
 
             <div>
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
-                Opening Balance
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+                  Opening Balance
+                </span>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit('OPENING', { openingBalance })}
+                    className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                    title="Edit Opening Balance"
+                  >
+                    <Pencil className="w-2.5 h-2.5" />
+                    <span>Edit</span>
+                  </button>
+                )}
+              </div>
               <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
                 Rs. {Math.round(openingBalance).toLocaleString()}
               </span>
@@ -533,11 +561,26 @@ export const CustomerStatementModal = () => {
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
                 Net Remaining Balance
               </span>
-              <span className={`text-base font-bold font-mono mt-0.5 block ${
-                currentNetBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'
-              }`}>
-                Rs. {Math.round(currentNetBalance).toLocaleString()}
-              </span>
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span className={`text-base font-bold font-mono ${
+                  currentNetBalance > 0
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : currentNetBalance < 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-900 dark:text-white'
+                }`}>
+                  Rs. {Math.round(Math.abs(currentNetBalance)).toLocaleString()}
+                </span>
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                  currentNetBalance > 0
+                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                    : currentNetBalance < 0
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                }`}>
+                  {currentNetBalance > 0 ? 'Baqaya Due' : currentNetBalance < 0 ? 'Advance / Jama' : 'Settled'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -905,7 +948,7 @@ export const CustomerStatementModal = () => {
                     : 'Edit Opening Khata Balance'}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {selectedCustomerKhata.shopName} ({selectedCustomerKhata.city})
+                  {activeCustomer.shopName} ({activeCustomer.city})
                 </p>
               </div>
               <button
