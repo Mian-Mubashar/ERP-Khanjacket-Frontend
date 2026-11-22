@@ -116,11 +116,13 @@ export const CustomerStatementModal = () => {
   const totalReturned = customerReturnHistory.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0);
   const recordedTotalBill = Number(activeCustomer.totalBill) || 0;
   
-  // Prefer dedicated openingBalance column, otherwise fallback to recordedTotalBill - totalBilled
-  const rawOpening = activeCustomer.openingBalance !== undefined && activeCustomer.openingBalance !== null && !isNaN(Number(activeCustomer.openingBalance))
-    ? Number(activeCustomer.openingBalance)
-    : Math.max(0, recordedTotalBill - totalBilled);
-  const openingBalance = isNaN(rawOpening) ? 0 : rawOpening;
+  // Real Opening Balance:
+  // If explicitly registered openingBalance > 0, use it.
+  // Otherwise, calculate opening balance from (recordedTotalBill - totalBilled) so legacy/existing customers
+  // (whose openingBalance column was initialized to 0 in MySQL) correctly retain their registered opening balance!
+  const explicitOpening = Number(activeCustomer.openingBalance) || 0;
+  const calculatedOpening = Math.max(0, recordedTotalBill - totalBilled);
+  const openingBalance = explicitOpening > 0 ? explicitOpening : calculatedOpening;
   
   // Real Net Balance (supports Baqaya Due if > 0, Advance / Jama if < 0, Settled if === 0)
   const currentNetBalance = (openingBalance + totalBilled) - (totalPaid + totalReturned);
@@ -519,10 +521,13 @@ export const CustomerStatementModal = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800">
             <div>
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
-                Total Billed
+                Total Billed (Bills)
               </span>
               <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
                 Rs. {Math.round(totalBilled).toLocaleString()}
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 font-medium">
+                Total Bill: Rs. {Math.round(openingBalance + totalBilled).toLocaleString()}
               </span>
             </div>
 
@@ -533,6 +538,15 @@ export const CustomerStatementModal = () => {
               <span className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5 block">
                 Rs. {Math.round(totalPaid).toLocaleString()}
               </span>
+              {totalReturned > 0 ? (
+                <span className="text-[10px] text-purple-600 dark:text-purple-400 block mt-0.5 font-medium">
+                  + Rs. {Math.round(totalReturned).toLocaleString()} Maal Wapsi
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400 block mt-0.5">
+                  0 Maal Wapsi
+                </span>
+              )}
             </div>
 
             <div>

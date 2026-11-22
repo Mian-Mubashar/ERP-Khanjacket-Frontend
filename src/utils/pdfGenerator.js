@@ -307,10 +307,9 @@ export const downloadCustomerKhataPDF = (customer, dispatches = [], payments = [
   const totalReturned = returns.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0);
   const totalPieces = dispatches.reduce((s, d) => s + (Number(d.quantity) || 0), 0);
   const recordedBill = Number(customer.totalBill) || 0;
-  const rawOpening = customer.openingBalance !== undefined && customer.openingBalance !== null && !isNaN(Number(customer.openingBalance))
-    ? Number(customer.openingBalance)
-    : Math.max(0, recordedBill - totalBilled);
-  const openingBalance = isNaN(rawOpening) ? 0 : rawOpening;
+  const explicitOpening = Number(customer.openingBalance) || 0;
+  const calculatedOpening = Math.max(0, recordedBill - totalBilled);
+  const openingBalance = explicitOpening > 0 ? explicitOpening : calculatedOpening;
   const currentNetBalance = (openingBalance + totalBilled) - (totalPaid + totalReturned);
 
   // Customer Profile Banner
