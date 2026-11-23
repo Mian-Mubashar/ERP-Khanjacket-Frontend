@@ -1438,7 +1438,7 @@ export const UgrahiView = () => {
         </div>
 
         {/* Streamlined Single Horizontal Filter & Config Bar */}
-        <div className="relative z-30 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
+        <div className="relative z-10 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
           {/* Single Row: Title, Date, Collector, City Dropdown */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
             {/* Sheet Title */}

@@ -505,7 +505,7 @@ export const Navbar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors shadow-2xs">
+    <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors shadow-2xs">
       <div className="flex items-center justify-between px-4 lg:px-7 h-16">
         
         {/* Left: Hamburger & Brand Name */}
