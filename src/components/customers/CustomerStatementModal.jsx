@@ -726,10 +726,20 @@ export const CustomerStatementModal = () => {
                           Rs. {Math.round(totalBilled + openingBalance).toLocaleString()}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-800 dark:text-slate-200">
-                          Rs. {Math.round(totalPaid).toLocaleString()}
+                          <div>Rs. {Math.round(totalPaid + totalReturned).toLocaleString()}</div>
+                          {totalReturned > 0 && (
+                            <div className="text-[10px] text-purple-600 dark:text-purple-400 font-normal">
+                              (Wasool: {Math.round(totalPaid).toLocaleString()} + Wapsi: {Math.round(totalReturned).toLocaleString()})
+                            </div>
+                          )}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-900 dark:text-white text-sm">
-                          Rs. {Math.round(currentNetBalance).toLocaleString()}
+                          <span className={currentNetBalance > 0 ? 'text-rose-600 dark:text-rose-400' : currentNetBalance < 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}>
+                            Rs. {Math.round(Math.abs(currentNetBalance)).toLocaleString()}
+                          </span>
+                          <span className="text-[10px] block font-normal text-slate-500">
+                            {currentNetBalance > 0 ? 'Baqaya Due' : currentNetBalance < 0 ? 'Advance / Jama' : 'Settled'}
+                          </span>
                         </td>
                         <td></td>
                       </tr>

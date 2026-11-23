@@ -24,7 +24,7 @@ export const NewOutwardModal = () => {
 
   const [selectedArticleNo, setSelectedArticleNo] = useState('');
   const [quantity, setQuantity] = useState(100);
-  const [challanNo, setChallanNo] = useState(generateBillNo);
+  const [challanNo, setChallanNo] = useState('');
   const [date, setDate] = useState(getTodayDate);
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -61,7 +61,7 @@ export const NewOutwardModal = () => {
   // Initialize or reset defaults when modal opens
   useEffect(() => {
     if (isNewOutwardOpen) {
-      setChallanNo(generateBillNo());
+      setChallanNo('');
       setGatePassNo(generateGatePass());
       setDate(getTodayDate());
       setIsWithoutStock(false);
@@ -243,18 +243,14 @@ export const NewOutwardModal = () => {
           setError('Please enter a valid Total Bill Amount.');
           return;
         }
-        if (!challanNo.trim()) {
-          showError('Bill # Required', 'Please enter Bill # (Parcha / Invoice #).');
-          setError('Please enter Bill # (Parcha / Invoice #).');
-          return;
-        }
+        const finalChallanNo = challanNo.trim() || generateBillNo();
 
         const res = await addOutward({
           articleNo: 'DIRECT-SALE',
           articleName: maalSource,
           quantity: 1,
           unitSalePrice: amount,
-          challanNo: challanNo.trim(),
+          challanNo: finalChallanNo,
           date,
           city: selectedCity,
           customerId: selectedCustomerId || null,
@@ -274,7 +270,7 @@ export const NewOutwardModal = () => {
           return;
         }
 
-        showToast(`Bill #${challanNo}: Rs. ${amount.toLocaleString()} (${maalSource}) billed to ${finalCustomerName}!`, 'success');
+        showToast(`Bill #${finalChallanNo}: Rs. ${amount.toLocaleString()} (${maalSource}) billed to ${finalCustomerName}!`, 'success');
         handleClose();
         return;
       }
@@ -305,11 +301,13 @@ export const NewOutwardModal = () => {
         ? `Warehouse to ${selectedOwnShop} Stock Transfer${notes.trim() ? ` • ${notes.trim()}` : ''}`
         : notes.trim();
 
+      const finalChallanNo = challanNo.trim() || generateBillNo();
+
       const res = await addOutward({
         articleNo: activeArticleCode,
         articleName: undefined,
         quantity: numQty,
-        challanNo: challanNo.trim(),
+        challanNo: finalChallanNo,
         date,
         city: selectedCity,
         customerId: dispatchTargetType === 'SHOP' ? null : (selectedCustomerId || null),
@@ -331,7 +329,7 @@ export const NewOutwardModal = () => {
       }
 
       const paidNotice = Number(paidAmount) > 0 ? ` [Wasooli Rs. ${Number(paidAmount).toLocaleString()}]` : '';
-      showToast(`Bill #${challanNo}: ${numQty} pcs dispatched to ${finalCustomerName}!${paidNotice}`, 'success');
+      showToast(`Bill #${finalChallanNo}: ${numQty} pcs dispatched to ${finalCustomerName}!${paidNotice}`, 'success');
       handleClose();
     } finally {
       isSubmittingRef.current = false;
@@ -750,14 +748,13 @@ export const NewOutwardModal = () => {
                 {/* 1. Bill # (Parcha / Invoice) */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Bill # (Parcha / Invoice) <span className="text-rose-500">*</span>
+                    Bill # (Parcha / Invoice) <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
                   </label>
                   <input
                     type="text"
-                    required
                     value={challanNo}
                     onChange={e => setChallanNo(e.target.value)}
-                    placeholder="e.g. 5318"
+                    placeholder="e.g. 5318 (or leave blank)"
                     className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white outline-hidden focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                   />
                   <span className="text-[10px] text-slate-400 mt-1 block">Bill / Challan number</span>
@@ -1047,13 +1044,13 @@ export const NewOutwardModal = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Bill # (Parcha / Invoice)
+                      Bill # (Parcha / Invoice) <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
                     </label>
                     <input
                       type="text"
                       value={challanNo}
                       onChange={e => setChallanNo(e.target.value)}
-                      placeholder="e.g. 5318"
+                      placeholder="e.g. 5318 (or leave blank)"
                       className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-medium text-slate-800 dark:text-slate-200 outline-hidden transition-all"
                     />
                   </div>

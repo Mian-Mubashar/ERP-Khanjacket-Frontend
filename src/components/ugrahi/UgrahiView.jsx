@@ -360,6 +360,7 @@ export const UgrahiView = () => {
       id: `cust-${c.id}`,
       customerId: c.id,
       name: formatCustomerDisplayName(c.shopName, c.shopkeeperName),
+      pageNo: c.pageNo || '',
       address: c.marketAddress ? `${c.marketAddress}, ${c.city}` : c.city || '',
       city: c.ugrahiRoute || c.city || '',
       area: c.area || '',
@@ -587,13 +588,14 @@ export const UgrahiView = () => {
       list = list.filter(r => (r.area || '').toLowerCase() === selectedAreaFilter.toLowerCase());
     }
     if (tableSearch && tableSearch.trim()) {
-      const q = tableSearch.toLowerCase();
+      const q = tableSearch.toLowerCase().trim();
       list = list.filter(r => {
         return (
           (r.name || '').toLowerCase().includes(q) ||
           (r.address || '').toLowerCase().includes(q) ||
           (r.city || '').toLowerCase().includes(q) ||
-          (r.area || '').toLowerCase().includes(q)
+          (r.area || '').toLowerCase().includes(q) ||
+          (String(r.pageNo || '')).toLowerCase().includes(q)
         );
       });
     }
@@ -616,6 +618,7 @@ export const UgrahiView = () => {
     const newRow = {
       id: `row-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       name: '',
+      pageNo: '',
       address: '',
       city: selectedCity === 'ALL' ? '' : selectedCity,
       totalDue: '',
@@ -654,6 +657,7 @@ export const UgrahiView = () => {
           return {
             ...r,
             name: formatCustomerDisplayName(matched.shopName, matched.shopkeeperName),
+            pageNo: matched.pageNo || r.pageNo || '',
             address: matched.marketAddress ? `${matched.marketAddress}, ${matched.city}` : matched.city || '',
             city: matched.city || '',
             area: matched.area || '',
@@ -1196,6 +1200,7 @@ export const UgrahiView = () => {
             <tr className="bg-slate-100 font-bold border-b border-slate-800">
               <th className="border border-slate-800 p-2 text-center w-10">#</th>
               <th className="border border-slate-800 p-2">Customer / Shop Name</th>
+              <th className="border border-slate-800 p-2 text-center w-16">Page #</th>
               {isMultanActive && (
                 <th className="border border-slate-800 p-2 text-center w-36">Phone #</th>
               )}
@@ -1208,6 +1213,7 @@ export const UgrahiView = () => {
               <tr key={row.id || idx} className="border-b border-slate-300">
                 <td className="border border-slate-800 p-2 text-center font-bold">{idx + 1}</td>
                 <td className="border border-slate-800 p-2 font-semibold">{row.name || '—'}</td>
+                <td className="border border-slate-800 p-2 text-center font-mono font-bold text-xs">{row.pageNo || '—'}</td>
                 {isMultanActive && (
                   <td className="border border-slate-800 p-2 text-center font-mono font-bold text-xs">
                     {row.phone || '—'}
@@ -1224,7 +1230,7 @@ export const UgrahiView = () => {
           </tbody>
           <tfoot>
             <tr className="bg-slate-100 font-bold border-t-2 border-slate-800 text-sm">
-              <td colSpan={isMultanActive ? 3 : 2} className="border border-slate-800 p-2 text-right font-bold">
+              <td colSpan={isMultanActive ? 4 : 3} className="border border-slate-800 p-2 text-right font-bold">
                 Grand Total ({rows.length} Accounts):
               </td>
               <td className="border border-slate-800 p-2 text-right font-mono font-bold">
@@ -1700,7 +1706,7 @@ export const UgrahiView = () => {
                 type="text"
                 value={tableSearch}
                 onChange={e => setTableSearch(e.target.value)}
-                placeholder="Search customer, location or city in sheet..."
+                placeholder="Search customer, location, page # or city in sheet..."
                 className="w-full pl-8.5 pr-8 py-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
               />
               {tableSearch && (
@@ -1748,6 +1754,7 @@ export const UgrahiView = () => {
                 <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   <th className="py-2.5 px-2 text-center w-14" title="Serial Number (Type new number & press Enter to reorder)">#</th>
                   <th className="py-2.5 px-3 min-w-[240px]">Customer / Shop Name</th>
+                  <th className="py-2.5 px-2 text-center w-24">Page #</th>
                   <th className="py-2.5 px-3 min-w-[200px]">Location / Address</th>
                   <th className="py-2.5 px-3 min-w-[150px] text-right">Total Balance (PKR)</th>
                   <th className="py-2.5 px-3 min-w-[150px] text-right">Collected Wasooli (PKR)</th>
@@ -1757,7 +1764,7 @@ export const UgrahiView = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
                 {displayedRows.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="py-10 text-center text-slate-400">
+                    <td colSpan="7" className="py-10 text-center text-slate-400">
                       <div className="max-w-md mx-auto space-y-2.5 py-2 text-center">
                         <ReceiptText className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
                         <p className="font-semibold text-slate-700 dark:text-slate-300">
@@ -1816,6 +1823,17 @@ export const UgrahiView = () => {
                           onChange={e => handleCustomerNameChange(row.id, e.target.value)}
                           placeholder="Shop / Customer Name..."
                           className="w-full px-2.5 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 rounded-lg text-xs font-semibold text-slate-900 dark:text-white outline-hidden transition-all"
+                        />
+                      </td>
+
+                      {/* Page # (Khata Book Safha #) */}
+                      <td className="py-1.5 px-2 text-center w-24">
+                        <input
+                          type="text"
+                          value={row.pageNo || ''}
+                          onChange={e => handleRowChange(row.id, 'pageNo', e.target.value)}
+                          placeholder="Page #"
+                          className="w-full px-2 py-1 bg-transparent border border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 rounded-lg text-xs font-mono font-bold text-center text-slate-900 dark:text-white outline-hidden transition-all"
                         />
                       </td>
 

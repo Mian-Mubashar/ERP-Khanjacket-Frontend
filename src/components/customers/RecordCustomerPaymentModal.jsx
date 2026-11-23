@@ -52,7 +52,7 @@ export const RecordCustomerPaymentModal = () => {
   const currentCustomer = customers.find(c => c.id === customerId) || customers[0];
   const oldBalance = Number(currentCustomer?.remainingBalance || 0);
   const payAmt = Number(amount) || 0;
-  const newBalance = Math.max(0, oldBalance - payAmt);
+  const newBalance = oldBalance - payAmt;
 
   const setPresetAmount = (val) => {
     if (isSubmitting) return;
@@ -296,7 +296,9 @@ export const RecordCustomerPaymentModal = () => {
                 <span className="text-slate-300 dark:text-slate-600 font-bold text-base">=</span>
                 <div className="text-right">
                   <span className="text-[10px] text-slate-400 uppercase font-sans font-semibold block">New Balance</span>
-                  <strong className="text-slate-900 dark:text-white text-sm">{formatPKR(newBalance)}</strong>
+                  <strong className={`text-sm ${newBalance > 0 ? 'text-rose-600 dark:text-rose-400' : newBalance < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                    {newBalance < 0 ? `Rs. ${Math.abs(newBalance).toLocaleString()} (Adv)` : formatPKR(newBalance)}
+                  </strong>
                 </div>
               </div>
             </div>

@@ -1570,11 +1570,13 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
     let displayName = (r.name || '—').trim();
     displayName = displayName.replace(/\s*\[[^\]]+\]\s*$/, '').trim() || '—';
     const phone = r.phone || '—';
+    const pageNo = r.pageNo || '—';
 
     if (isMultan) {
       return [
         rIdx + 1,
         displayName,
+        pageNo,
         phone,
         formatPKR(r.totalDue),
         r.wasool ? formatPKR(r.wasool) : ''
@@ -1584,28 +1586,31 @@ export const downloadUgrahiSheetPDF = (sheetData = {}) => {
     return [
       rIdx + 1,
       displayName,
+      pageNo,
       formatPKR(r.totalDue),
       r.wasool ? formatPKR(r.wasool) : ''
     ];
   });
 
   const tableHead = isMultan
-    ? [['#', 'Customer / Shop Name', 'Phone #', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']]
-    : [['#', 'Customer / Shop Name', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']];
+    ? [['#', 'Customer / Shop Name', 'Page #', 'Phone #', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']]
+    : [['#', 'Customer / Shop Name', 'Page #', 'Total Balance (PKR)', 'Collected Wasooli (PKR)']];
 
   const colStyles = isMultan
     ? {
         0: { halign: 'center', cellWidth: 10, fontStyle: 'bold' },
-        1: { fontStyle: 'bold', cellWidth: 72 },
-        2: { halign: 'center', font: 'courier', fontStyle: 'bold', cellWidth: 35 },
-        3: { halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 35 },
-        4: { halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 30 }
+        1: { fontStyle: 'bold', cellWidth: 62 },
+        2: { halign: 'center', font: 'courier', fontStyle: 'bold', cellWidth: 20 },
+        3: { halign: 'center', font: 'courier', fontStyle: 'bold', cellWidth: 30 },
+        4: { halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 32 },
+        5: { halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 28 }
       }
     : {
         0: { halign: 'center', cellWidth: 10, fontStyle: 'bold' },
         1: { fontStyle: 'bold' },
-        2: { halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 35 },
-        3: { halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 32 }
+        2: { halign: 'center', font: 'courier', fontStyle: 'bold', cellWidth: 24 },
+        3: { halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72], cellWidth: 35 },
+        4: { halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129], cellWidth: 32 }
       };
 
   autoTable(doc, {

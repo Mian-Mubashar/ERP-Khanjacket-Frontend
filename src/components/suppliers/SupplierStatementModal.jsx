@@ -19,6 +19,7 @@ import { showToast } from '../../utils/sweetalert';
 
 export const SupplierStatementModal = () => {
   const {
+    suppliers = [],
     selectedSupplierDetail,
     setSelectedSupplierDetail,
     setEditingSupplier,
@@ -82,7 +83,8 @@ export const SupplierStatementModal = () => {
 
   if (!selectedSupplierDetail) return null;
 
-  const sup = selectedSupplierDetail;
+  // Live reactive supplier record
+  const sup = (suppliers || []).find(s => s.id === selectedSupplierDetail.id) || selectedSupplierDetail;
 
   // Filter purchases for this supplier
   const supPurchases = purchases.filter(p => p.supplierId === sup.id);
@@ -90,9 +92,29 @@ export const SupplierStatementModal = () => {
   // Filter payments for this supplier
   const supPayments = payments.filter(p => p.supplierId === sup.id);
 
+  const openingBal = Number(sup.openingBalance || 0);
+
   // Unified chronological statement with running balance
-  const rawTransactions = [
-    ...supPurchases.map(p => ({
+  const rawTransactions = [];
+
+  // Opening Balance event row if exists
+  if (openingBal > 0) {
+    const baseCreatedAt = new Date(sup.createdAt || 0).getTime();
+    rawTransactions.push({
+      id: `opening-${sup.id}`,
+      originalItem: sup,
+      type: 'OPENING',
+      date: sup.createdAt ? (typeof sup.createdAt === 'string' ? sup.createdAt.split('T')[0] : new Date(sup.createdAt).toISOString().split('T')[0]) : 'Opening',
+      rawDate: baseCreatedAt > 1000 ? baseCreatedAt - 1000 : 1,
+      ref: '—',
+      description: 'Opening Balance (Sabqa Baqaya / Registered Initial Khata)',
+      debit: openingBal,
+      credit: 0
+    });
+  }
+
+  supPurchases.forEach(p => {
+    rawTransactions.push({
       id: p.id,
       originalItem: p,
       type: 'PURCHASE',
@@ -102,8 +124,11 @@ export const SupplierStatementModal = () => {
       description: `Container Import (${p.items?.map(i => `${i.articleNo} x${i.quantity}`).join(', ') || 'Consignment'})`,
       debit: Number(p.totalBill || 0),
       credit: 0
-    })),
-    ...supPayments.map(pay => ({
+    });
+  });
+
+  supPayments.forEach(pay => {
+    rawTransactions.push({
       id: pay.id,
       originalItem: pay,
       type: 'PAYMENT',
@@ -113,11 +138,13 @@ export const SupplierStatementModal = () => {
       description: `Ref: ${pay.refNo} - ${pay.notes || 'Settlement'}`,
       debit: 0,
       credit: Number(pay.amount || 0)
-    }))
-  ].sort((a, b) => a.rawDate - b.rawDate);
+    });
+  });
 
-  // Compute running balance starting from opening balance
-  let running = Number(sup.openingBalance || 0);
+  rawTransactions.sort((a, b) => a.rawDate - b.rawDate);
+
+  // Compute running balance starting from 0 and adding debits / subtracting credits
+  let running = 0;
   const ledgerEntries = rawTransactions.map((tx, idx) => {
     running = running + (Number(tx.debit) || 0) - (Number(tx.credit) || 0);
     return {
