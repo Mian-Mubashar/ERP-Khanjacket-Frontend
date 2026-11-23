@@ -144,6 +144,45 @@ export const UgrahiView = () => {
     }
   }, [areaSequencesMap]);
 
+  // Persistent Customer Page Numbers Map (Permanently remembered across reloads, sheets, and resets)
+  const [customerPageNumbersMap, setCustomerPageNumbersMap] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kc_customer_page_numbers_map');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed === 'object' && parsed !== null) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load customer page numbers map:', e);
+    }
+    return {};
+  });
+
+  // Save customer page numbers map to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('kc_customer_page_numbers_map', JSON.stringify(customerPageNumbersMap));
+    } catch (e) {
+      console.error('Failed to save customer page numbers map:', e);
+    }
+  }, [customerPageNumbersMap]);
+
+  // Helper to get remembered page number for a customer
+  const getCustomerPageNo = useCallback((c) => {
+    if (!c) return '';
+    const idKey = c.id || c.customerId;
+    if (idKey && customerPageNumbersMap[idKey]) return customerPageNumbersMap[idKey];
+    if (c.shopName && customerPageNumbersMap[c.shopName.toLowerCase().trim()]) {
+      return customerPageNumbersMap[c.shopName.toLowerCase().trim()];
+    }
+    if (c.name && customerPageNumbersMap[c.name.toLowerCase().trim()]) {
+      return customerPageNumbersMap[c.name.toLowerCase().trim()];
+    }
+    return c.pageNo || '';
+  }, [customerPageNumbersMap]);
+
   // Helper to get active saved sequence for city/routes
   const getActiveSequenceForCities = useCallback((citiesList = selectedCities) => {
     if (!citiesList || citiesList.length === 0 || citiesList.includes('ALL')) {
@@ -360,7 +399,7 @@ export const UgrahiView = () => {
       id: `cust-${c.id}`,
       customerId: c.id,
       name: formatCustomerDisplayName(c.shopName, c.shopkeeperName),
-      pageNo: c.pageNo || '',
+      pageNo: getCustomerPageNo(c),
       address: c.marketAddress ? `${c.marketAddress}, ${c.city}` : c.city || '',
       city: c.ugrahiRoute || c.city || '',
       area: c.area || '',
@@ -501,6 +540,7 @@ export const UgrahiView = () => {
           const freshCity = cust.ugrahiRoute || cust.city || '';
           const freshArea = cust.area || '';
           const freshPhone = cust.phone || '';
+          const freshPageNo = getCustomerPageNo(cust);
 
           if (
             r.totalDue !== freshDue ||
@@ -508,7 +548,8 @@ export const UgrahiView = () => {
             r.address !== freshAddress ||
             r.city !== freshCity ||
             r.area !== freshArea ||
-            r.phone !== freshPhone
+            r.phone !== freshPhone ||
+            (!r.pageNo && freshPageNo)
           ) {
             hasChanges = true;
             return {
@@ -518,7 +559,8 @@ export const UgrahiView = () => {
               address: freshAddress,
               city: freshCity,
               area: freshArea,
-              phone: freshPhone
+              phone: freshPhone,
+              pageNo: r.pageNo || freshPageNo
             };
           }
           return r;
@@ -631,12 +673,24 @@ export const UgrahiView = () => {
 
   // Update specific field in row
   const handleRowChange = (id, field, value) => {
-    setRows(prev =>
-      prev.map(r => {
+    setRows(prev => {
+      const updated = prev.map(r => {
         if (r.id !== id) return r;
         return { ...r, [field]: value };
-      })
-    );
+      });
+      if (field === 'pageNo') {
+        const targetRow = prev.find(r => r.id === id);
+        if (targetRow) {
+          setCustomerPageNumbersMap(pmap => {
+            const nextMap = { ...pmap };
+            if (targetRow.customerId) nextMap[targetRow.customerId] = value;
+            if (targetRow.name) nextMap[targetRow.name.toLowerCase().trim()] = value;
+            return nextMap;
+          });
+        }
+      }
+      return updated;
+    });
   };
 
   // Handle typing or choosing customer from datalist
@@ -657,7 +711,7 @@ export const UgrahiView = () => {
           return {
             ...r,
             name: formatCustomerDisplayName(matched.shopName, matched.shopkeeperName),
-            pageNo: matched.pageNo || r.pageNo || '',
+            pageNo: getCustomerPageNo(matched) || matched.pageNo || r.pageNo || '',
             address: matched.marketAddress ? `${matched.marketAddress}, ${matched.city}` : matched.city || '',
             city: matched.city || '',
             area: matched.area || '',
