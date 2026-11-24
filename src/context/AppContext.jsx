@@ -161,6 +161,8 @@ export const AppProvider = ({ children }) => {
   const [purchases, setPurchases] = useState([]);
   const [outward, setOutward] = useState([]);
   const [payments, setPayments] = useState([]);
+  const supplierPayments = payments;
+  const setSupplierPayments = setPayments;
   const [devices, setDevices] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -838,7 +840,7 @@ export const AppProvider = ({ children }) => {
           return s;
         }));
 
-        setSupplierPayments(prev => {
+        setPayments(prev => {
           const list = prev || [];
           if (list.some(p => p.id === newPayment.id)) return list;
           return [newPayment, ...list];
@@ -867,7 +869,7 @@ export const AppProvider = ({ children }) => {
             setSuppliers(sortedSuppliers);
           }
           if (payRes.status === 'fulfilled' && payRes.value?.data) {
-            setSupplierPayments(payRes.value.data);
+            setPayments(payRes.value.data);
           }
         }).catch(() => {});
 
@@ -894,7 +896,7 @@ export const AppProvider = ({ children }) => {
           api.suppliers.listPayments()
         ]).then(([supRes, payRes]) => {
           if (supRes.status === 'fulfilled' && supRes.value?.data) setSuppliers(supRes.value.data);
-          if (payRes.status === 'fulfilled' && payRes.value?.data) setSupplierPayments(payRes.value.data);
+          if (payRes.status === 'fulfilled' && payRes.value?.data) setPayments(payRes.value.data);
         }).catch(() => {});
         return { success: true, payment: res.data };
       }
@@ -908,13 +910,13 @@ export const AppProvider = ({ children }) => {
     try {
       const res = await api.suppliers.deletePayment(id);
       if (res?.success) {
-        setSupplierPayments(prev => (prev || []).filter(p => p.id !== id));
+        setPayments(prev => (prev || []).filter(p => p.id !== id));
         Promise.allSettled([
           api.suppliers.list(),
           api.suppliers.listPayments()
         ]).then(([supRes, payRes]) => {
           if (supRes.status === 'fulfilled' && supRes.value?.data) setSuppliers(supRes.value.data);
-          if (payRes.status === 'fulfilled' && payRes.value?.data) setSupplierPayments(payRes.value.data);
+          if (payRes.status === 'fulfilled' && payRes.value?.data) setPayments(payRes.value.data);
         }).catch(() => {});
         return { success: true };
       }
@@ -1484,6 +1486,8 @@ export const AppProvider = ({ children }) => {
         purchases,
         outward,
         payments,
+        supplierPayments: payments,
+        setSupplierPayments: setPayments,
         devices,
         auditLogs,
         categories,
