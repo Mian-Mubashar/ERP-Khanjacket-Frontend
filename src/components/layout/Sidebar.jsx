@@ -18,11 +18,12 @@ import {
   Anchor,
   User,
   Store,
-  ArrowRightLeft
+  ArrowRightLeft,
+  X
 } from 'lucide-react';
 import iconLogoImg from '../../images/khan jacket icon logo.png';
 
-export const Sidebar = ({ activeTab, setActiveTab }) => {
+export const Sidebar = ({ activeTab, setActiveTab: originalSetActiveTab }) => {
   const { 
     currentUser,
     articles, 
@@ -32,6 +33,8 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     cities,
     customers,
     sidebarCollapsed,
+    isMobileSidebarOpen,
+    setIsMobileSidebarOpen,
     securitySubTab,
     setSecuritySubTab,
     announcementsSubTab,
@@ -39,6 +42,11 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     clearanceSubTab,
     setClearanceSubTab
   } = useApp();
+
+  const setActiveTab = (tab) => {
+    originalSetActiveTab(tab);
+    if (setIsMobileSidebarOpen) setIsMobileSidebarOpen(false);
+  };
 
   const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
 
@@ -84,9 +92,54 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
     return pct <= 50;
   }).length;
 
+  const renderMobileDrawer = () => {
+    if (!isMobileSidebarOpen) return null;
+    return (
+      <div className="md:hidden">
+        {/* Mobile Backdrop Overlay */}
+        <div 
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[60] animate-in fade-in duration-200"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          aria-hidden="true"
+        />
+
+        {/* Mobile Slide-in Drawer */}
+        <aside className="fixed inset-y-0 left-0 z-[70] w-72 max-w-[85vw] bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-r border-slate-200 dark:border-slate-800 animate-in slide-in-from-left duration-250">
+          {/* Drawer Top Header with Logo & Close Button */}
+          <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <img src={iconLogoImg} alt="Khan Jacket House" className="h-8 w-auto object-contain" />
+              <div>
+                <span className="font-extrabold text-xs tracking-tight text-slate-900 dark:text-white block uppercase leading-tight font-serif">
+                  Khan Jacket House
+                </span>
+                <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 tracking-wider uppercase block">
+                  China Import ERP
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              title="Close Menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Navigation & Summary */}
+          {renderSidebarNavContent()}
+        </aside>
+      </div>
+    );
+  };
+
   if (sidebarCollapsed) {
     return (
-      <aside className="w-18 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 min-h-[calc(100vh-4rem)] items-center py-4 space-y-2.5 transition-all">
+      <>
+        {renderMobileDrawer()}
+        <aside className="hidden md:flex w-18 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 min-h-[calc(100vh-4rem)] items-center py-4 space-y-2.5 transition-all">
         <button
           onClick={() => setActiveTab('dashboard')}
           className="w-11 h-11 flex items-center justify-center mb-1 cursor-pointer hover:opacity-80 transition-opacity"
@@ -270,18 +323,19 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           <User className="w-5 h-5" />
         </button>
       </aside>
+    </>
     );
   }
 
-  return (
-    <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 min-h-[calc(100vh-4rem)] transition-colors">
-      
-      {/* Sidebar Top Section Label (Matches Reference Screenshot "DASHBOARD" style: clean, small, subtle) */}
-      <div className="px-5 pt-5 pb-3">
-        <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-          DASHBOARD
-        </span>
-      </div>
+  function renderSidebarNavContent() {
+    return (
+      <>
+        {/* Sidebar Top Section Label (Matches Reference Screenshot "DASHBOARD" style: clean, small, subtle) */}
+        <div className="px-5 pt-5 pb-3">
+          <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+            DASHBOARD
+          </span>
+        </div>
 
       {/* Navigation List - Clean, elegant font weight (font-medium, not bold) */}
       <div className="px-3 space-y-1 flex-1 overflow-y-auto">
@@ -943,7 +997,16 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
           </div>
         </div>
       </div>
+    </>
+    );
+  }
 
-    </aside>
+  return (
+    <>
+      {renderMobileDrawer()}
+      <aside className="hidden md:flex w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 min-h-[calc(100vh-4rem)] transition-colors">
+        {renderSidebarNavContent()}
+      </aside>
+    </>
   );
 };

@@ -39,6 +39,7 @@ export const Navbar = () => {
     theme,
     toggleTheme,
     toggleSidebar,
+    toggleMobileSidebar,
     articles,
     customers,
     suppliers,
@@ -509,20 +510,26 @@ export const Navbar = () => {
       <div className="flex items-center justify-between px-4 lg:px-7 h-16">
         
         {/* Left: Hamburger & Brand Name */}
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-2.5 sm:gap-3.5">
           <button
-            onClick={toggleSidebar}
+            onClick={() => {
+              if (window.innerWidth < 768) {
+                toggleMobileSidebar();
+              } else {
+                toggleSidebar();
+              }
+            }}
             className="w-9 h-9 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all cursor-pointer"
             title="Toggle Menu Sidebar"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <img 
               src={logoImg} 
               alt="Khan Jacket House" 
-              className="h-9 w-auto object-contain drop-shadow-2xs" 
+              className="h-8 sm:h-9 w-auto object-contain drop-shadow-2xs" 
             />
             <div className="hidden sm:block">
               <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white block uppercase leading-tight font-serif">
@@ -699,7 +706,16 @@ export const Navbar = () => {
         </div>
 
         {/* Right: Theme Toggle, Notifications Bell, Audit History & Profile Avatar */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5">
+
+          {/* Mobile Fast Search Trigger */}
+          <button
+            onClick={() => setIsQuickSearchOpen(true)}
+            className="w-9 h-9 md:hidden flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-800 transition-all shadow-2xs cursor-pointer"
+            title="Fast Search (Ctrl+K)"
+          >
+            <Search className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+          </button>
           
           {/* Theme Toggle Button */}
           <button

@@ -127,7 +127,7 @@ const DashboardLayout = () => {
         />
 
         {/* Content Area Rendered by React Router */}
-        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-x-hidden flex flex-col justify-between">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-x-hidden flex flex-col justify-between">
           <div className="flex-1">
             <Outlet />
           </div>

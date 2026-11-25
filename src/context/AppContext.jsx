@@ -29,9 +29,11 @@ export const AppProvider = ({ children }) => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  // Sidebar collapsed state
+  // Sidebar collapsed state (Desktop) & Mobile Drawer state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const toggleSidebar = () => setSidebarCollapsed(prev => !prev);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const toggleMobileSidebar = () => setIsMobileSidebarOpen(prev => !prev);
 
   // Authentication State
   const [token, setToken] = useState(() => getAuthToken());
@@ -1461,6 +1463,9 @@ export const AppProvider = ({ children }) => {
         // Sidebar
         sidebarCollapsed,
         toggleSidebar,
+        isMobileSidebarOpen,
+        setIsMobileSidebarOpen,
+        toggleMobileSidebar,
 
         // Authentication & Live Backend Status
         isAuthenticated,
