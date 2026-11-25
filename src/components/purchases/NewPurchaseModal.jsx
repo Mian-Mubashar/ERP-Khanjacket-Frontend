@@ -24,12 +24,12 @@ export const NewPurchaseModal = () => {
   const availableCategories = categories && categories.length > 0 ? categories : defaultCategories;
 
   const [supplierId, setSupplierId] = useState('');
-  const [invoiceNo, setInvoiceNo] = useState(`CN-${Date.now().toString().slice(-5)}${Math.floor(10 + Math.random() * 90)}`);
+  const [invoiceNo, setInvoiceNo] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
   const [containerNo, setContainerNo] = useState('');
-  const [extraExpenses, setExtraExpenses] = useState(0);
-  const [expenseNote, setExpenseNote] = useState('Sea Freight & Custom Port Clearing');
-  const [paidAmount, setPaidAmount] = useState(0);
+  const [extraExpenses, setExtraExpenses] = useState('');
+  const [expenseNote, setExpenseNote] = useState('');
+  const [paidAmount, setPaidAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Bank TT / Wire Transfer');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
@@ -46,14 +46,14 @@ export const NewPurchaseModal = () => {
   const [categoryTargetRow, setCategoryTargetRow] = useState(null);
   const prevCategoriesRef = React.useRef(categories);
 
-  // Dynamically initialize items row
+  // Dynamically initialize items row (clean blank row)
   const [items, setItems] = useState([
     {
       articleNo: '',
       articleName: '',
       category: availableCategories[0] || 'Jacket',
-      quantity: 100,
-      unitCost: 1000
+      quantity: '',
+      unitCost: ''
     }
   ]);
 
@@ -90,32 +90,46 @@ export const NewPurchaseModal = () => {
   React.useEffect(() => {
     if (selectedSupplierForBill && selectedSupplierForBill.id) {
       setSupplierId(selectedSupplierForBill.id);
-    } else if (suppliers.length > 0 && !supplierId) {
-      setSupplierId(suppliers[0].id);
+      setSupplierSearchQuery(`${selectedSupplierForBill.company} (${selectedSupplierForBill.name || ''})`);
     }
     const prevSups = prevSuppliersRef.current;
     if (suppliers.length > prevSups.length) {
       const newlyAddedSup = suppliers.find(s => !prevSups.some(ps => ps.id === s.id)) || suppliers[suppliers.length - 1];
       if (newlyAddedSup) {
         setSupplierId(newlyAddedSup.id);
+        setSupplierSearchQuery(`${newlyAddedSup.company} (${newlyAddedSup.name || ''})`);
       }
     }
     prevSuppliersRef.current = suppliers;
-  }, [suppliers, supplierId, selectedSupplierForBill]);
+  }, [suppliers, selectedSupplierForBill]);
 
   React.useEffect(() => {
     if (isNewPurchaseOpen) {
-      setInvoiceNo(`CN-${Date.now().toString().slice(-4)}`);
+      setInvoiceNo('');
       setPurchaseDate(new Date().toISOString().split('T')[0]);
+      setContainerNo('');
+      setExtraExpenses('');
+      setExpenseNote('');
+      setPaidAmount('');
+      setNotes('');
       setError('');
       setSuccess('');
+      setItems([
+        {
+          articleNo: '',
+          articleName: '',
+          category: availableCategories[0] || 'Jacket',
+          quantity: '',
+          unitCost: ''
+        }
+      ]);
+
       if (selectedSupplierForBill && selectedSupplierForBill.id) {
         setSupplierId(selectedSupplierForBill.id);
         setSupplierSearchQuery(`${selectedSupplierForBill.company} (${selectedSupplierForBill.name || ''})`);
       } else {
-        const first = suppliers.find(s => s.id === supplierId) || suppliers[0];
-        if (first) setSupplierSearchQuery(`${first.company} (${first.name || ''})`);
-        else setSupplierSearchQuery('');
+        setSupplierId('');
+        setSupplierSearchQuery('');
       }
       setIsSupplierSearchOpen(false);
     }
@@ -154,19 +168,6 @@ export const NewPurchaseModal = () => {
     setSupplierSearchQuery(`${s.company} (${s.name || ''})`);
     setIsSupplierSearchOpen(false);
   };
-
-  // Synchronize item row when articles load and item is unassigned
-  React.useEffect(() => {
-    if (articles.length > 0 && items.length === 1 && !items[0].articleNo) {
-      setItems([{
-        articleNo: articles[0].articleNo,
-        articleName: articles[0].name,
-        category: articles[0].category || availableCategories[0] || 'Jacket',
-        quantity: 100,
-        unitCost: articles[0].unitCost || 1000
-      }]);
-    }
-  }, [articles]);
 
   if (!isNewPurchaseOpen) return null;
 
@@ -234,15 +235,14 @@ export const NewPurchaseModal = () => {
   };
 
   const addItemRow = () => {
-    const available = articles.find(a => !items.some(i => i.articleNo === a.articleNo)) || articles[0];
     setItems([
       ...items,
       {
-        articleNo: available?.articleNo || '',
-        articleName: available?.name || '',
-        category: available?.category || availableCategories[0] || 'Jacket',
-        quantity: 100,
-        unitCost: available?.unitCost || 1000
+        articleNo: '',
+        articleName: '',
+        category: availableCategories[0] || 'Jacket',
+        quantity: '',
+        unitCost: ''
       }
     ]);
   };
@@ -266,11 +266,9 @@ export const NewPurchaseModal = () => {
     setError('');
     setSuccess('');
 
-    if (!invoiceNo.trim()) {
-      showError('Required Field', 'Invoice / Bill number is required.');
-      setError('Invoice / Bill number is required.');
-      return;
-    }
+    const finalInvoiceNo = invoiceNo.trim() 
+      ? invoiceNo.trim().toUpperCase() 
+      : `CN-${Date.now().toString().slice(-4)}`;
 
     if (!supplierId) {
       showError('Supplier Required', 'Please register and select a China supplier.');
@@ -317,14 +315,14 @@ export const NewPurchaseModal = () => {
       }));
 
       const newPurchaseData = {
-        invoiceNo: invoiceNo.trim().toUpperCase(),
+        invoiceNo: finalInvoiceNo,
         supplierId,
         supplierName: selSupplier.company,
         purchaseDate,
         containerNo: containerNo.trim() || 'N/A',
         items: cleanedItems,
         extraExpenses: Number(extraExpenses) || 0,
-        expenseNote: expenseNote.trim() || 'Freight & Clearing',
+        expenseNote: expenseNote.trim() || (Number(extraExpenses) > 0 ? 'Freight & Clearing' : ''),
         paidAmount: Number(paidAmount) || 0,
         paymentMethod,
         notes: notes.trim()
@@ -337,10 +335,10 @@ export const NewPurchaseModal = () => {
         return;
       }
 
-      showToast(`Purchase Bill #${invoiceNo.toUpperCase()} recorded successfully!`, 'success');
+      showToast(`Purchase Bill #${finalInvoiceNo} recorded successfully!`, 'success');
       setIsNewPurchaseOpen(false);
       if (setSelectedSupplierForBill) setSelectedSupplierForBill(null);
-      setInvoiceNo(`CN-${Date.now().toString().slice(-4)}`);
+      setInvoiceNo('');
       setSuccess('');
     } catch (err) {
       console.error('Error recording purchase:', err);
@@ -359,20 +357,20 @@ export const NewPurchaseModal = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors my-auto sm:my-8">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0">
-              <ShoppingBag className="w-4.5 h-4.5" />
+        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0">
+              <ShoppingBag className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                 New China Purchase Bill
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate sm:whitespace-normal">
                 Multi-Article shipment invoice with automatic stock increment & ledger balance
               </p>
             </div>
@@ -381,24 +379,24 @@ export const NewPurchaseModal = () => {
             type="button"
             onClick={handleClose}
             disabled={isSubmitting}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-3.5 sm:p-6 space-y-4 sm:space-y-5 max-h-[calc(100dvh-5rem)] sm:max-h-[82vh] overflow-y-auto">
           
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+            <div className="p-2.5 sm:p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <div className="p-2.5 sm:p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{success}</span>
             </div>
@@ -406,8 +404,8 @@ export const NewPurchaseModal = () => {
 
           {/* Top Quick Search Bar for China Supplier (Full Width) */}
           <div className="relative">
-            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-2xs">
-              <Search className="w-4 h-4 text-blue-500 shrink-0" />
+            <div className="flex items-center gap-2 sm:gap-2.5 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-2xs">
+              <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 shrink-0" />
               <input
                 type="text"
                 value={supplierSearchQuery}
@@ -419,7 +417,7 @@ export const NewPurchaseModal = () => {
                   e.target.select();
                   setIsSupplierSearchOpen(true);
                 }}
-                placeholder="Search China Supplier / Vendor (Type Company Name, Contact Person, Phone, or City)..."
+                placeholder="Search China Supplier by company, name, phone..."
                 className="w-full bg-transparent text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none"
               />
               {supplierSearchQuery && (
@@ -427,6 +425,7 @@ export const NewPurchaseModal = () => {
                   type="button"
                   onClick={() => {
                     setSupplierSearchQuery('');
+                    setSupplierId('');
                     setIsSupplierSearchOpen(true);
                   }}
                   className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer rounded-md hover:bg-slate-200 dark:hover:bg-slate-700"
@@ -449,22 +448,22 @@ export const NewPurchaseModal = () => {
                       key={s.id}
                       type="button"
                       onClick={() => handleSelectSupplierFromTopSearch(s)}
-                      className="w-full text-left px-4 py-2.5 text-xs hover:bg-blue-50/70 dark:hover:bg-slate-800/80 flex items-center justify-between gap-3 cursor-pointer transition-colors"
+                      className="w-full text-left px-3.5 py-2 sm:py-2.5 text-xs hover:bg-blue-50/70 dark:hover:bg-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3 cursor-pointer transition-colors"
                     >
                       <div className="truncate flex-1">
                         <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
                           {s.company}
                         </div>
-                        <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                        <div className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
                           {s.name ? `Contact: ${s.name} • ` : ''}{s.phone || ''} {s.address ? `• ${s.address}` : ''}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                      <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+                        <span className="text-[9px] sm:text-[10px] font-mono px-1.5 py-0.5 rounded font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                           {s.id}
                         </span>
                         {Number(s.remainingBalance) > 0 && (
-                          <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-200/60 dark:border-rose-900/60">
+                          <span className="text-[9px] sm:text-[10px] font-mono text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/50 px-1.5 py-0.5 rounded border border-rose-200/60 dark:border-rose-900/60">
                             Due: Rs. {Number(s.remainingBalance).toLocaleString()}
                           </span>
                         )}
@@ -481,16 +480,16 @@ export const NewPurchaseModal = () => {
           </div>
 
           {/* Top Row: Supplier, Date, Invoice No, Container */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+                <label className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300">
                   China Supplier <span className="text-rose-500">*</span>
                 </label>
                 <button
                   type="button"
                   onClick={() => setIsAddSupplierOpen(true)}
-                  className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer transition-colors"
+                  className="text-[10px] sm:text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer transition-colors"
                 >
                   + Add Supplier
                 </button>
@@ -501,37 +500,34 @@ export const NewPurchaseModal = () => {
                   setSupplierId(e.target.value);
                   const found = suppliers.find(s => s.id === e.target.value);
                   if (found) setSupplierSearchQuery(`${found.company} (${found.name || ''})`);
+                  else setSupplierSearchQuery('');
                 }}
-                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all cursor-pointer"
+                className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all cursor-pointer"
               >
-                {suppliers.length === 0 ? (
-                  <option value="">-- No Suppliers Yet (Add Supplier) --</option>
-                ) : (
-                  suppliers.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.company} ({s.name})
-                    </option>
-                  ))
-                )}
+                <option value="">-- Select China Supplier --</option>
+                {suppliers.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.company} ({s.name})
+                  </option>
+                ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Invoice / Bill # <span className="text-rose-500">*</span>
+              <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 sm:mb-1.5">
+                Invoice / Bill # <span className="text-slate-400 font-normal">(Optional)</span>
               </label>
               <input
                 type="text"
-                required
                 value={invoiceNo}
                 onChange={e => setInvoiceNo(e.target.value)}
-                placeholder="e.g. CN-8842-APEX"
-                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-blue-600 dark:text-blue-400 focus:border-blue-600 outline-hidden transition-all uppercase"
+                placeholder="Leave blank to auto-generate (e.g. CN-9822)"
+                className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-mono font-bold text-blue-600 dark:text-blue-400 focus:border-blue-600 outline-hidden transition-all uppercase"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 sm:mb-1.5">
                 Purchase Date <span className="text-rose-500">*</span>
               </label>
               <input
@@ -539,12 +535,12 @@ export const NewPurchaseModal = () => {
                 required
                 value={purchaseDate}
                 onChange={e => setPurchaseDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all"
+                className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 sm:mb-1.5">
                 Container / Bilty #
               </label>
               <input
@@ -552,26 +548,31 @@ export const NewPurchaseModal = () => {
                 value={containerNo}
                 onChange={e => setContainerNo(e.target.value)}
                 placeholder="e.g. COSCO-78491-GZ"
-                className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all uppercase"
+                className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-mono text-slate-900 dark:text-white focus:border-blue-600 outline-hidden transition-all uppercase"
               />
             </div>
           </div>
 
           {/* Multi-Item Articles Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="space-y-2.5 sm:space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                  Bill Articles (Multi-Item Consignment)
-                </h3>
-                <p className="text-[11px] text-slate-400">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    Bill Articles (Multi-Item Consignment)
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                    {items.length} {items.length === 1 ? 'Item' : 'Items'}
+                  </span>
+                </div>
+                <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">
                   Include multiple articles in a single import bill with automated stock calculation
                 </p>
               </div>
               <button
                 type="button"
                 onClick={addItemRow}
-                className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
+                className="self-start sm:self-auto px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>+ Add Item Row</span>
@@ -579,8 +580,8 @@ export const NewPurchaseModal = () => {
             </div>
 
             {/* Table of items */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto shadow-2xs">
+              <table className="w-full text-left border-collapse min-w-[620px]">
                 <thead>
                   <tr className="bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
                     <th className="py-2.5 px-3">Article Code</th>
@@ -691,6 +692,7 @@ export const NewPurchaseModal = () => {
                             min="1"
                             value={item.quantity}
                             onChange={e => handleItemFieldChange(idx, 'quantity', e.target.value)}
+                            placeholder="0"
                             className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-right text-slate-900 dark:text-white outline-hidden"
                           />
                         </td>
@@ -702,6 +704,7 @@ export const NewPurchaseModal = () => {
                             min="0"
                             value={item.unitCost}
                             onChange={e => handleItemFieldChange(idx, 'unitCost', e.target.value)}
+                            placeholder="0.00"
                             className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-right text-slate-900 dark:text-white outline-hidden"
                           />
                         </td>
@@ -748,25 +751,27 @@ export const NewPurchaseModal = () => {
                     min="0"
                     value={extraExpenses}
                     onChange={e => setExtraExpenses(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white outline-hidden transition-all"
+                    placeholder="0"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white outline-hidden transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 sm:mb-1.5">
                     Expense Description
                   </label>
                   <input
                     type="text"
                     value={expenseNote}
                     onChange={e => setExpenseNote(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden transition-all"
+                    placeholder="e.g. Sea Freight & Custom Port"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-medium text-slate-900 dark:text-white outline-hidden transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 sm:mb-1.5">
                   General Remarks / Port Gate Pass
                 </label>
                 <input
@@ -774,18 +779,18 @@ export const NewPurchaseModal = () => {
                   placeholder="e.g. Unloaded in Karachi central warehouse"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white outline-hidden transition-all"
+                  className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-medium text-slate-900 dark:text-white outline-hidden transition-all"
                 />
               </div>
             </div>
 
             {/* Right: Payment Calculation */}
-            <div className="space-y-3.5">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <div className="space-y-3 sm:space-y-3.5">
+              <h3 className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Bill Calculation & Supplier Payment
               </h3>
 
-              <div className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+              <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
                 <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
                   <span>Articles Subtotal:</span>
                   <span className="font-mono font-semibold text-slate-900 dark:text-white">
@@ -800,14 +805,14 @@ export const NewPurchaseModal = () => {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center text-sm font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex justify-between items-center text-xs sm:text-sm font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-700">
                   <span>Total Bill Amount:</span>
                   <div className="text-right">
-                    <span className="font-mono text-base text-blue-700 dark:text-blue-400 block">
+                    <span className="font-mono text-sm sm:text-base text-blue-700 dark:text-blue-400 block">
                       Rs. {totalBill.toLocaleString()}
                     </span>
                     {totalBill > 0 && (
-                      <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold block">
+                      <span className="text-[10px] sm:text-[11px] text-blue-600 dark:text-blue-400 font-semibold block">
                         {formatLakhCrore(totalBill)}
                       </span>
                     )}
@@ -815,9 +820,9 @@ export const NewPurchaseModal = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 sm:mb-1.5">
                     Amount Paid (Ada Shuda)
                   </label>
                   <input
@@ -826,14 +831,15 @@ export const NewPurchaseModal = () => {
                     max={totalBill}
                     value={paidAmount}
                     onChange={e => setPaidAmount(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400 outline-hidden transition-all"
+                    placeholder="0"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400 outline-hidden transition-all"
                   />
                   {/* Quick Chips */}
                   <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                     <button
                       type="button"
                       onClick={() => setPaidAmount(0)}
-                      className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                      className="px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
                     >
                       0 (Udhaar)
                     </button>
@@ -842,14 +848,14 @@ export const NewPurchaseModal = () => {
                         <button
                           type="button"
                           onClick={() => setPaidAmount(Math.round(totalBill / 2))}
-                          className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 hover:bg-blue-200 text-blue-700 dark:text-blue-300 transition-colors cursor-pointer"
+                          className="px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 hover:bg-blue-200 text-blue-700 dark:text-blue-300 transition-colors cursor-pointer"
                         >
                           50% Half
                         </button>
                         <button
                           type="button"
                           onClick={() => setPaidAmount(totalBill)}
-                          className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/60 hover:bg-emerald-200 text-emerald-700 dark:text-emerald-300 transition-colors cursor-pointer"
+                          className="px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/60 hover:bg-emerald-200 text-emerald-700 dark:text-emerald-300 transition-colors cursor-pointer"
                         >
                           Full Paid
                         </button>
@@ -859,13 +865,13 @@ export const NewPurchaseModal = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 sm:mb-1.5">
                     Payment Method
                   </label>
                   <select
                     value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 outline-hidden cursor-pointer transition-all"
+                    className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50/70 hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 outline-hidden cursor-pointer transition-all"
                   >
                     <option value="Bank TT / Wire Transfer">Bank TT / Wire</option>
                     <option value="Foreign Exchange LC">Letter of Credit (LC)</option>
@@ -878,11 +884,11 @@ export const NewPurchaseModal = () => {
               <div className="flex justify-between items-center text-xs font-bold pt-2 border-t border-slate-200 dark:border-slate-700">
                 <span className="text-slate-600 dark:text-slate-400">Remaining Balance:</span>
                 <div className="text-right">
-                  <span className="font-mono text-rose-600 dark:text-rose-400 text-sm block">
+                  <span className="font-mono text-rose-600 dark:text-rose-400 text-xs sm:text-sm block">
                     Rs. {remaining.toLocaleString()}
                   </span>
                   {remaining > 0 && (
-                    <span className="text-[10px] text-rose-500 font-bold block">
+                    <span className="text-[9px] sm:text-[10px] text-rose-500 font-bold block">
                       {formatLakhCrore(remaining)}
                     </span>
                   )}
@@ -893,19 +899,19 @@ export const NewPurchaseModal = () => {
           </div>
 
           {/* Footer actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-4 py-2 sm:py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-center cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {isSubmitting ? (
                 <>
