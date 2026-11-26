@@ -45,41 +45,33 @@ const SHOPS = [
 
 function isRecordMatchingShop(record, shopId) {
   if (!record) return false;
-  const shop = SHOPS.find(s => s.id === shopId);
-  if (!shop) return false;
+  const custName = (record.customerName || '').trim().toLowerCase();
+  const dest = (record.destination || '').trim().toLowerCase();
+  const nts = (record.notes || '').trim().toLowerCase();
 
-  const combined = [
-    record.customerName,
-    record.articleName,
-    record.articleNo,
-    record.destination,
-    record.notes,
-    record.city
-  ].filter(Boolean).join(' ').toLowerCase();
+  if (shopId === 'khan') {
+    const isShopDest = dest.includes('khan jacket house outlet') || dest.includes('khan jacket outlet') || dest === 'khan jacket house' || dest === 'khan jacket';
+    const isShopTransferNote = nts.includes('warehouse to khan jacket') || nts.includes('stock transfer to khan jacket') || (nts.includes('stock transfer') && custName.includes('khan'));
+    const isExactCustomer = (custName === 'khan jacket house' || custName === 'khan jacket' || custName === 'khan jacket shop') && (!record.customerId || record.customerId === 'SHOP_KHAN');
+    return isShopDest || isShopTransferNote || isExactCustomer;
+  }
 
-  return shop.match.some(keyword => combined.includes(keyword));
+  if (shopId === 'mk') {
+    const isShopDest = dest.includes('mk collection outlet') || dest.includes('mk outlet') || dest === 'mk collection';
+    const isShopTransferNote = nts.includes('warehouse to mk collection') || nts.includes('stock transfer to mk') || (nts.includes('stock transfer') && custName.includes('mk'));
+    const isExactCustomer = (custName === 'mk collection' || custName === 'mk-collection' || custName === 'mkcollection') && (!record.customerId || record.customerId === 'SHOP_MK');
+    return isShopDest || isShopTransferNote || isExactCustomer;
+  }
+
+  return false;
 }
 
 // Helper to classify record movement direction
 function getRecordMovement(record, shopId) {
-  const shop = SHOPS.find(s => s.id === shopId);
-  if (!shop) return { type: 'SALE', label: 'Customer Sale', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-
-  const custName = (record.customerName || '').toLowerCase();
-  const isCustMatching = shop.match.some(m => custName.includes(m));
-
-  if (isCustMatching) {
-    return {
-      type: 'INWARD',
-      label: 'Warehouse Transfer',
-      badge: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
-    };
-  }
-
   return {
-    type: 'SALE',
-    label: 'Customer Sale',
-    badge: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+    type: 'INWARD',
+    label: 'Warehouse Transfer',
+    badge: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
   };
 }
 

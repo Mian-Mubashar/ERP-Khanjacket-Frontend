@@ -332,22 +332,31 @@ export const DashboardOverview = ({ setActiveTab }) => {
   // =========================================================================
   // SHOP & WAREHOUSE DISPATCH DISTRIBUTION BREAKDOWN (4 Boxes)
   // Total Warehouse Sent, Khan Jacket House, MK Collection & Direct Wholesale
+  // Dispatches count towards a shop ONLY when explicitly dispatched as a shop transfer
+  // (When user selects "Own Shop Transfer", destination is shop outlet, or notes say stock transfer)
   // =========================================================================
   const shopBreakdown = useMemo(() => {
-    const khanMatch = ['khan jacket', 'khan jacket house', 'khan jkt', 'khan jkt house', 'kj house', 'k.j house', 'k j house', 'khan jacket shop'];
-    const mkMatch = ['mk collection', 'mk-collection', 'mkcollection', 'mk coll'];
+    const isDispatchToShop = (item, shopKey) => {
+      if (!item) return false;
+      const custName = (item.customerName || '').trim().toLowerCase();
+      const dest = (item.destination || '').trim().toLowerCase();
+      const nts = (item.notes || '').trim().toLowerCase();
 
-    const matchesKeywords = (rec, keywords) => {
-      if (!rec) return false;
-      const combined = [
-        rec.customerName,
-        rec.articleName,
-        rec.articleNo,
-        rec.destination,
-        rec.notes,
-        rec.city
-      ].filter(Boolean).join(' ').toLowerCase();
-      return keywords.some(kw => combined.includes(kw));
+      if (shopKey === 'khan') {
+        const isShopDest = dest.includes('khan jacket house outlet') || dest.includes('khan jacket outlet') || dest === 'khan jacket house' || dest === 'khan jacket';
+        const isShopTransferNote = nts.includes('warehouse to khan jacket') || nts.includes('stock transfer to khan jacket') || (nts.includes('stock transfer') && custName.includes('khan'));
+        const isExactCustomer = (custName === 'khan jacket house' || custName === 'khan jacket' || custName === 'khan jacket shop') && (!item.customerId || item.customerId === 'SHOP_KHAN');
+        return isShopDest || isShopTransferNote || isExactCustomer;
+      }
+
+      if (shopKey === 'mk') {
+        const isShopDest = dest.includes('mk collection outlet') || dest.includes('mk outlet') || dest === 'mk collection';
+        const isShopTransferNote = nts.includes('warehouse to mk collection') || nts.includes('stock transfer to mk') || (nts.includes('stock transfer') && custName.includes('mk'));
+        const isExactCustomer = (custName === 'mk collection' || custName === 'mk-collection' || custName === 'mkcollection') && (!item.customerId || item.customerId === 'SHOP_MK');
+        return isShopDest || isShopTransferNote || isExactCustomer;
+      }
+
+      return false;
     };
 
     let totalPcs = 0;
@@ -373,8 +382,8 @@ export const DashboardOverview = ({ setActiveTab }) => {
       totalPcs += pcs;
       totalAmount += amt;
 
-      const isKhan = matchesKeywords(item, khanMatch);
-      const isMk = matchesKeywords(item, mkMatch);
+      const isKhan = isDispatchToShop(item, 'khan');
+      const isMk = isDispatchToShop(item, 'mk');
 
       if (isKhan) {
         khanPcs += pcs;
